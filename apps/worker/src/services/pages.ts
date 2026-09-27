@@ -88,6 +88,10 @@ function derived(doc: LintDocument) {
   return { docType: fm.type, status: fm.status, owner: fm.owner, tags: [...new Set(fm.tags)] };
 }
 
+/**
+ * All of a page's links in one statement: rows travel as a JSON parameter, so a page with
+ * many links costs one D1 statement instead of one each (and stays under 100 bindings).
+ */
 function linkRows(
   DB: D1Database,
   pageId: string,
@@ -95,17 +99,29 @@ function linkRows(
   targets: LinkTarget[],
   resolved: ResolvedLinks,
 ) {
-  return targets.map((t) =>
+  if (targets.length === 0) return [];
+  const rows = targets.map((t) => [
+    t.spaceKey ?? spaceKey,
+    t.title,
+    lookupLink(resolved, t, spaceKey),
+  ]);
+  return [
     DB.prepare(
-      'INSERT INTO page_links (from_page_id, target_space_key, target_title, to_page_id) VALUES (?, ?, ?, ?)',
-    ).bind(pageId, t.spaceKey ?? spaceKey, t.title, lookupLink(resolved, t, spaceKey)),
-  );
+      `INSERT INTO page_links (from_page_id, target_space_key, target_title, to_page_id)
+       SELECT ?, json_extract(value, '$[0]'), json_extract(value, '$[1]'), json_extract(value, '$[2]')
+       FROM json_each(?)`,
+    ).bind(pageId, JSON.stringify(rows)),
+  ];
 }
 
 function tagRows(DB: D1Database, pageId: string, tags: string[]) {
-  return tags.map((tag) =>
-    DB.prepare('INSERT INTO page_tags (page_id, tag) VALUES (?, ?)').bind(pageId, tag),
-  );
+  if (tags.length === 0) return [];
+  return [
+    DB.prepare('INSERT INTO page_tags (page_id, tag) SELECT ?, value FROM json_each(?)').bind(
+      pageId,
+      JSON.stringify(tags),
+    ),
+  ];
 }
 
 /** Links that were broken because no page had this title now point at `pageId`. */

@@ -1,5 +1,5 @@
 import { stripInlineCode } from '../../markdown/lines';
-import type { LintRule, RuleViolation } from '../types';
+import { type LintRule, memo, type RuleViolation } from '../types';
 
 const EMPTY_ALT_RE = /!\[\s*\]\(/g;
 
@@ -44,8 +44,8 @@ export const docLength: LintRule = {
   id: 'clavis/doc-length',
   severity: 'info',
   blocking: false,
-  check({ content }) {
-    const bytes = utf8Length(content);
+  check(doc) {
+    const bytes = memo(doc, 'bytes', () => utf8Length(doc.content));
     if (bytes <= DOC_LENGTH_SOFT_LIMIT) return [];
     return [
       {
@@ -57,17 +57,12 @@ export const docLength: LintRule = {
   },
 };
 
-/** UTF-8 byte length without allocating an encoded copy. */
+const encoder = new TextEncoder();
+
+/**
+ * UTF-8 byte length. The engine's native encoder beats a JavaScript loop by a wide margin
+ * on a cold Worker isolate, even though it allocates a copy (H2).
+ */
 export function utf8Length(s: string): number {
-  let n = 0;
-  for (let i = 0; i < s.length; i++) {
-    const c = s.charCodeAt(i);
-    if (c < 0x80) n += 1;
-    else if (c < 0x800) n += 2;
-    else if (c >= 0xd800 && c <= 0xdbff) {
-      n += 4;
-      i++;
-    } else n += 3;
-  }
-  return n;
+  return encoder.encode(s).byteLength;
 }

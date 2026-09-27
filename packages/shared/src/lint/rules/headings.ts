@@ -1,4 +1,4 @@
-import type { LintRule, RuleViolation } from '../types';
+import { type LintDocument, type LintRule, memo, type RuleViolation } from '../types';
 
 const ATX_HEADING_RE = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/;
 
@@ -7,6 +7,9 @@ export interface Heading {
   text: string;
   line: number;
 }
+
+/** The document's headings, scanned once for all rules. */
+export const docHeadings = (doc: LintDocument) => memo(doc, 'headings', () => headings(doc.lines));
 
 /** ATX headings outside code fences. */
 export function headings(lines: { text: string; line: number; inFence: boolean }[]): Heading[] {
@@ -23,8 +26,8 @@ export const noH1: LintRule = {
   id: 'clavis/no-h1',
   severity: 'warning',
   blocking: false,
-  check({ lines }) {
-    return headings(lines)
+  check(doc) {
+    return docHeadings(doc)
       .filter((h) => h.level === 1)
       .map((h) => ({
         line: h.line,
@@ -37,11 +40,11 @@ export const headingIncrement: LintRule = {
   id: 'clavis/heading-increment',
   severity: 'warning',
   blocking: false,
-  check({ lines }) {
+  check(doc) {
     const out: RuleViolation[] = [];
     // The page title acts as H1, so the body may start at H2.
     let prev = 1;
-    for (const h of headings(lines)) {
+    for (const h of docHeadings(doc)) {
       if (h.level > prev + 1) {
         out.push({
           line: h.line,

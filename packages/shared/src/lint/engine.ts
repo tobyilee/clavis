@@ -37,6 +37,7 @@ export function parseDocument(content: string): LintDocument {
     split,
     lines: scanLines(split.body, split.bodyStartLine),
     frontmatter: parsed?.success ? parsed.data : null,
+    memo: new Map(),
   };
 }
 

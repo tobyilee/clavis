@@ -1,5 +1,10 @@
-import { hasErrors, type LintDocument, lint, parseDocument } from '@clavis/shared/lint';
-import { extractWikiLinks } from '@clavis/shared/markdown';
+import {
+  docWikiLinks,
+  hasErrors,
+  type LintDocument,
+  lint,
+  parseDocument,
+} from '@clavis/shared/lint';
 import type { Violation } from '@clavis/shared/schema';
 import { ServiceError } from './errors';
 
@@ -18,7 +23,8 @@ export function linkTargets(
 ): LinkTarget[] {
   const doc = typeof content === 'string' ? parseDocument(content) : content;
   const seen = new Map<string, LinkTarget>();
-  for (const l of extractWikiLinks(doc.lines)) {
+  // Memoized on the document: the wiki-link lint rule reuses the same extraction.
+  for (const l of docWikiLinks(doc)) {
     const spaceKey = l.spaceKey ?? currentSpaceKey;
     seen.set(linkKey(spaceKey ?? '', l.title), { spaceKey, title: l.title });
   }

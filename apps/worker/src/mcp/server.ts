@@ -97,53 +97,83 @@ async function guard(run: () => Promise<ToolResult>): Promise<ToolResult> {
 const pageArg = z.string().describe('Short id (e.g. "a1b2c3") or "SPACEKEY:Page title"');
 
 /**
- * Tool input schemas, built once per isolate. The server itself must be new per request
- * (stateless transport), but rebuilding every zod schema each time showed up in request
- * CPU (H2).
+ * Wraps a zod schema so its JSON Schema is computed once per isolate. McpServer converts
+ * every tool's schema eagerly in registerTool, and the server is new per request (stateless
+ * transport), so without this each MCP call paid for nine conversions (H2: ~15ms CPU).
+ * Validation still goes to zod.
  */
+function cached<T extends z.ZodType>(schema: T): T {
+  const std = schema['~standard'];
+  const memo: Partial<Record<'input' | 'output', unknown>> = {};
+  const jsonSchema = std.jsonSchema;
+  if (!jsonSchema) return schema;
+  const wrapped = {
+    ...std,
+    validate: (value: unknown) => std.validate(value),
+    jsonSchema: {
+      input: (options: Parameters<typeof jsonSchema.input>[0]) =>
+        (memo.input ??= jsonSchema.input(options)) as ReturnType<typeof jsonSchema.input>,
+      output: (options: Parameters<typeof jsonSchema.output>[0]) =>
+        (memo.output ??= jsonSchema.output(options)) as ReturnType<typeof jsonSchema.output>,
+    },
+  };
+  return { '~standard': wrapped } as unknown as T;
+}
+
+/** Tool input schemas, built (and converted to JSON Schema) once per isolate. */
 const INPUT = {
-  get_space_tree: z.object({ space: z.string().describe('Space key, e.g. "PAY"') }),
-  read_page: z.object({ page: pageArg }),
-  search_pages: z.object({
-    query: z.string().min(1).max(200),
-    space: z.string().optional().describe('Limit to a space key'),
-    type: z.enum(DOC_TYPES).optional(),
-    status: z.enum(DOC_STATUSES).optional(),
-    limit: z.number().int().min(1).max(50).optional(),
-  }),
-  list_templates: z.object({ locale: z.enum(['ko', 'en']).optional() }),
-  lint_markdown: z.object({
-    content: z.string().max(200_000),
-    space: z.string().optional(),
-    page: z.string().optional().describe('Short id of the page the content belongs to'),
-  }),
-  create_page: z.object({
-    space: z.string().describe('Space key, e.g. "PAY"'),
-    title: PageTitleSchema,
-    content: z.string().optional(),
-    template: z.enum(DOC_TYPES).optional(),
-    parent: z.string().optional().describe('Parent page short id; omit for top level'),
-    after: z.string().optional().describe('Sibling short id to place the page after'),
-  }),
-  update_page: z.object({
-    page: pageArg,
-    content: z.string().describe('Full Markdown including frontmatter'),
-    baseRevision: z.number().int().positive(),
-    title: PageTitleSchema.optional().describe(
-      'New title; renaming breaks [[links]] to the old one',
-    ),
-  }),
-  move_page: z.object({
-    page: pageArg,
-    parent: z
-      .string()
-      .nullable()
-      .optional()
-      .describe('New parent short id, null for top level; omit to keep the parent'),
-    after: z.string().optional().describe('Sibling short id to place after'),
-    before: z.string().optional().describe('Sibling short id to place before'),
-  }),
-  delete_page: z.object({ page: pageArg }),
+  get_space_tree: cached(z.object({ space: z.string().describe('Space key, e.g. "PAY"') })),
+  read_page: cached(z.object({ page: pageArg })),
+  search_pages: cached(
+    z.object({
+      query: z.string().min(1).max(200),
+      space: z.string().optional().describe('Limit to a space key'),
+      type: z.enum(DOC_TYPES).optional(),
+      status: z.enum(DOC_STATUSES).optional(),
+      limit: z.number().int().min(1).max(50).optional(),
+    }),
+  ),
+  list_templates: cached(z.object({ locale: z.enum(['ko', 'en']).optional() })),
+  lint_markdown: cached(
+    z.object({
+      content: z.string().max(200_000),
+      space: z.string().optional(),
+      page: z.string().optional().describe('Short id of the page the content belongs to'),
+    }),
+  ),
+  create_page: cached(
+    z.object({
+      space: z.string().describe('Space key, e.g. "PAY"'),
+      title: PageTitleSchema,
+      content: z.string().optional(),
+      template: z.enum(DOC_TYPES).optional(),
+      parent: z.string().optional().describe('Parent page short id; omit for top level'),
+      after: z.string().optional().describe('Sibling short id to place the page after'),
+    }),
+  ),
+  update_page: cached(
+    z.object({
+      page: pageArg,
+      content: z.string().describe('Full Markdown including frontmatter'),
+      baseRevision: z.number().int().positive(),
+      title: PageTitleSchema.optional().describe(
+        'New title; renaming breaks [[links]] to the old one',
+      ),
+    }),
+  ),
+  move_page: cached(
+    z.object({
+      page: pageArg,
+      parent: z
+        .string()
+        .nullable()
+        .optional()
+        .describe('New parent short id, null for top level; omit to keep the parent'),
+      after: z.string().optional().describe('Sibling short id to place after'),
+      before: z.string().optional().describe('Sibling short id to place before'),
+    }),
+  ),
+  delete_page: cached(z.object({ page: pageArg })),
 };
 
 /**

@@ -10,6 +10,19 @@ export interface LintDocument {
   lines: ScannedLine[];
   /** Validated frontmatter, or null when missing or invalid. */
   frontmatter: Frontmatter | null;
+  /** Per-document results shared between rules (see memo()). */
+  memo: Map<string, unknown>;
+}
+
+/**
+ * Computes a derived value once per document. Several rules need the same scan (headings,
+ * wiki links), and on the Worker every repeated pass over a 100KB page is CPU (H2).
+ */
+export function memo<T>(doc: LintDocument, key: string, compute: () => T): T {
+  if (doc.memo.has(key)) return doc.memo.get(key) as T;
+  const value = compute();
+  doc.memo.set(key, value);
+  return value;
 }
 
 export interface LintEnv {
