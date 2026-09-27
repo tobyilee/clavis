@@ -1,10 +1,21 @@
 {
-  "app": { "search": "Search", "newPage": "New page", "trash": "Trash", "toc": "On this page" },
+  "app": {
+    "search": "Search",
+    "newPage": "New page",
+    "trash": "Trash",
+    "toc": "On this page"
+  },
   "home": {
     "title": "Spaces",
     "empty": "No spaces yet.",
     "serverStatus": "Server status",
     "serverOk": "OK",
     "serverDown": "Unreachable"
+  },
+  "auth": {
+    "pendingTitle": "Waiting for approval",
+    "pendingBody": "You're signed in as {{email}}. You'll see the wiki once an admin grants you a role.",
+    "signedOutTitle": "Sign-in required",
+    "signedOutBody": "Open Clavis again through the Cloudflare Access login."
   }
 }

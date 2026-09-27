@@ -17,7 +17,8 @@ export const actors = sqliteTable('actors', {
   kind: text('kind', { enum: ['human', 'agent'] }).notNull(),
   name: text('name').notNull(),
   email: text('email').unique(),
-  role: text('role', { enum: ['admin', 'editor', 'viewer'] }).notNull(),
+  /** 'pending' humans have logged in but await Admin approval (D-29 revised). */
+  role: text('role', { enum: ['admin', 'editor', 'viewer', 'pending'] }).notNull(),
   locale: text('locale').notNull().default('ko'),
   createdAt: createdAt(),
   disabledAt: integer('disabled_at'),

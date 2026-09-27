@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { LANGUAGES } from '@/i18n';
+import { useMe } from '@/lib/me';
 import { cn } from '@/lib/utils';
 
 /** Page tree placeholder; the real tree arrives with the Page feature in Phase 1. */
@@ -46,6 +47,19 @@ function LanguageToggle() {
   );
 }
 
+function CurrentUser() {
+  const { data } = useMe();
+  if (!data) return null;
+  return (
+    <span
+      className="hidden max-w-40 truncate text-xs text-muted-foreground sm:inline"
+      title={data.email ?? ''}
+    >
+      {data.name}
+    </span>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   return (
@@ -75,6 +89,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <kbd className="hidden text-xs sm:inline">⌘K</kbd>
         </button>
         <LanguageToggle />
+        <CurrentUser />
       </header>
       <div className="flex flex-1">
         <aside className="hidden w-64 shrink-0 border-r bg-sidebar md:block">

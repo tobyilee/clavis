@@ -10,18 +10,24 @@
     "typecheck": "tsc -p .",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply DB --local"
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "agent:create": "tsx scripts/create-agent.ts"
   },
   "dependencies": {
     "@clavis/shared": "workspace:*",
     "@hono/zod-openapi": "^1.6.3",
+    "@modelcontextprotocol/server": "2.0.0",
+    "agents": "^0.24.0",
     "drizzle-orm": "^0.45.3",
     "hono": "^4.13.9",
+    "jose": "^6.2.12",
+    "ulid": "^3.0.2",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",
     "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15",
     "vitest": "^4.1.11",
     "wrangler": "^4.141.0"
   }

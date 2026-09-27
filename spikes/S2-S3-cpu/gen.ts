@@ -30,8 +30,14 @@ export async function approve(req: ApproveRequest): Promise<ApproveResult> {
 > 부분 취소는 Phase 2에서 지원한다.
 
 `;
-  let out = fm;
-  let i = 1;
-  while (new TextEncoder().encode(out).length < targetBytes) out += section(i++);
-  return out;
+  // Track size incrementally: re-encoding the whole string each loop is O(n²).
+  const enc = new TextEncoder();
+  const parts = [fm];
+  let size = enc.encode(fm).length;
+  for (let i = 1; size < targetBytes; i++) {
+    const s = section(i);
+    parts.push(s);
+    size += enc.encode(s).length;
+  }
+  return parts.join('');
 }

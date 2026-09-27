@@ -10,13 +10,13 @@
 | D-02 | 프론트엔드 기술 스택 | Decided | React + Vite SPA |
 | D-03 | 문서 저장 방식 | Decided | DB에 Markdown 원문 저장 |
 | D-04 | 데이터베이스 | Decided | Cloudflare D1 |
-| D-05 | 인증 & 권한 | Decided | Cloudflare Access + API Token, 전역 역할 |
+| D-05 | 인증 & 권한 | Decided (rev. Step 3) | workers.dev + Worker 단위 Access(이메일 코드 → 추후 Google, @gmail.com), 에이전트는 Access Service Token + Clavis API Token, 전역 역할 |
 | D-06 | 모바일 편집 범위 | Decided | 읽기 우선 + 간단 편집 |
 | D-07 | 페이지 구조 | Decided | 페이지 트리 (Confluence 방식) |
 | D-08 | 페이지 URL 형식 | Decided | `slug-shortId` |
 | D-09 | Lint 위반 시 저장 정책 | Decided | error만 차단 |
 | D-10 | Frontmatter | Decided | 필수 + 폼 UI |
-| D-11 | 검색 | Verify | D1 FTS5 trigram |
+| D-11 | 검색 | Decided (S1) | D1 FTS5 trigram, external content + 트리거, 3자 미만은 LIKE |
 | D-12 | 에이전트 연동 수단 | Decided | REST API + Remote MCP (둘 다 P1) |
 | D-13 | 에이전트 쓰기 정책 / Hermes | Decided | 자유 수정 + 작성자 표시 / Hermes는 MCP |
 | D-14 | Markdown 확장 문법 | Decided | Mermaid, Callout, 위키 링크 |
@@ -33,11 +33,12 @@
 | D-25 | UI 스타일링 | Decided | Tailwind + shadcn/ui |
 | D-26 | REST API 정의 방식 | Decided | Hono + zod-openapi |
 | D-27 | 서버측 lint 범위 | Decided (rev. S3) | 서버는 Clavis 줄 단위 규칙 전체, markdownlint 스타일 규칙은 브라우저 전용 |
-| D-28 | 페이지 원문 저장 형식 | Proposed | frontmatter 포함 Markdown 전체를 `content`에 저장, 메타는 파생 컬럼 |
-| D-29 | 사용자 등록 방식 | Proposed | 첫 로그인 시 Viewer 자동 생성, 최초 사용자는 Admin |
-| D-30 | 운영 백업 | Proposed | D1 Time Travel + 야간 Markdown 덤프(R2, 14일) |
-| D-31 | 첨부 참조 문법 | Proposed | `attachments/<파일명>` 상대 경로 |
-| D-32 | 형제 페이지 순서 | Proposed | fractional index 문자열 |
+| D-28 | 페이지 원문 저장 형식 | Decided | frontmatter 포함 Markdown 전체를 `content`에 저장, 메타는 파생 컬럼 |
+| D-29 | 사용자 등록 방식 | Decided (rev.) | 최초 사용자는 Admin, 이후 로그인은 `pending`(승인 대기) → Admin이 역할 부여 |
+| D-30 | 운영 백업 | Decided (S6) | D1 Time Travel + 야간 분할 Markdown 백업(150KB/실행, 2분 간격 60회, R2 14일 보관) |
+| D-31 | 첨부 참조 문법 | Decided | `attachments/<파일명>` 상대 경로 |
+| D-32 | 형제 페이지 순서 | Decided | fractional index 문자열 |
+| D-33 | 문서 크기 상한 | Decided | 본문 100KB (저장 CPU 여유 확보, AI 컨텍스트 고려) |
 
 ---
 
@@ -86,7 +87,9 @@
 ### D-11 — 검색 (Verify)
 - **결정**: D1 FTS5 + trigram tokenizer로 제목/본문 전문 검색.
 - **선택지**: FTS5 + Vectorize 시맨틱 검색을 P1에 포함.
-- **검증 필요**: D1에서 trigram tokenizer 사용 가능 여부, 2글자 한국어 검색어(예: "결제") 처리 방법.
+- **S1 결과 (2026-09-27, 로컬·원격 동일)**: trigram 사용 가능. `content='pages'` external content 테이블 + INSERT/UPDATE/DELETE 트리거로 동기화, `snippet()`·`bm25()`·`rebuild` 동작.
+- **확정 규칙**: 검색어 3자 이상은 FTS5 MATCH, 3자 미만은 `LIKE` 대체. 띄어쓰기가 다른 표현(`부분 환불` ↔ `부분환불`)은 P1에서 미지원.
+- **참고**: D1은 `sqlite_version()` 호출을 허용하지 않는다.
 
 ### D-12 — 에이전트 연동 수단
 - **결정**: REST API + Remote MCP 서버를 P1에 포함. CLI는 만들지 않음. 원본 `.md` URL / `llms.txt`는 P2 선택 사항.
@@ -131,5 +134,36 @@
 - **선택지**: Workers Paid($5/월)로 전체 서버 실행, 문서 크기 상한 조건부 전체 실행.
 - **영향**: `LintRule`에 "AST 사용 금지" 제약이 생긴다. 규칙 추가 시 CPU 회귀를 막기 위해 벤치마크(`spikes/S2-S3-cpu`)를 CI 성능 테스트로 승격한다.
 
-### D-28 ~ D-32 — 아키텍처 제안 (검토 필요)
-상세는 [`01-architecture.md`](./01-architecture.md) §4, §5, §10 참고. 이의가 없으면 Decided로 전환.
+### D-28, D-31, D-32, D-33 — 아키텍처 결정 (2026-09-27 확정)
+상세는 [`01-architecture.md`](./01-architecture.md) §5, §6, §10 참고.
+- **D-28**: frontmatter 포함 Markdown 전체를 `pages.content`에 저장, `doc_type`·`status`·`owner`·`page_tags`는 저장 시 추출하는 파생 데이터. (대안: 메타·본문 분리 저장)
+- **D-31**: 첨부는 `attachments/<파일명>` 상대 경로로 참조, 파일명은 페이지 안에서 유일. (대안: 첨부 ID 참조)
+- **D-32**: 형제 순서는 fractional index 문자열, 이동 시 한 행만 갱신. (대안: 정수 순번)
+- **D-33**: 본문 100KB 상한, 초과 시 413. Cloudflare 실측 100KB 저장 CPU 3.5ms. (대안: 200KB, 상한 없음)
+
+### D-30 — 운영 백업 (S6 결과로 확정, 2026-09-27)
+- **결정**: D1 Time Travel(7일) + 야간 **분할** Markdown 백업. Cron `*/2 17-18 * * *`(02:00~03:58 KST, 최대 60회)마다 다음 ~150KB 분량의 페이지를 `backup/{date}/part-NNN.tar`로 저장하고, 커서를 `state.json`에 기록, 마지막 실행에서 `meta.json` 작성. 14일 보관.
+- **선택지**: 단일 실행 유지 후 모니터링, 변경분만 백업, Workers Paid.
+- **이유**: 단일 실행은 500페이지에 CPU 106ms(명목 10ms)로 플랫폼 관용에 의존. 분할 시 실행당 중앙값 5.5ms, 최대 9ms.
+- **용량**: 60회 × 150KB ≈ 9MB/일. 문서 약 800건(10KB 기준)까지 하룻밤에 완료. 초과 시 창을 늘리거나 유료 플랜 검토.
+- **주의**: Cron 스케줄 변경은 적용까지 수 분~30분 이상 걸릴 수 있다. 실행 여부는 `state.json`과 Workers 로그로 확인.
+
+### D-05 — 인증 구성 개정 (Phase 0 Step 3, 2026-09-27)
+- **결정**: 커스텀 도메인 없이 `clavis.crawl-proxy.workers.dev`를 유지하고, **Worker 단위 Access**(one-click, All traffic)로 Worker 전체를 보호한다. 로그인은 **Access One-time PIN(이메일 코드)으로 시작하고 Google은 나중에 추가**, 허용 대상은 `@gmail.com`. Zero Trust 팀: `red-voice-3160`.
+- **이메일/비밀번호 방식을 택하지 않은 이유**: 안전한 비밀번호 해시(PBKDF2 60만 회 등)는 요청당 CPU 수백 ms로 무료 플랜 10ms 한도를 넘고, 가입·재설정·세션·무차별 대입 방어가 추가로 필요하다. Access 이메일 코드는 코드 변경 없이 동작하며 Google 추가 시에도 Worker 코드는 그대로다 (`ctx.access.getIdentity()`가 로그인 방식과 무관하게 이메일을 준다).
+- **에이전트**: Access **Service Token**(헤더 `CF-Access-Client-Id`/`CF-Access-Client-Secret`)으로 엣지를 통과하고, Clavis **API Token**(`Authorization: Bearer clv_…`)으로 에이전트 신원을 식별한다. 두 자격 증명이 모두 있어야 한다.
+- **Worker 측**: 사람의 신원은 `ctx.access.getIdentity()`를 우선 사용하되, **실제로는 이 Worker에서 `ctx.access`가 채워지지 않았다**(S4 진단, 2026-09-27: `hasCtxAccess=false`, JWT 헤더에는 email 존재). 그래서 `Cf-Access-Jwt-Assertion` JWT를 `jose`로 검증하는 폴백을 둔다 — 서명(팀 JWKS `…/cdn-cgi/access/certs`), `iss`=`https://red-voice-3160.cloudflareaccess.com`, `aud`=Access 앱 AUD(`wrangler.jsonc` vars), 만료. email 없는 JWT(서비스 토큰)는 사람으로 인정하지 않는다. Bearer가 있으면 Access 신원보다 우선한다.
+- **AUD 변경 시**: Worker의 Access를 껐다 켜거나 앱을 다시 만들면 AUD가 바뀐다 → `ACCESS_AUD`를 갱신해야 로그인이 된다.
+- **선택지**: `playcoin.game` 하위 도메인 + 경로 bypass, 새 도메인 추가.
+- **이유**: 도메인 없이 바로 운영 가능. Worker 단위 Access는 경로별 bypass가 없으므로 service token으로 에이전트를 통과시킨다.
+- **대가**: 에이전트 자격 증명이 두 곳(Cloudflare 대시보드, Clavis)에서 관리된다.
+
+### D-29 — 사용자 등록 (개정, 2026-09-27)
+- **결정**: 최초 로그인 사용자는 Admin. 이후 새 사용자는 `pending` 역할로 생성되어 `/me` 외 모든 API가 `403 approval-pending`, 화면은 "승인 대기"만 표시. Admin이 역할을 부여해야 문서를 볼 수 있다.
+- **이유**: Access가 모든 `@gmail.com` 주소를 허용하므로, 자동 Viewer는 사실상 공개와 같다.
+- **구현 메모**: 최초 Admin 판정은 단일 INSERT … SELECT 문으로 처리해 동시 첫 로그인 경합을 막는다. Admin은 자기 자신의 역할을 바꿀 수 없다(잠김 방지). 에이전트는 editor/viewer만 가능.
+
+### D-05 보충 — 운영 설정에서 얻은 교훈 (S4, 2026-09-27)
+- **서비스 토큰 정책의 Action은 반드시 `Service Auth`**. `Allow`로 두면 Access가 서비스 토큰을 평가하지 않고(`service_token_status=false`) 사람 로그인을 요구한다. Worker 화면에서 만든 `clavis - Cloudflare Workers` 앱에서도 Service Auth 정책은 정상 동작한다 — 경로별 앱 분리는 필요 없었다.
+- **자격 증명 파일은 쉘로 source하지 않는다**. `KEY= value`처럼 공백이 있으면 값이 명령으로 실행되어 오류 메시지에 노출된다. `scripts/agent-env.py`로 읽는다 (공백·따옴표·`CF-Access-Client-Id:` 접두어 허용). 이 문제로 서비스 토큰 시크릿이 한 번 노출되어 교체했다.
+- `ACCESS_AUD`는 쉼표로 여러 AUD를 받을 수 있다 (앱을 추가할 경우 대비).

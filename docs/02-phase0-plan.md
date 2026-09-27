@@ -13,11 +13,11 @@ Phase 0의 산출물은 기능이 아니라 **검증된 사실**과 **동작하�
 
 ## 2. 완료 조건 (Exit Criteria)
 
-- [ ] Spike S1~S7이 모두 **통과** 또는 **합의된 대안**으로 결론 나고, 결과가 `decisions.md`에 기록됨
-- [ ] D-11(검색)이 `Verify` → `Decided`로 전환, D-28~D-32가 `Decided`로 전환
-- [ ] 로컬에서 `pnpm dev` 한 번으로 SPA + Worker + 로컬 D1/R2가 동작
+- [x] Spike S1~S7이 모두 **통과** 또는 **합의된 대안**으로 결론 나고, 결과가 `decisions.md`에 기록됨
+- [x] D-11(검색)이 `Verify` → `Decided`로 전환, D-28~D-33이 `Decided`로 전환
+- [x] 로컬에서 `pnpm dev` 한 번으로 SPA + Worker + 로컬 D1/R2가 동작 (로컬 로그인은 `apps/worker/.dev.vars`의 `DEV_ACCESS_EMAIL`, localhost 전용)
 - [ ] `main`에 push하면 CI(타입체크·테스트) 후 Cloudflare에 자동 배포
-- [ ] 배포된 환경에서 사람(Access 로그인)과 에이전트(Bearer 토큰)가 모두 `GET /api/v1/me` 응답을 받음
+- [x] 배포된 환경에서 사람(Access 로그인)과 에이전트(Bearer 토큰)가 모두 `GET /api/v1/me` 응답을 받음
 
 ## 3. 역할 분담
 
@@ -73,7 +73,7 @@ S2·S3 로컬 벤치마크 (근사치)
 
 | ID | 작업 | 완료 기준 |
 |---|---|---|
-| T6 | 원격 리소스 | `clavis` D1, `clavis-files` R2 생성, 마이그레이션 적용, `wrangler deploy` 성공 |
+| T6 | 원격 리소스 | ✅ `clavis` D1, `clavis-files` R2 생성, 마이그레이션 적용, https://clavis.crawl-proxy.workers.dev 배포 (2026-09-27) |
 | S1' | FTS 원격 재검증 | 원격 D1에서 S1과 동일 결과 |
 | S2'·S3' | CPU 실측 | 임시 벤치 엔드포인트를 배포해 Workers Logs `cpuTime` 확인 → **< 10ms** 판정 |
 | S6 | Cron 덤프 | 샘플 500페이지 적재 후 `scheduled()` 수동 트리거, R2에 Markdown 파일 생성, CPU 한도 내 완료 |
@@ -83,9 +83,9 @@ S2·S3 로컬 벤치마크 (근사치)
 
 | ID | 작업 | 완료 기준 |
 |---|---|---|
-| T8 | 인증 미들웨어 | Access 앱(전체) + Bypass 앱(`/api/*`, `/mcp`, `/files/*`), Worker에서 `CF_Authorization` 쿠키 JWT 검증, Bearer 토큰 검증, 최초 사용자 Admin 자동 생성 |
+| T8 | 인증 미들웨어 | ✅ Worker 단위 Access(이메일 PIN, @gmail.com) + Access JWT 검증 폴백 + Bearer 토큰, 최초 사용자 Admin·이후 pending, 역할 검사, actor 기준 rate limit, 승인 대기 화면 (D-05·D-29 개정) |
 | S4 | 인증 경로 검증 | 브라우저(SPA)·`curl`(Bearer)·무인증 요청이 각각 200/200/401 |
-| T9 | `/api/v1/me` + 토큰 발급 | 관리자 CLI 스크립트 또는 임시 API로 에이전트 토큰 발급 |
+| T9 | `/api/v1/me` + 토큰 발급 | ✅ `/me`, 관리자 API(사용자 승인·에이전트 등록·토큰 발급/폐기), 부트스트랩 CLI `pnpm --filter @clavis/worker agent:create` (토큰은 `.agent.env`에만 기록) |
 | S5 | MCP + Hermes | Stateless `createMcpHandler`로 `/mcp`에 `list_spaces`·`read_page` 더미 도구, Hermes Agent 및 Claude Code에서 연결·호출 성공 |
 
 ### Step 4 — CI/CD 🤝 (U3, U4 필요)
@@ -117,10 +117,10 @@ S2·S3 로컬 벤치마크 (근사치)
 
 | # | 상태 | 결과 요약 | 날짜 |
 |---|---|---|---|
-| S1 | ✅ 로컬 통과 (원격 재검증 대기) | trigram + external content + 트리거 동작. 3자 이상 한국어 부분 일치, snippet/bm25, rebuild 확인. 2자 이하는 LIKE 대체, 띄어쓰기 차이는 미지원. [상세](../spikes/S1-fts/README.md) | 2026-09-27 |
-| S2 | ✅ 로컬 통과 (원격 실측 대기) | 100KB 저장 p95 0.51ms — 한도의 1/20. [상세](../spikes/S2-S3-cpu/README.md) | 2026-09-27 |
-| S3 | ❌ 실패 → 대안 채택 (D-27 개정) | 전체 lint 10KB 12.9ms, 50KB 61ms. 비용은 AST 파싱(remark·markdownlint, ~0.5ms/KB). Clavis 줄 단위 규칙은 100KB 0.4ms. [상세](../spikes/S2-S3-cpu/README.md) | 2026-09-27 |
-| S4 | ⏳ | | |
-| S5 | ⏳ | | |
-| S6 | ⏳ | | |
-| S7 | ⏳ | | |
+| S1 | ✅ 통과 (로컬·원격 동일) | trigram + external content + 트리거 동작. 3자 이상 한국어 부분 일치, snippet/bm25, rebuild 확인. 2자 이하는 LIKE 대체, 띄어쓰기 차이는 미지원. [상세](../spikes/S1-fts/README.md) | 2026-09-27 |
+| S2 | ✅ 통과 (원격 실측) | Cloudflare 실측 100KB 저장 중앙값 3.5ms, 최대 6ms (로컬 대비 5~7배 느림). 문서 크기 상한 100KB 제안(D-33). [상세](../spikes/S2-S3-cpu/README.md) | 2026-09-27 |
+| S3 | ❌ 실패 → 대안 채택 (D-27 개정) | 원격 실측 remark 10KB 25ms, markdownlint 10KB 28.5ms. 로컬 전체 lint 10KB 12.9ms, 50KB 61ms. 비용은 AST 파싱(remark·markdownlint, ~0.5ms/KB). Clavis 줄 단위 규칙은 100KB 0.4ms. [상세](../spikes/S2-S3-cpu/README.md) | 2026-09-27 |
+| S4 | ✅ 통과 | 운영 환경 8가지 경로 모두 기대대로: 출입증 없음·Clavis 토큰만·틀린/옛 서비스 시크릿 → Access 302, 서비스 토큰만 → 401, 서비스 토큰+틀린 Clavis 토큰 → 401, 서비스 토큰+Hermes 토큰 → 200(agent), Hermes(editor)→관리자 API → 403. 사람은 이메일 PIN 로그인 후 Admin 자동 지정 확인. 원인 두 가지를 해결: `ctx.access` 미제공(→ JWT 검증 폴백), 서비스 토큰 정책 Action이 Allow였음(→ Service Auth) | 2026-09-27 |
+| S5 | ✅ 통과 | 다른 시스템의 Hermes Agent에서 `hermes mcp test clavis` 성공. Stateless MCP(`agents/mcp/server` + MCP SDK v2)로 `/mcp` 구현, 도구 `list_spaces`·`get_space_tree`·`read_page`. 운영 환경에서 JSON-RPC로 initialize·tools/list·tools/call 모두 성공(에이전트 `hermes` 신원), 자격 증명 없으면 Access 302. 연결 가이드: [guides/agent-connection.md](./guides/agent-connection.md) | 2026-09-27 |
+| S6 | ✅ 통과 (분할 백업, D-30 개정) | 단일 실행은 500페이지에 CPU 106ms로 초과 → 150KB 단위 분할 백업으로 전환. 500페이지 = 34회 실행, CPU 중앙값 5.5ms·최대 9ms, 34회 모두 성공. 분할 파일을 합치면 전체 트리 복원 확인. 서브리퀘스트 50개 제약으로 페이지별 파일 저장은 불가 → 실행당 tar 1개. [상세](../spikes/S6-backup/README.md) | 2026-09-27 |
+| S7 | ✅ 통과 | Rate Limiting 바인딩 무료 플랜 사용 가능. 운영 환경 160회 연속 요청 중 121회 200, 39회 429 (한도 120/60초). 인증 전까지 IP 기준, 이후 actor 기준 | 2026-09-27 |

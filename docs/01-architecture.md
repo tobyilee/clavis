@@ -89,7 +89,7 @@ clavis/
   },
   "d1_databases": [{ "binding": "DB", "database_name": "clavis" }],
   "r2_buckets":   [{ "binding": "FILES", "bucket_name": "clavis-files" }],
-  "triggers":     { "crons": ["0 18 * * *"] }   // 03:00 KST 백업
+  "triggers":     { "crons": ["*/2 17-18 * * *"] }   // 02:00~03:58 KST 분할 백업
 }
 ```
 
@@ -220,16 +220,16 @@ attachments (
 
 ```sql
 CREATE VIRTUAL TABLE pages_fts USING fts5(
-  title, body,
-  content='',                -- contentless: 원문은 pages에만 저장
+  title, content,
+  content='pages', content_rowid='rowid',   -- external content: 원문은 pages에만 저장
   tokenize='trigram'
 );
--- pages 저장 시 서비스 레이어에서 pages_fts를 함께 갱신 (rowid = pages.rowid)
+-- pages의 INSERT/UPDATE/DELETE 트리거로 동기화 (S1에서 검증)
 ```
 
 - **trigram**은 한국어 부분 일치를 지원하지만 **3글자 미만 검색어는 매칭되지 않는다.** 검색어가 2글자 이하이면 `title LIKE ? OR content LIKE ?`로 대체한다 (문서 수백 건 규모에서 충분).
 - **FTS 테이블은 재생성 가능한 파생 데이터**다. `wrangler d1 export`는 FTS5 가상 테이블이 있으면 실패하는 알려진 문제가 있으므로([workers-sdk#9519](https://github.com/cloudflare/workers-sdk/issues/9519)), 백업에서 제외하고 복구 시 `rebuild` 한다 (§10).
-- ⚠ Phase 0 검증: D1에서 `tokenize='trigram'` 사용 가능 여부, contentless 테이블 동작, 결과 하이라이트(`snippet`) 품질.
+- ✅ S1 검증 완료 (로컬·원격): trigram, external content + 트리거, `snippet`, `bm25`, `rebuild` 동작.
 
 ## 6. 저장(Save) 파이프라인
 
@@ -237,10 +237,9 @@ CREATE VIRTUAL TABLE pages_fts USING fts5(
 PUT /api/v1/pages/{id}  { title, content, baseRevision }
   1. 인증/권한 확인 (editor 이상)
   2. frontmatter 파싱 (YAML) ─ 실패 시 422
-  3. 서버 lint: "blocking 규칙"만 실행 (D-27)
-       · frontmatter 스키마 (필수 필드, 허용 값)
-       · 존재하지 않는 첨부 참조
-     error 있으면 → 422 + violations
+  3. 서버 lint: Clavis 규칙 전체 실행 (D-27 개정, AST 없이 줄 단위)
+       · error(frontmatter 스키마, 첨부 참조 등)가 있으면 → 422 + violations
+       · warning/info는 응답에 포함
   4. 링크 추출: [[위키 링크]], 내부 URL (정규식 기반, 코드 블록 제외)
   5. D1 batch (단일 트랜잭션):
        UPDATE pages SET ..., revision = revision + 1
@@ -249,9 +248,10 @@ PUT /api/v1/pages/{id}  { title, content, baseRevision }
   6. 200 { page, revision }
 ```
 
-- **CPU 예산**: 2~4단계는 Markdown 전체 AST를 만들지 않고 frontmatter 파서 + 정규식으로 처리하여 10ms 안에 들어오게 한다.
-- **전체 규칙(warning/info)**은 브라우저 에디터와 `POST /api/v1/lint`(및 MCP `lint_markdown`)에서 실행한다. 에이전트에게는 도구 설명에서 "저장 전 `lint_markdown` 호출"을 권장한다.
-- `POST /api/v1/lint`는 전체 AST를 만들기 때문에 대형 문서에서 CPU 한도를 넘을 수 있다 → Phase 0에서 문서 크기별 CPU 시간 측정. 한도를 넘으면 문서 크기 상한(예: 100KB)을 두거나 유료 플랜($5/월)으로 전환한다.
+- **CPU 예산**: 2~4단계는 Markdown AST를 만들지 않고 frontmatter 파서 + 줄 스캔 + 정규식으로 처리한다. Cloudflare 실측(S2) 100KB 문서 중앙값 3.5ms, 최대 6ms.
+- **AST 기반 파싱은 서버 금지**: remark·markdownlint는 Cloudflare 실측 10KB에 25ms 이상(S3). markdownlint 서식 규칙은 브라우저 에디터에서만 실행한다.
+- **문서 크기 상한**: 본문 100KB (D-33 제안). 초과 시 413.
+- 저장 응답과 `POST /api/v1/lint`(MCP `lint_markdown`)는 같은 Clavis 규칙 결과를 반환하므로, 에이전트는 저장 응답만으로 warning을 확인할 수 있다.
 
 ## 7. Lint 엔진 (`packages/shared/lint`)
 
@@ -345,7 +345,7 @@ interface Violation { ruleId: string; severity: string; message: string; line: n
 | 수단 | 범위 | 복구 |
 |---|---|---|
 | D1 Time Travel | DB 전체, 최근 7일 (무료) | `wrangler d1 time-travel restore` — 전체 시점 복원 |
-| 야간 Markdown 덤프 (Cron) | 모든 페이지를 `backup/{date}/{SPACE}/{path}.md` + `meta.json`으로 R2에 저장, 14일 보관 | 스크립트로 재적재 후 FTS `rebuild` |
+| 야간 분할 Markdown 백업 (Cron) | 2분마다 다음 ~150KB 분량 페이지를 `backup/{date}/part-NNN.tar`(내부 `{SPACE}/{부모--id}/{제목--id}.md`)로 저장, 마지막에 `meta.json`, 14일 보관 (S6) | 모든 part를 한 디렉터리에 풀면 전체 트리, 스크립트로 재적재 후 FTS `rebuild` |
 
 - 야간 덤프는 FTS5 export 문제를 피하는 동시에, 사람이 읽을 수 있는 **Git 내보내기의 전 단계**가 된다.
 - 버전 관리 기능이 아니므로 UI에 노출하지 않는다 (D-21 유지). 단, 운영자가 단일 문서를 수동 복구할 수는 있다.
@@ -357,8 +357,9 @@ interface Violation { ruleId: string; severity: string; message: string; line: n
 |---|---|---|
 | Workers | 요청 | 100,000 / 일 (00:00 UTC 리셋) |
 | | CPU 시간 | **10ms / 요청** |
-| | 서브리퀘스트 | 50 / 요청 |
+| | 서브리퀘스트 | **50 / 요청 — D1·R2 호출 포함** (Cron 포함) |
 | | 정적 자산 요청 | 무료·무제한 (Worker 미호출 시) |
+| | Cron Trigger | 계정당 5개, 실행당 CPU 10ms |
 | D1 | 읽기 / 쓰기 행 | 5,000,000 / 100,000 per 일 |
 | | DB 크기 | **500MB / DB**, 계정 합계 5GB |
 | | 호출당 쿼리 | 50 |
@@ -378,9 +379,10 @@ interface Violation { ruleId: string; severity: string; message: string; line: n
 | D1 저장 | 문서 평균 10KB × 500 + 인덱스 | ≈ 20MB | 4% (500MB 기준) |
 | R2 저장 | 이미지 2,000개 × 300KB | ≈ 600MB | 6% |
 
-**결론**: 규모상 여유가 크다. 실제 병목은 **요청당 CPU 10ms**와 **에이전트 폭주(루프 버그)**다.
+**결론**: 규모상 여유가 크다. 실제 병목은 **요청당 CPU 10ms**, **요청당 서브리퀘스트 50개**, **에이전트 폭주(루프 버그)**다.
+- **서브리퀘스트 규칙**: D1·R2 호출도 1개씩 센다. 서비스 코드는 행마다 쿼리하지 않고 `DB.batch()`로 묶는다 (batch 1회 = 1 서브리퀘스트).
 - 트리 조회는 `ETag`(tree_version)로 `304`를 반환해 D1 읽기를 줄인다.
-- 에이전트 토큰별 분당 호출 제한(Workers Rate Limiting 바인딩 또는 D1 카운터) — Phase 0에서 무료 사용 가능 여부 확인.
+- 에이전트 토큰별 분당 호출 제한: Workers Rate Limiting 바인딩 (S7, 무료 플랜 사용 가능 확인). 기본 120회/60초, 초과 시 `429` + `Retry-After`.
 - 한도 초과 시 무료 플랜은 요청이 실패하므로, 대시보드 알림을 설정한다. 필요 시 Workers Paid($5/월) 전환이 유일한 비용 옵션이다.
 
 ## 12. 프론트엔드
@@ -424,7 +426,7 @@ interface Violation { ruleId: string; severity: string; message: string; line: n
 
 | 환경 | 구성 |
 |---|---|
-| 로컬 | `wrangler dev` (로컬 D1/R2 에뮬레이션) + Vite dev server 프록시. Access 대신 `DEV_ACTOR_EMAIL` 환경 변수로 사용자 주입 |
+| 로컬 | `pnpm dev` = `wrangler dev`(로컬 D1/R2) + Vite dev server 프록시. Access 대신 `apps/worker/.dev.vars`의 `DEV_ACCESS_EMAIL`로 사용자 주입 — localhost 요청에만 적용 |
 | Preview | PR마다 `wrangler versions upload` 미리보기 URL (별도 D1 `clavis-preview`) |
 | Production | `main` 머지 시 GitHub Actions → `wrangler deploy` + `d1 migrations apply` |
 

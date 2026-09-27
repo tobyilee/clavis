@@ -1,5 +1,5 @@
-import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
-import type { AppEnv } from '../app';
+import { createRoute, z } from '@hono/zod-openapi';
+import { router } from './router';
 
 const HealthSchema = z
   .object({
@@ -22,7 +22,7 @@ const route = createRoute({
   },
 });
 
-export const health = new OpenAPIHono<AppEnv>().openapi(route, async (c) => {
+export const health = router().openapi(route, async (c) => {
   let db: 'ok' | 'error' = 'ok';
   try {
     await c.env.DB.prepare('SELECT 1').first();

@@ -1,7 +1,8 @@
 # S1 — D1 FTS5 trigram (Korean search)
 
 Run against local D1 (workerd): `wrangler d1 execute DB --local --file spikes/S1-fts/fts.sql`, then `queries.sql`.
-Remote re-verification pending (Step 2).
+Remote D1 (2026-09-27): **identical results** — run each query with `--command`; remote `--file` executes
+all statements but returns only import stats, not SELECT results.
 
 | Query | Result |
 |---|---|

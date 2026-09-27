@@ -1,0 +1,3 @@
+# Copy to .dev.vars (git-ignored). Local development only — ignored for non-localhost hosts.
+# Signs you in as this person when running `pnpm dev`, standing in for Cloudflare Access.
+DEV_ACCESS_EMAIL=you@gmail.com

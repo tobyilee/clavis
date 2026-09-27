@@ -10,11 +10,10 @@ describe('GET /api/v1/health', () => {
 });
 
 describe('API errors', () => {
-  it('returns problem+json for unknown API routes', async () => {
+  it('requires authentication for non-public API routes', async () => {
     const res = await SELF.fetch('https://clavis.test/api/v1/nope');
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(401);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
-    expect(await res.json()).toMatchObject({ status: 404, title: 'Resource not found' });
   });
 
   it('serves the OpenAPI document', async () => {

@@ -1,10 +1,21 @@
 {
-  "app": { "search": "검색", "newPage": "새 페이지", "trash": "휴지통", "toc": "목차" },
+  "app": {
+    "search": "검색",
+    "newPage": "새 페이지",
+    "trash": "휴지통",
+    "toc": "목차"
+  },
   "home": {
     "title": "Space",
     "empty": "아직 Space가 없습니다.",
     "serverStatus": "서버 상태",
     "serverOk": "정상",
     "serverDown": "연결 실패"
+  },
+  "auth": {
+    "pendingTitle": "승인 대기 중",
+    "pendingBody": "{{email}} 계정으로 로그인했습니다. 관리자가 권한을 부여하면 문서를 볼 수 있습니다.",
+    "signedOutTitle": "로그인이 필요합니다",
+    "signedOutBody": "Cloudflare Access 로그인을 거쳐 다시 접속해 주세요."
   }
 }
