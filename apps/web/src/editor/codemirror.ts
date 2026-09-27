@@ -72,6 +72,9 @@ const theme = EditorView.theme({
     lineHeight: '1.65',
   },
   '.cm-content': { padding: '12px 0', caretColor: 'var(--foreground)' },
+  // drawSelection() hides the native caret and draws its own; without this it is black,
+  // which disappears in dark mode.
+  '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--foreground)', borderLeftWidth: '2px' },
   '.cm-gutters': {
     backgroundColor: 'transparent',
     color: 'var(--muted-foreground)',

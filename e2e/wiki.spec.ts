@@ -210,3 +210,26 @@ test('home: favorites, recently viewed; raw Markdown and llms.txt', async ({ pag
   expect(llms).toContain(`- [자주 보는 문서](http://localhost:8788${url}.md): note, draft`);
   expect(await (await request.get('/llms.txt')).text()).toContain('- [홈 (HOME)]');
 });
+
+test('editor: focused on open, cursor visible in dark mode', async ({ page, request }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await ensureSpace(request, 'QA', '품질');
+  const fm = '---\ntype: note\nstatus: draft\nowner: dev@example.com\n---\n';
+  const res = await request.post('/api/v1/spaces/QA/pages', {
+    data: { title: '커서 확인', content: `${fm}첫 줄\n` },
+  });
+  const p = (await res.json()).page;
+  await page.goto(`/s/QA/p/${encodeURI(`${p.slug}-${p.shortId}`)}/edit`);
+
+  // Ready to type at the start of the body, without a click.
+  await expect(page.locator('.cm-content')).toBeFocused();
+  await expect(page.locator('.cm-activeLine')).toHaveText('첫 줄');
+  const colors = await page.evaluate(() => {
+    const cursor = document.querySelector('.cm-cursor');
+    return {
+      cursor: cursor ? getComputedStyle(cursor).borderLeftColor : null,
+      text: getComputedStyle(document.body).color,
+    };
+  });
+  expect(colors.cursor).toBe(colors.text);
+});

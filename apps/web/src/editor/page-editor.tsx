@@ -1,4 +1,5 @@
 import { sectionsFor } from '@clavis/shared/lint';
+import { splitFrontmatter } from '@clavis/shared/markdown';
 import type { Page, SaveResult, Violation } from '@clavis/shared/schema';
 import { DOC_TYPES, type DocType } from '@clavis/shared/schema';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -84,10 +85,17 @@ export function PageEditor({
   // Phones: the properties form folds away to leave room for writing (D-06).
   const [showProps, setShowProps] = useState(false);
 
-  // Once, after CodeMirror has mounted (child effects run first).
+  // Once, after CodeMirror has mounted (child effects run first): open at the requested line,
+  // or ready to type at the start of the body. Not on touch screens, where focusing would pop
+  // up the keyboard over the page.
+  const opening = useRef({ line: initialLine, content: page.content });
   useEffect(() => {
-    if (initialLine) editor.current?.gotoLine(initialLine);
-  }, [initialLine]);
+    const { line, content } = opening.current;
+    if (line) editor.current?.gotoLine(line);
+    else if (!window.matchMedia('(pointer: coarse)').matches) {
+      editor.current?.gotoLine(splitFrontmatter(content).bodyStartLine);
+    }
+  }, []);
   const leaving = useRef(false);
 
   const dirty = title !== saved.title || content !== saved.content;
