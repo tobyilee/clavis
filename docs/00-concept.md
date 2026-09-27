@@ -347,4 +347,5 @@ tags: [payment, api]
 2. D-28 ~ D-32 제안 검토
 3. Phase 0 Spike(S1~S7) 수행 및 결과 반영
 4. ~~Phase 0 계획~~ → [`02-phase0-plan.md`](./02-phase0-plan.md) (완료)
-5. Phase 1 계획 → [`03-phase1-plan.md`](./03-phase1-plan.md)
+5. ~~Phase 1 계획~~ → [`03-phase1-plan.md`](./03-phase1-plan.md) (완료)
+6. Phase 2 계획 (`04-phase2-plan.md`)
