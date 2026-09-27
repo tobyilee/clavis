@@ -1,5 +1,7 @@
-import { splitFrontmatter } from '@clavis/shared/markdown';
-import { isMap, isSeq, parseDocument } from 'yaml';
+import {
+  splitFrontmatter,
+  updateFrontmatter as updateSharedFrontmatter,
+} from '@clavis/shared/markdown';
 
 export interface FrontmatterFields {
   type: string;
@@ -24,28 +26,7 @@ export function readFrontmatter(content: string): { fields: FrontmatterFields; v
   };
 }
 
-/**
- * Sets frontmatter fields, keeping the rest of the YAML (comments, key order, unknown keys)
- * as it was. Creates the frontmatter block if there is none.
- */
+/** Shared with the server's meta patch (PATCH /pages/{ref}/meta). */
 export function updateFrontmatter(content: string, patch: Partial<FrontmatterFields>): string {
-  const split = splitFrontmatter(content);
-  const doc = parseDocument(split.raw ?? '');
-  if (doc.errors.length > 0 || !(isMap(doc.contents) || doc.contents === null)) {
-    // Unparseable YAML: leave it for the person to fix in the editor.
-    return content;
-  }
-  for (const [key, value] of Object.entries(patch)) {
-    if (key === 'tags') {
-      const node = doc.createNode(value);
-      // tags: [a, b] on one line, as in the templates.
-      if (isSeq(node)) node.flow = true;
-      doc.set(key, node);
-    } else {
-      doc.set(key, value);
-    }
-  }
-  const yaml = doc.toString();
-  const body = split.raw === null ? content : split.body;
-  return `---\n${yaml}---\n${body}`;
+  return updateSharedFrontmatter(content, patch);
 }

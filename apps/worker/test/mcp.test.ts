@@ -56,12 +56,16 @@ describe('MCP endpoint', () => {
       'get_space_health',
       'get_space_tree',
       'lint_markdown',
+      'list_sections',
       'list_spaces',
       'list_templates',
       'move_page',
       'read_page',
+      'read_section',
       'search_pages',
+      'set_page_meta',
       'update_page',
+      'update_section',
     ]);
   });
 
@@ -145,6 +149,64 @@ describe('agent workflow (plan M1)', () => {
     expect(res.isError).toBe(false);
     expect(res.text).toContain('Warnings (2), saved anyway');
     expect(res.text).toContain('clavis/wiki-link-exists');
+  });
+
+  it('edits one section and the status without sending the page (D-48)', async () => {
+    const created = await tool(editor, 'create_page', {
+      space: 'PAY',
+      title: '회의',
+      template: 'meeting',
+    });
+    const id = /PAY\/(\w+)/.exec(created.text)?.[1];
+    const list = (await tool(editor, 'list_sections', { page: id })).text;
+    expect(list).toMatch(/^revision=1\n/);
+    expect(list).toMatch(/- ## 액션 아이템 {2}id=액션-아이템 lines=\d+-\d+ hash=[0-9a-f]{8}/);
+
+    const read = (await tool(editor, 'read_section', { page: id, section: '결정 사항' })).text;
+    const hash = /hash=([0-9a-f]{8})/.exec(read)?.[1];
+    expect(read).toContain('## 결정 사항');
+
+    const appended = await tool(editor, 'update_section', {
+      page: id,
+      section: '액션-아이템',
+      mode: 'append',
+      content: '- [ ] 환불 정책 초안 (hermes)',
+    });
+    expect(appended.isError).toBe(false);
+    expect(appended.text).toMatch(/^Updated section "액션-아이템" of PAY\/\w+ "회의" revision=2/);
+
+    // Unrelated to the appended section, so the old hash still holds.
+    const replaced = await tool(editor, 'update_section', {
+      page: id,
+      section: '결정 사항',
+      mode: 'replace',
+      content: '- 환불은 3일 안에',
+      baseSectionHash: hash,
+    });
+    expect(replaced.isError).toBe(false);
+    const stale = await tool(editor, 'update_section', {
+      page: id,
+      section: '결정 사항',
+      mode: 'replace',
+      content: '덮어쓰기',
+      baseSectionHash: hash,
+    });
+    expect(stale).toMatchObject({ isError: true });
+    expect(stale.text).toContain('- 환불은 3일 안에');
+    expect(stale.text).toContain('Reapply your edit');
+    const blind = await tool(editor, 'update_section', {
+      page: id,
+      section: '결정 사항',
+      mode: 'replace',
+      content: 'x',
+    });
+    expect(blind).toMatchObject({ isError: true });
+
+    const meta = await tool(editor, 'set_page_meta', { page: id, status: 'review' });
+    expect(meta.text).toContain('revision=4');
+    const page = (await tool(editor, 'read_page', { page: id })).text;
+    expect(page).toContain('status: review');
+    expect(page).toContain('- [ ] 환불 정책 초안 (hermes)');
   });
 
   it('reports backlinks and space health', async () => {

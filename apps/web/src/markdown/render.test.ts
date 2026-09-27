@@ -1,3 +1,4 @@
+import { parseSections } from '@clavis/shared/markdown';
 import { toHtml } from 'hast-util-to-html';
 import { describe, expect, it } from 'vitest';
 import { markdownToHast, type RenderContext } from './render';
@@ -66,5 +67,21 @@ describe('markdown rendering', () => {
     expect(out).toContain('<table');
     expect(out).toContain('type="checkbox"');
     expect(out).toContain('class="language-ts"');
+  });
+});
+
+describe('section ids (D-48)', () => {
+  it('match the rendered heading anchors, so a TOC link names the section', () => {
+    const md = [
+      '## 개요',
+      '### **굵은** `코드` 제목',
+      '## [[있음]] 과 [[PAY:정책|규정]]',
+      '### [링크](https://x.dev) 설명!',
+      '## 개요',
+      '## API v2 (초안) — 변경점',
+      '',
+    ].join('\n');
+    const toc = markdownToHast(`${FM}${md}`, ctx).toc.map((t) => t.id);
+    expect(parseSections(`${FM}${md}`).map((s) => s.id)).toEqual(toc);
   });
 });

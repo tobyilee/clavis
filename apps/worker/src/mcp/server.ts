@@ -27,6 +27,7 @@ import {
 } from '../services/pages';
 import { spaceHealth } from '../services/quality';
 import { searchPages } from '../services/search';
+import { listSections, patchPageMeta, readSection, updateSection } from '../services/sections';
 import { listSpaces } from '../services/spaces';
 
 const INSTRUCTIONS = `Clavis is the team's Markdown wiki: specs, planning docs and architecture.
@@ -44,6 +45,10 @@ Writing (editor agents)
   starts with the sections its type requires.
 - Before update_page, read_page to get the current revision and pass it as baseRevision.
   If someone saved in between you get a conflict: read again and reapply your change.
+- For a change to one part of a page, prefer sections: list_sections, read_section, then
+  update_section. Others may edit other sections meanwhile without a conflict. To add a
+  list item or a note (meeting action items, logs), update_section with mode "append".
+- To change only status, owner or tags, use set_page_meta.
 - Link pages with [[Page title]] or [[SPACEKEY:Page title]]; attachments with
   ![alt](attachments/file.png).
 - Warnings do not block a save, but fix them when you can; lint_markdown checks a draft.
@@ -88,6 +93,9 @@ async function guard(run: () => Promise<ToolResult>): Promise<ToolResult> {
     if (e.slug === 'revision-conflict') {
       lines.push('Call read_page to get the latest content and revision, then reapply your edit.');
     }
+    if (e.slug === 'section-conflict') {
+      lines.push('Reapply your edit to the section text above, with the new hash.');
+    }
     if (e.extra.violations?.length) {
       lines.push(
         'Nothing was saved. Fix these and try again:',
@@ -99,6 +107,9 @@ async function guard(run: () => Promise<ToolResult>): Promise<ToolResult> {
 }
 
 const pageArg = z.string().describe('Short id (e.g. "a1b2c3") or "SPACEKEY:Page title"');
+const sectionArg = z
+  .string()
+  .describe('Section id from list_sections (e.g. "액션-아이템") or the heading text');
 
 /**
  * Wraps a zod schema so its JSON Schema is computed once per isolate. McpServer converts
@@ -184,6 +195,32 @@ const INPUT = {
     }),
   ),
   delete_page: cached(z.object({ page: pageArg })),
+  list_sections: cached(z.object({ page: pageArg })),
+  read_section: cached(z.object({ page: pageArg, section: sectionArg })),
+  update_section: cached(
+    z.object({
+      page: pageArg,
+      section: sectionArg,
+      mode: z
+        .enum(['replace', 'append'])
+        .describe(
+          'replace: new body for the section (start with the same-level heading to change it too). append: added after the section, e.g. a new list item',
+        ),
+      content: z.string().describe('Markdown to put in the section'),
+      baseSectionHash: z
+        .string()
+        .optional()
+        .describe('Required for replace: the hash from read_section or list_sections'),
+    }),
+  ),
+  set_page_meta: cached(
+    z.object({
+      page: pageArg,
+      status: z.enum(DOC_STATUSES).optional(),
+      owner: z.string().optional(),
+      tags: z.array(z.string()).optional().describe('Replaces the whole tag list'),
+    }),
+  ),
 };
 
 /**
@@ -322,6 +359,44 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
   );
 
   server.registerTool(
+    'list_sections',
+    {
+      title: 'List sections',
+      description:
+        "A page's headings as sections: id, level, line range and hash. Read or edit one section instead of the whole page.",
+      inputSchema: INPUT.list_sections,
+      annotations: { readOnlyHint: true },
+    },
+    async ({ page }) =>
+      guard(async () => {
+        const { revision, sections } = await listSections(DB, page);
+        if (sections.length === 0) return text(`revision=${revision}\nThe page has no headings.`);
+        const lines = sections.map(
+          (s) =>
+            `${'  '.repeat(s.level - 1)}- ${'#'.repeat(s.level)} ${s.title}  id=${s.id} lines=${s.line}-${s.endLine} hash=${s.hash}`,
+        );
+        return text([`revision=${revision}`, ...lines].join('\n'));
+      }),
+  );
+
+  server.registerTool(
+    'read_section',
+    {
+      title: 'Read section',
+      description:
+        'Read one section (its heading and everything under it) with the hash needed to replace it.',
+      inputSchema: INPUT.read_section,
+      annotations: { readOnlyHint: true },
+    },
+    async ({ page, section }) =>
+      guard(async () => {
+        const r = await readSection(DB, page, section);
+        const header = `<!-- clavis section: id=${r.section.id} lines=${r.section.line}-${r.section.endLine} hash=${r.section.hash} revision=${r.revision} -->`;
+        return text(`${header}\n${r.content}`);
+      }),
+  );
+
+  server.registerTool(
     'search_pages',
     {
       title: 'Search pages',
@@ -426,6 +501,37 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
           );
         }
         return saved('Updated', result.page, result.violations, extra);
+      }),
+  );
+
+  server.registerTool(
+    'update_section',
+    {
+      title: 'Update section',
+      description:
+        'Replace or append to one section of a page, then save the page. replace needs the baseSectionHash from read_section; append needs none.',
+      inputSchema: INPUT.update_section,
+      annotations: { idempotentHint: false },
+    },
+    async ({ page, section, ...input }) =>
+      guard(async () => {
+        const result = await updateSection(DB, actor, page, section, input);
+        return saved(`Updated section "${section}" of`, result.page, result.violations);
+      }),
+  );
+
+  server.registerTool(
+    'set_page_meta',
+    {
+      title: 'Set page status, owner or tags',
+      description: 'Change frontmatter fields without sending the page content.',
+      inputSchema: INPUT.set_page_meta,
+      annotations: { idempotentHint: true },
+    },
+    async ({ page, ...patch }) =>
+      guard(async () => {
+        const result = await patchPageMeta(DB, actor, page, patch);
+        return saved('Updated', result.page, result.violations);
       }),
   );
 

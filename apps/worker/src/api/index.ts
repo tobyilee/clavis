@@ -8,6 +8,7 @@ import { pages } from './pages';
 import { quality } from './quality';
 import { router } from './router';
 import { search } from './search';
+import { sections } from './sections';
 import { spaces } from './spaces';
 import { trash } from './trash';
 
@@ -30,6 +31,7 @@ export function buildApi() {
     admin,
     spaces,
     pages,
+    sections,
     quality,
     trash,
     search,

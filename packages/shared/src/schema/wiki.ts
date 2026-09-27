@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DOC_STATUSES } from './frontmatter';
 import { ViolationSchema } from './problem';
 
 /**
@@ -262,3 +263,59 @@ export const RecheckResultSchema = z.object({
   remaining: z.number().int(),
 });
 export type RecheckResult = z.infer<typeof RecheckResultSchema>;
+
+/** A heading and everything under it (D-48); see @clavis/shared/markdown parseSections. */
+export const SectionSchema = z.object({
+  /** The heading's anchor on the rendered page; pass it (or the heading text) to address it. */
+  id: z.string(),
+  level: z.number().int(),
+  title: z.string(),
+  line: z.number().int(),
+  endLine: z.number().int(),
+  /** Pass back as `baseSectionHash` when replacing this section. */
+  hash: z.string(),
+});
+
+export const SectionListSchema = z.object({
+  revision: z.number().int(),
+  sections: z.array(SectionSchema),
+});
+
+export const SectionReadSchema = z.object({
+  revision: z.number().int(),
+  section: SectionSchema,
+  /** The section's Markdown, heading line included. */
+  content: z.string(),
+});
+
+export const UpdateSectionSchema = z
+  .object({
+    /** replace: new body (a leading heading of the same level replaces the heading too).
+     *  append: added after the section's last line. */
+    mode: z.enum(['replace', 'append']),
+    content: z.string().max(MAX_CONTENT_BYTES),
+    /** The section's hash when you read it: the edit fails only if this section changed. */
+    baseSectionHash: z.string().optional(),
+    /** Strict alternative: fail if anything on the page changed. */
+    baseRevision: z.number().int().positive().optional(),
+  })
+  .refine(
+    (u) => u.mode === 'append' || u.baseSectionHash !== undefined || u.baseRevision !== undefined,
+    'replace needs baseSectionHash or baseRevision',
+  );
+export type UpdateSectionInput = z.infer<typeof UpdateSectionSchema>;
+
+/** Frontmatter fields to set without sending the whole page. */
+export const PageMetaPatchSchema = z
+  .object({
+    status: z.enum(DOC_STATUSES).optional(),
+    owner: z.string().trim().min(1).max(200).optional(),
+    tags: z.array(z.string().trim().min(1).max(50)).max(30).optional(),
+    /** Omit to apply the change to whatever the page holds now. */
+    baseRevision: z.number().int().positive().optional(),
+  })
+  .refine(
+    (m) => m.status !== undefined || m.owner !== undefined || m.tags !== undefined,
+    'Set at least one of status, owner, tags',
+  );
+export type PageMetaPatch = z.infer<typeof PageMetaPatchSchema>;

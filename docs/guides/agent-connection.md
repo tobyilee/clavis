@@ -74,6 +74,9 @@ claude mcp add --transport http clavis https://clavis.crawl-proxy.workers.dev/mc
 | `get_space_health` | viewer | Space의 규칙 위반 페이지(규칙·개수·첫 줄)와 깨진 위키 링크 |
 | `create_page` | editor | 새 페이지 (`template`으로 시작하면 필수 섹션이 채워짐) |
 | `update_page` | editor | 원문 전체 교체. `baseRevision` 필수 |
+| `list_sections` · `read_section` | viewer | 페이지의 섹션(헤딩) 목록과 id·해시, 섹션 하나 읽기 |
+| `update_section` | editor | 섹션 하나 교체(`baseSectionHash` 필수) 또는 끝에 추가(`append`) |
+| `set_page_meta` | editor | status·owner·tags만 변경 (본문을 보내지 않음) |
 | `move_page` · `delete_page` | editor | 이동, 휴지통으로 이동 (30일 내 복원 가능) |
 
 viewer 역할 에이전트에게는 쓰기 도구가 목록에 나타나지 않습니다.
@@ -88,6 +91,21 @@ read_page    page=k3x9q1                       → 원문 + revision=1
 update_page  page=k3x9q1 content=<수정한 원문 전체> baseRevision=1
                                                → "Updated … revision=2", 경고가 있으면 줄 번호와 함께
 ```
+
+### 섹션 단위 수정 (큰 문서, 여러 사람이 함께 쓰는 문서)
+
+```
+list_sections   page=k3x9q1                    → "- ## 액션 아이템  id=액션-아이템 lines=20-23 hash=1a2b3c4d" …
+update_section  page=k3x9q1 section=액션-아이템 mode=append content="- [ ] 환불 정책 초안"
+                                               → 목록 끝에 항목 추가 (base 불필요)
+read_section    page=k3x9q1 section="결정 사항"  → 섹션 원문 + hash
+update_section  page=k3x9q1 section="결정 사항" mode=replace content=<새 본문> baseSectionHash=<hash>
+set_page_meta   page=k3x9q1 status=review
+```
+
+- 섹션 id는 페이지 목차의 앵커와 같습니다(`…/p/회의-k3x9q1#액션-아이템`). 헤딩 텍스트로 불러도 됩니다.
+- `replace`는 **그 섹션만** 바뀌지 않았으면 저장됩니다. 그사이 사람이 다른 섹션을 고쳤어도 충돌하지 않습니다. 섹션이 바뀌었으면 최신 섹션 내용과 새 해시를 알려 주니 다시 적용하세요.
+- `append`는 섹션 마지막 줄 뒤에 붙입니다. 목록 항목은 기존 목록에 이어지고, 문단은 빈 줄로 나뉩니다.
 
 - **충돌**: 그사이 다른 사람이 저장했다면 `update_page`가 "Current revision is N"과 함께 실패합니다. `read_page`로 다시 읽고 변경을 다시 적용하세요.
 - **검사 오류**: frontmatter 누락, 없는 첨부 참조 같은 오류는 저장을 막고 `- L2 error clavis/frontmatter-required: …` 형식으로 알려 줍니다. 경고는 저장된 뒤 함께 표시됩니다.
