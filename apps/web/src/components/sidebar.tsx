@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ChevronsUpDown, FilePlus, LayoutGrid, Settings, Trash2 } from 'lucide-react';
+import { Activity, ChevronsUpDown, FilePlus, LayoutGrid, Settings, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
@@ -87,6 +87,11 @@ export function Sidebar() {
               </Link>
             </Button>
           )}
+          <Button variant="ghost" size="sm" className="justify-start" asChild>
+            <Link to="/s/$key/health" params={{ key: spaceKey }}>
+              <Activity /> {t('health.title')}
+            </Link>
+          </Button>
           <Button variant="ghost" size="sm" className="justify-start" asChild>
             <Link to="/s/$key/trash" params={{ key: spaceKey }}>
               <Trash2 /> {t('app.trash')}

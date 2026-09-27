@@ -47,7 +47,16 @@ function useDebounced<T>(value: T, ms: number): T {
   return v;
 }
 
-export function PageEditor({ page, attachments }: { page: Page; attachments: EditorAttachments }) {
+export function PageEditor({
+  page,
+  attachments,
+  initialLine,
+}: {
+  page: Page;
+  attachments: EditorAttachments;
+  /** Line to open at, e.g. a finding picked on the Space dashboard. */
+  initialLine?: number;
+}) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -73,6 +82,11 @@ export function PageEditor({ page, attachments }: { page: Page; attachments: Edi
   const [tab, setTab] = useState<'edit' | 'preview'>('edit');
   // Phones: the properties form folds away to leave room for writing (D-06).
   const [showProps, setShowProps] = useState(false);
+
+  // Once, after CodeMirror has mounted (child effects run first).
+  useEffect(() => {
+    if (initialLine) editor.current?.gotoLine(initialLine);
+  }, [initialLine]);
   const leaving = useRef(false);
 
   const dirty = title !== saved.title || content !== saved.content;

@@ -194,7 +194,7 @@ A1 lint 설정   L2 깨진 링크 리포트     S2 섹션 REST       C2 댓글 M
 | 항목 | 상태 | 결과 | 날짜 |
 |---|---|---|---|
 | Step 0 | ✅ 완료 | `LintConfigSchema`(규칙별 off·info·warning·error, 유형별 필수 섹션, 문서 길이 한도, `frontmatter-required`는 조정 불가), `lint(doc, { config })`에서 엔진이 심각도를 적용 — `error`로 올린 규칙은 서버·에디터에서 똑같이 저장을 막는다. 규칙의 `blocking` 플래그는 실제 심각도로 대체해 제거. 설정이 없으면 기존과 같은 결과(회귀 테스트). 마이그레이션은 각 Step에서 추가 | 2026-09-27 |
-| Step 1 | – | | |
+| Step 1 | ✅ 완료 | `0004_lint_summary`(`page_lint`, `spaces.lint_config`·`lint_config_version`). 저장 쓰기 batch에 요약 upsert 추가(D1 호출 2회 그대로), 요약은 `{규칙: 심각도·개수·첫 줄}`만 저장하고 위키 링크 규칙은 제외. 저장·`/lint`가 Space 설정을 읽어 적용. `GET /pages/{ref}/backlinks`, `GET /spaces/{key}/health`(요약·규칙별 집계는 D1 `json_each`, 깨진 링크는 `page_links` 현재 상태 — 계획의 별도 broken-links 엔드포인트 대신 여기에 포함), `POST /spaces/{key}/lint/recheck`(cursor 없이 '요약 없음 또는 옛 설정 버전' 조건으로 다음 묶음 선택, **예산은 150KB → 100KB로 낮춤**, 그사이 저장된 페이지는 revision 조건으로 건너뜀). MCP `get_backlinks`·`get_space_health`. 웹: 페이지 하단 백링크, `/s/$key/health` 대시보드(열면 자동 재검사, 위반 클릭 → 편집 화면 `?line=N`), 사이드바 '문서 상태'. Worker 테스트 80개, E2E에 대시보드 시나리오 추가(5개) | 2026-09-27 |
 | Step 2 | – | | |
 | Step 3 | – | | |
 | Step 4 | – | | |

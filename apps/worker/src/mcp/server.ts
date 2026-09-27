@@ -19,11 +19,13 @@ import { lintContent } from '../services/links';
 import {
   createPage,
   deletePage,
+  getBacklinks,
   getPage,
   getTreeNodes,
   movePage,
   updatePage,
 } from '../services/pages';
+import { spaceHealth } from '../services/quality';
 import { searchPages } from '../services/search';
 import { listSpaces } from '../services/spaces';
 
@@ -45,6 +47,8 @@ Writing (editor agents)
 - Link pages with [[Page title]] or [[SPACEKEY:Page title]]; attachments with
   ![alt](attachments/file.png).
 - Warnings do not block a save, but fix them when you can; lint_markdown checks a draft.
+- get_space_health lists pages with rule findings and broken [[links]] in a space;
+  get_backlinks shows which pages link to a page (check before renaming or deleting).
 - delete_page moves a page and its children to the trash (restorable for 30 days).`;
 
 const text = (value: string) => ({ content: [{ type: 'text' as const, text: value }] });
@@ -128,6 +132,8 @@ function cached<T extends z.ZodType>(schema: T): T {
 const INPUT = {
   get_space_tree: cached(z.object({ space: z.string().describe('Space key, e.g. "PAY"') })),
   read_page: cached(z.object({ page: pageArg })),
+  get_backlinks: cached(z.object({ page: pageArg })),
+  get_space_health: cached(z.object({ space: z.string().describe('Space key, e.g. "PAY"') })),
   search_pages: cached(
     z.object({
       query: z.string().min(1).max(200),
@@ -250,6 +256,68 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
         const found = await getPage(DB, page);
         const header = `<!-- clavis: ${found.spaceKey}/${found.shortId} "${found.title}" revision=${found.revision} updated_by=${found.updatedBy.name} -->`;
         return text(`${header}\n${found.content}`);
+      }),
+  );
+
+  server.registerTool(
+    'get_backlinks',
+    {
+      title: 'Get backlinks',
+      description: 'List the pages (in any space) that link to a page with [[wiki links]].',
+      inputSchema: INPUT.get_backlinks,
+      annotations: { readOnlyHint: true },
+    },
+    async ({ page }) =>
+      guard(async () => {
+        const links = await getBacklinks(DB, page);
+        if (links.length === 0) return text('No pages link here.');
+        return text(links.map((b) => `- ${b.spaceKey}/${b.shortId} "${b.title}"`).join('\n'));
+      }),
+  );
+
+  server.registerTool(
+    'get_space_health',
+    {
+      title: 'Get space health',
+      description:
+        'Document quality in a space: pages with lint findings (rule, count, first line) and broken wiki links.',
+      inputSchema: INPUT.get_space_health,
+      annotations: { readOnlyHint: true },
+    },
+    async ({ space }) =>
+      guard(async () => {
+        const h = await spaceHealth(DB, space);
+        const { errors, warnings, infos } = h.totals;
+        const lines = [
+          `Space ${h.space}: ${h.totalPages} pages; findings: ${errors} error, ${warnings} warning, ${infos} info.`,
+        ];
+        if (h.stalePages > 0) {
+          lines.push(
+            `${h.stalePages} page(s) not yet checked under the current rules, so this may be incomplete (the web dashboard rechecks them).`,
+          );
+        }
+        if (h.pages.length > 0) {
+          lines.push('', 'Pages with findings:');
+          for (const p of h.pages) {
+            const rules = p.rules
+              .map((r) => `${r.severity} ${r.ruleId} x${r.count} (L${r.line})`)
+              .join('; ');
+            lines.push(`- ${h.space}/${p.shortId} "${p.title}": ${rules}`);
+          }
+        }
+        if (h.brokenLinks.length > 0) {
+          lines.push('', 'Broken wiki links (target page does not exist):');
+          for (const p of h.brokenLinks) {
+            const targets = p.targets
+              .map((t) =>
+                t.spaceKey === h.space ? `[[${t.title}]]` : `[[${t.spaceKey}:${t.title}]]`,
+              )
+              .join(', ');
+            lines.push(`- ${h.space}/${p.shortId} "${p.title}": ${targets}`);
+          }
+        }
+        if (h.pages.length === 0 && h.brokenLinks.length === 0) lines.push('No problems found.');
+        return text(lines.join('\n'));
       }),
   );
 

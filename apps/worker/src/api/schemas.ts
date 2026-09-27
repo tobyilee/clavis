@@ -1,8 +1,11 @@
 import {
   AttachmentSchema,
+  BacklinkSchema,
   PageSchema,
+  RecheckResultSchema,
   SaveResultSchema,
   SearchHitSchema,
+  SpaceHealthSchema,
   SpaceSchema,
   TemplateSchema,
   TrashEntrySchema,
@@ -20,6 +23,9 @@ export const SearchHit = SearchHitSchema.openapi('SearchHit');
 export const Template = TemplateSchema.openapi('Template');
 export const TrashEntry = TrashEntrySchema.openapi('TrashEntry');
 export const Attachment = AttachmentSchema.openapi('Attachment');
+export const Backlink = BacklinkSchema.openapi('Backlink');
+export const SpaceHealth = SpaceHealthSchema.openapi('SpaceHealth');
+export const RecheckResult = RecheckResultSchema.openapi('RecheckResult');
 
 export const SpaceKeyParam = z.object({
   key: z.string().openapi({ param: { name: 'key', in: 'path' }, example: 'PAY' }),

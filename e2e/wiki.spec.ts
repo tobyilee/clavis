@@ -86,3 +86,36 @@ test('paste an image: uploaded, referenced, rendered', async ({ page, request })
   await expect(page).not.toHaveURL(/\/edit$/);
   await expect(page.locator('.prose-clavis img')).toHaveJSProperty('naturalWidth', 1);
 });
+
+test('dashboard: findings and broken links, backlinks, jump to the line', async ({
+  page,
+  request,
+}) => {
+  await ensureSpace(request, 'QA', '품질');
+  const fm = '---\ntype: note\nstatus: draft\nowner: dev@example.com\n---\n';
+  const make = async (title: string, body: string) => {
+    const res = await request.post('/api/v1/spaces/QA/pages', {
+      data: { title, content: `${fm}${body}` },
+    });
+    expect(res.status()).toBe(201);
+    return (await res.json()).page;
+  };
+  const target = await make('기준 문서', '본문\n');
+  await make('링크 문서', '# 큰 제목\n\n[[기준 문서]] 와 [[없는 문서]]\n');
+
+  // The home page was created before any summary; the dashboard rechecks it by itself.
+  await page.goto('/s/QA/health');
+  await expect(page.getByRole('heading', { name: '문서 상태' })).toBeVisible();
+  await expect(page.getByText('[[없는 문서]]')).toBeVisible();
+  const finding = page.getByRole('link', { name: /본문 H1/ });
+  await expect(finding).toContainText('L6');
+  await expect(page.getByRole('status')).toHaveCount(0);
+
+  await finding.click();
+  await expect(page).toHaveURL(/\/edit\?line=6$/);
+  await expect(page.locator('.cm-activeLine')).toContainText('# 큰 제목');
+
+  await page.goto(`/s/QA/p/${target.slug}-${target.shortId}`);
+  await expect(page.getByText('이 페이지를 링크하는 문서 1개')).toBeVisible();
+  await expect(page.getByRole('link', { name: '링크 문서' }).last()).toBeVisible();
+});

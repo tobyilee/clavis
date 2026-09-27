@@ -5,8 +5,9 @@ import {
   lint,
   parseDocument,
 } from '@clavis/shared/lint';
-import type { Violation } from '@clavis/shared/schema';
+import type { LintConfig, Violation } from '@clavis/shared/schema';
 import { ServiceError } from './errors';
+import { parseLintConfig } from './quality';
 
 export interface LinkTarget {
   /** null = the linking page's own space (D-23), filled in by SQL when not yet known. */
@@ -69,8 +70,10 @@ export function lintForSave(
   spaceKey: string,
   resolved: ResolvedLinks,
   attachments: ReadonlySet<string>,
+  config?: LintConfig,
 ): Violation[] {
   const violations = lint(content, {
+    config,
     resolveLink: (key, title) => resolved.has(linkKey(key ?? spaceKey, title)),
     attachmentExists: (name) => attachments.has(name),
   });
@@ -95,7 +98,7 @@ export async function lintContent(
   const pageBinds = [opts.page ?? '', opts.page ?? ''];
   const doc = parseDocument(content);
   const targets = linkTargets(doc, space);
-  const [linksRes, attRes, pageRes] = await DB.batch([
+  const [linksRes, attRes, pageRes, configRes] = await DB.batch([
     resolveLinksStatement(
       DB,
       targets,
@@ -112,13 +115,22 @@ export async function lintContent(
     DB.prepare(
       `SELECT s.key FROM pages p JOIN spaces s ON s.id = p.space_id WHERE ${pageWhere}`,
     ).bind(...pageBinds),
+    // The space's rule config: the given space, else the page's.
+    DB.prepare(
+      `SELECT lint_config FROM spaces WHERE key = ? OR id = (
+         SELECT p.space_id FROM pages p WHERE ${pageWhere}) ORDER BY key = ? DESC LIMIT 1`,
+    ).bind(space ?? '', ...pageBinds, space ?? ''),
   ]);
   const resolved = resolvedLinks(linksRes);
   const currentKey = space ?? (pageRes?.results[0] as { key: string } | undefined)?.key ?? null;
   const attachments = new Set(
     ((attRes?.results ?? []) as { filename: string }[]).map((a) => a.filename),
   );
+  const config = parseLintConfig(
+    (configRes?.results[0] as { lint_config: string | null } | undefined)?.lint_config,
+  );
   return lint(doc, {
+    config,
     resolveLink: (key, title) =>
       key === null && currentKey === null
         ? true

@@ -52,6 +52,8 @@ describe('MCP endpoint', () => {
     expect(tools.json.result.tools.map((t: { name: string }) => t.name).sort()).toEqual([
       'create_page',
       'delete_page',
+      'get_backlinks',
+      'get_space_health',
       'get_space_tree',
       'lint_markdown',
       'list_spaces',
@@ -143,6 +145,29 @@ describe('agent workflow (plan M1)', () => {
     expect(res.isError).toBe(false);
     expect(res.text).toContain('Warnings (2), saved anyway');
     expect(res.text).toContain('clavis/wiki-link-exists');
+  });
+
+  it('reports backlinks and space health', async () => {
+    const created = await tool(editor, 'create_page', {
+      space: 'PAY',
+      title: '정책',
+      content: `${FM()}본문\n`,
+    });
+    const target = /PAY\/(\w+)/.exec(created.text)?.[1];
+    await tool(editor, 'create_page', {
+      space: 'PAY',
+      title: '안내',
+      content: `${FM()}# 큰 제목\n\n[[정책]] [[없는 문서]]\n`,
+    });
+    expect((await tool(editor, 'get_backlinks', { page: target })).text).toMatch(
+      /^- PAY\/\w+ "안내"$/,
+    );
+    const health = (await tool(editor, 'get_space_health', { space: 'PAY' })).text;
+    expect(health).toContain('findings: 0 error, 1 warning, 0 info');
+    expect(health).toMatch(/"안내": warning clavis\/no-h1 x1 \(L6\)/);
+    expect(health).toMatch(/"안내": \[\[없는 문서\]\]/);
+    // The home page predates its summary.
+    expect(health).toContain('1 page(s) not yet checked');
   });
 
   it('lints drafts, lists templates, moves and deletes', async () => {

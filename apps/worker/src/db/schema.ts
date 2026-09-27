@@ -46,6 +46,10 @@ export const spaces = sqliteTable('spaces', {
   /** The tree as served, built on the first read after a change (H2: 500 pages cost ~7ms). */
   treeJson: text('tree_json'),
   treeJsonVersion: integer('tree_json_version'),
+  /** LintConfig JSON (D-47); NULL means the defaults. */
+  lintConfig: text('lint_config'),
+  /** Bumped on every config change; page_lint rows from older versions are stale (D-46). */
+  lintConfigVersion: integer('lint_config_version').notNull().default(0),
   createdAt: createdAt(),
   archivedAt: integer('archived_at'),
 });
@@ -119,6 +123,26 @@ export const pageLinks = sqliteTable(
     index('page_links_target').on(t.targetSpaceKey, t.targetTitle),
   ],
 );
+
+/**
+ * Each page's lint result under its Space config, for the dashboard (D-46). Written by every
+ * save and by rechecks. Wiki link findings are left out: they change when other pages do, so
+ * the dashboard reads page_links instead.
+ */
+export const pageLint = sqliteTable('page_lint', {
+  pageId: text('page_id')
+    .primaryKey()
+    .references(() => pages.id),
+  /** The page revision that was checked; a recheck never overwrites a newer save. */
+  revision: integer('revision').notNull(),
+  configVersion: integer('config_version').notNull(),
+  errors: integer('errors').notNull(),
+  warnings: integer('warnings').notNull(),
+  infos: integer('infos').notNull(),
+  /** {"<ruleId>": {"s": severity, "n": count, "l": first line}} */
+  rules: text('rules').notNull(),
+  checkedAt: integer('checked_at').notNull(),
+});
 
 export const attachments = sqliteTable(
   'attachments',

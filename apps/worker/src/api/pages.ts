@@ -1,10 +1,17 @@
 import { CreatePageSchema, MovePageSchema, UpdatePageSchema } from '@clavis/shared/schema';
 import { createRoute, z } from '@hono/zod-openapi';
 import { requireRole } from '../auth/middleware';
-import { createPage, deletePage, getPage, movePage, updatePage } from '../services/pages';
+import {
+  createPage,
+  deletePage,
+  getBacklinks,
+  getPage,
+  movePage,
+  updatePage,
+} from '../services/pages';
 import { problemResponse } from './problem';
 import { router } from './router';
-import { json, Page, PageRefParam, SaveResult, SpaceKeyParam } from './schemas';
+import { Backlink, json, Page, PageRefParam, SaveResult, SpaceKeyParam } from './schemas';
 
 export const pages = router();
 const tags = ['pages'];
@@ -95,6 +102,23 @@ pages.openapi(
     }
     return c.json(page, 200);
   },
+);
+
+pages.openapi(
+  createRoute({
+    method: 'get',
+    path: '/pages/{ref}/backlinks',
+    tags,
+    security,
+    summary: 'Pages that link to this page, from any space',
+    middleware: [requireRole('viewer')],
+    request: { params: PageRefParam },
+    responses: {
+      200: json(z.object({ backlinks: z.array(Backlink) }), 'Linking pages, by space and title'),
+      404: problemResponse('Not found'),
+    },
+  }),
+  async (c) => c.json({ backlinks: await getBacklinks(c.env.DB, c.req.valid('param').ref) }, 200),
 );
 
 pages.openapi(

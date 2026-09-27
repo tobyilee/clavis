@@ -9,11 +9,19 @@ import { useAttachments } from '@/lib/attachments';
 import { useCanEdit } from '@/lib/me';
 import { pageQuery } from '@/lib/queries';
 
-export const Route = createFileRoute('/s/$key/p/$slugId_/edit')({ component: EditPage });
+export const Route = createFileRoute('/s/$key/p/$slugId_/edit')({
+  component: EditPage,
+  // ?line=N opens the editor at that line (dashboard links to a finding).
+  validateSearch: (search: Record<string, unknown>): { line?: number } => {
+    const line = Number(search.line);
+    return Number.isInteger(line) && line > 0 ? { line } : {};
+  },
+});
 
 function EditPage() {
   const { t } = useTranslation();
   const { slugId } = Route.useParams();
+  const { line } = Route.useSearch();
   const shortId = parseSlugId(slugId) ?? '';
   // Always start from the server's latest revision, not a cached copy.
   const page = useQuery({
@@ -30,5 +38,7 @@ function EditPage() {
   if (!page.data || page.isFetching) return null;
   if (!canEdit) return <Notice title={t('editor.readOnly')} />;
   // Keyed by page so switching pages starts a fresh editor.
-  return <PageEditor key={page.data.id} page={page.data} attachments={attachments} />;
+  return (
+    <PageEditor key={page.data.id} page={page.data} attachments={attachments} initialLine={line} />
+  );
 }

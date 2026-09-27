@@ -54,7 +54,8 @@
     "topLevel": "(Top level)",
     "delete": "Delete",
     "deleteTitle": "Delete \"{{title}}\"",
-    "deleteBody": "This page and all its child pages move to the trash. You can restore them within 30 days."
+    "deleteBody": "This page and all its child pages move to the trash. You can restore them within 30 days.",
+    "backlinks": "{{count}} page(s) link here"
   },
   "status": {
     "draft": "Draft",
@@ -196,5 +197,33 @@
   },
   "attachments": {
     "title": "{{count}} attachment(s)"
+  },
+  "health": {
+    "title": "Document health",
+    "help": "Rule findings and broken links in this space. Rule results are recorded on save, and rechecked here when the rules change.",
+    "rechecking": "Rechecking with the current rules… {{done}}/{{total}}",
+    "totalPages": "Pages",
+    "pagesWithIssues": "With findings",
+    "errors": "Errors",
+    "warnings": "Warnings",
+    "brokenLinkCount": "Broken links",
+    "byRule": "By rule",
+    "rulePages": "{{count}} page(s)",
+    "pages": "By page",
+    "noIssues": "No rule findings.",
+    "stale": "(checked under older rules)",
+    "brokenLinks": "Broken links",
+    "noBrokenLinks": "No broken links."
+  },
+  "lintRule": {
+    "frontmatter-required": "Frontmatter required",
+    "attachment-exists": "Missing attachment",
+    "no-h1": "H1 in body",
+    "heading-increment": "Skipped heading level",
+    "wiki-link-exists": "Link to missing page",
+    "required-sections": "Missing required section",
+    "image-alt": "Image without alt",
+    "code-lang": "Code block without language",
+    "doc-length": "Long document"
   }
 }

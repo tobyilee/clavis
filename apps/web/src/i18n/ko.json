@@ -54,7 +54,8 @@
     "topLevel": "(최상위)",
     "delete": "삭제",
     "deleteTitle": "\"{{title}}\" 삭제",
-    "deleteBody": "이 페이지와 모든 하위 페이지가 휴지통으로 이동합니다. 30일 안에 복원할 수 있습니다."
+    "deleteBody": "이 페이지와 모든 하위 페이지가 휴지통으로 이동합니다. 30일 안에 복원할 수 있습니다.",
+    "backlinks": "이 페이지를 링크하는 문서 {{count}}개"
   },
   "status": {
     "draft": "초안",
@@ -196,5 +197,33 @@
   },
   "attachments": {
     "title": "첨부 파일 {{count}}개"
+  },
+  "health": {
+    "title": "문서 상태",
+    "help": "이 Space의 규칙 위반과 깨진 링크입니다. 규칙 결과는 저장할 때 기록되고, 규칙 설정이 바뀌면 이 화면에서 다시 검사합니다.",
+    "rechecking": "현재 규칙으로 다시 검사하는 중… {{done}}/{{total}}",
+    "totalPages": "전체 페이지",
+    "pagesWithIssues": "문제 있는 페이지",
+    "errors": "오류",
+    "warnings": "경고",
+    "brokenLinkCount": "깨진 링크",
+    "byRule": "규칙별",
+    "rulePages": "{{count}}개 페이지",
+    "pages": "페이지별",
+    "noIssues": "규칙 위반이 없습니다.",
+    "stale": "(이전 규칙 기준)",
+    "brokenLinks": "깨진 링크",
+    "noBrokenLinks": "깨진 링크가 없습니다."
+  },
+  "lintRule": {
+    "frontmatter-required": "frontmatter 필수",
+    "attachment-exists": "없는 첨부 파일",
+    "no-h1": "본문 H1",
+    "heading-increment": "헤딩 레벨 건너뜀",
+    "wiki-link-exists": "없는 페이지 링크",
+    "required-sections": "필수 섹션 누락",
+    "image-alt": "이미지 alt 없음",
+    "code-lang": "코드 블록 언어 없음",
+    "doc-length": "문서가 김"
   }
 }

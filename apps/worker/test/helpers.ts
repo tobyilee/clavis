@@ -5,9 +5,16 @@ const app = createApp();
 
 export async function resetDb() {
   await env.DB.batch(
-    ['attachments', 'page_links', 'page_tags', 'pages', 'spaces', 'api_tokens', 'actors'].map((t) =>
-      env.DB.prepare(`DELETE FROM ${t}`),
-    ),
+    [
+      'page_lint',
+      'attachments',
+      'page_links',
+      'page_tags',
+      'pages',
+      'spaces',
+      'api_tokens',
+      'actors',
+    ].map((t) => env.DB.prepare(`DELETE FROM ${t}`)),
   );
 }
 

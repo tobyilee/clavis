@@ -5,6 +5,7 @@ import { docs } from './docs';
 import { health } from './health';
 import { me } from './me';
 import { pages } from './pages';
+import { quality } from './quality';
 import { router } from './router';
 import { search } from './search';
 import { spaces } from './spaces';
@@ -23,7 +24,19 @@ export function buildApi() {
     scheme: 'bearer',
     description: 'Agent API token (clv_…). People are identified by Cloudflare Access instead.',
   });
-  for (const r of [health, me, admin, spaces, pages, trash, search, authoring, attachments, docs]) {
+  for (const r of [
+    health,
+    me,
+    admin,
+    spaces,
+    pages,
+    quality,
+    trash,
+    search,
+    authoring,
+    attachments,
+    docs,
+  ]) {
     api.route('/', r);
   }
   return api;

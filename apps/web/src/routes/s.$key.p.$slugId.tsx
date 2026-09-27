@@ -5,6 +5,7 @@ import { ChevronRight, FileQuestion } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AttachmentList } from '@/components/attachment-list';
+import { Backlinks } from '@/components/backlinks';
 import { Notice } from '@/components/notice';
 import { PageActions } from '@/components/page-actions';
 import { Author, PageMeta } from '@/components/page-meta';
@@ -87,6 +88,7 @@ function PageView() {
         <TocInline items={rendered.toc} />
         <div className="prose-clavis">{rendered.element}</div>
         <AttachmentList attachments={attachments.list} />
+        <Backlinks pageId={p.id} spaceKey={p.spaceKey} />
       </article>
       <aside className="hidden w-56 shrink-0 xl:block">
         <TocAside items={rendered.toc} />

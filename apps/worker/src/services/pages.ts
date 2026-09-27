@@ -1,6 +1,7 @@
 import { type LintDocument, parseDocument, utf8Length } from '@clavis/shared/lint';
 import { renameWikiLinks } from '@clavis/shared/markdown';
 import {
+  type Backlink,
   type CreatePageInput,
   DOC_TYPES,
   type DocType,
@@ -34,8 +35,10 @@ import {
   parsePageRef,
   publicPage,
   savedPage,
+  toPageRef,
 } from './page-read';
 import { positionAmong, type Sibling } from './position';
+import { parseLintConfig, summarize, summaryStatement } from './quality';
 
 /**
  * How much a rename rewrites in other pages (D-42 revised): every rewritten page is read
@@ -152,6 +155,31 @@ export async function getPage(DB: D1Database, ref: string | PageLocator): Promis
   return publicPage(page);
 }
 
+/** Live pages that link to this one, across spaces (at most 200). One D1 call. */
+export async function getBacklinks(DB: D1Database, ref: string): Promise<Backlink[]> {
+  const w = locatorWhere(parsePageRef(ref));
+  const target = `SELECT p.id FROM pages p JOIN spaces s ON s.id = p.space_id WHERE ${w.sql} LIMIT 1`;
+  const [pageRes, linksRes] = await DB.batch([
+    DB.prepare(target).bind(...w.binds),
+    DB.prepare(
+      `SELECT DISTINCT p.id, p.short_id, p.title, p.slug, s.key AS space_key
+       FROM page_links l JOIN pages p ON p.id = l.from_page_id JOIN spaces s ON s.id = p.space_id
+       WHERE l.to_page_id = (${target}) AND p.id != l.to_page_id AND p.deleted_at IS NULL
+       ORDER BY s.key, p.title LIMIT 200`,
+    ).bind(...w.binds),
+  ]);
+  if (!pageRes?.results.length) throw notFound('Page');
+  return (
+    (linksRes?.results ?? []) as {
+      space_key: string;
+      id: string;
+      short_id: string;
+      title: string;
+      slug: string;
+    }[]
+  ).map((r) => ({ ...toPageRef(r), spaceKey: r.space_key }));
+}
+
 export interface SpaceTree {
   treeVersion: number;
   /** The response body: {"treeVersion":n,"tree":[...]} as JSON text. */
@@ -255,7 +283,9 @@ export async function createPage(
   const parentRef = input.parent ?? null;
 
   const [spaceRes, parentRes, siblingsRes, titleRes, linksRes] = await DB.batch([
-    DB.prepare('SELECT id, archived_at FROM spaces WHERE key = ?').bind(key),
+    DB.prepare(
+      'SELECT id, archived_at, lint_config, lint_config_version FROM spaces WHERE key = ?',
+    ).bind(key),
     DB.prepare(
       `SELECT p.id FROM pages p JOIN spaces s ON s.id = p.space_id
        WHERE (p.id = ? OR p.short_id = ?) AND s.key = ? AND p.deleted_at IS NULL`,
@@ -271,7 +301,14 @@ export async function createPage(
     ).bind(key, input.title),
     resolveLinksStatement(DB, targets),
   ]);
-  const space = spaceRes?.results[0] as { id: string; archived_at: number | null } | undefined;
+  const space = spaceRes?.results[0] as
+    | {
+        id: string;
+        archived_at: number | null;
+        lint_config: string | null;
+        lint_config_version: number;
+      }
+    | undefined;
   if (!space) throw notFound('Space');
   assertWritable(space.archived_at);
   const parent = parentRes?.results[0] as { id: string } | undefined;
@@ -280,7 +317,7 @@ export async function createPage(
 
   const resolved = resolvedLinks(linksRes);
   // A new page has no attachments yet, so any attachments/ reference is an error.
-  const violations = lintForSave(doc, key, resolved, new Set());
+  const violations = lintForSave(doc, key, resolved, new Set(), parseLintConfig(space.lint_config));
   const fm = derived(doc);
   const position = positionAmong((siblingsRes?.results ?? []) as unknown as Sibling[], {
     after: input.after,
@@ -315,6 +352,7 @@ export async function createPage(
         ...tagRows(DB, id, fm.tags),
         ...linkRows(DB, id, key, targets, resolved),
         reconnectLinks(DB, id, key, input.title),
+        summaryStatement(DB, id, 1, space.lint_config_version, summarize(violations), now),
         bumpTree(DB, space.id),
         ...pageStatements(DB, { idOrShortId: id }, { withContent: false }),
       ]);
@@ -347,7 +385,7 @@ export async function updatePage(
     `SELECT p.${col} FROM pages p JOIN spaces s ON s.id = p.space_id WHERE ${w.sql} LIMIT 1`;
   const doc = parseDocument(input.content);
   const targets = linkTargets(doc, null);
-  const [pageRes, tagsRes, ancRes, linksRes, attRes, titleRes, incomingRes, refRes] =
+  const [pageRes, tagsRes, ancRes, linksRes, attRes, titleRes, incomingRes, refRes, configRes] =
     await DB.batch([
       ...pageStatements(DB, loc, { withContent: false }),
       resolveLinksStatement(DB, targets, {
@@ -385,6 +423,9 @@ export async function updatePage(
         RENAME_LIMITS.pages,
         RENAME_LIMITS.bytes,
       ),
+      DB.prepare(
+        `SELECT lint_config, lint_config_version FROM spaces WHERE id = (${target('space_id')})`,
+      ).bind(...w.binds),
     ]);
   const current = pageFromResults([pageRes, tagsRes, ancRes] as D1Result[]);
   if (!current) throw notFound('Page');
@@ -400,7 +441,16 @@ export async function updatePage(
   const attachments = new Set(
     ((attRes?.results ?? []) as { filename: string }[]).map((a) => a.filename),
   );
-  const violations = lintForSave(doc, row.space_key, resolved, attachments);
+  const space = configRes?.results[0] as
+    | { lint_config: string | null; lint_config_version: number }
+    | undefined;
+  const violations = lintForSave(
+    doc,
+    row.space_key,
+    resolved,
+    attachments,
+    parseLintConfig(space?.lint_config),
+  );
   const fm = derived(doc);
   const treeChanged = renamed || fm.docType !== row.doc_type || fm.status !== row.status;
 
@@ -441,6 +491,14 @@ export async function updatePage(
       ...tagRows(DB, row.id, fm.tags),
       DB.prepare('DELETE FROM page_links WHERE from_page_id = ?').bind(row.id),
       ...linkRows(DB, row.id, row.space_key, targets, resolved),
+      summaryStatement(
+        DB,
+        row.id,
+        row.revision + 1,
+        space?.lint_config_version ?? 0,
+        summarize(violations),
+        now,
+      ),
       ...(renamed ? renameStatements(DB, actor, row, title, rewrites, now) : []),
       ...(treeChanged ? [bumpTree(DB, row.space_id)] : []),
       ...pageStatements(DB, { idOrShortId: row.id }, { withContent: false }),

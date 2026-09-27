@@ -200,3 +200,65 @@ export const AttachmentSchema = z.object({
   url: z.string(),
 });
 export type Attachment = z.infer<typeof AttachmentSchema>;
+
+/** A page that links to another (backlinks); may be in another space. */
+export const BacklinkSchema = PageRefSchema.extend({ spaceKey: z.string() });
+export type Backlink = z.infer<typeof BacklinkSchema>;
+
+const SEVERITY = z.enum(['error', 'warning', 'info']);
+
+/** One rule's findings on one page, as stored for the dashboard (D-46). */
+export const RuleSummarySchema = z.object({
+  ruleId: z.string(),
+  severity: SEVERITY,
+  count: z.number().int(),
+  /** First line with this finding, to jump to. */
+  line: z.number().int(),
+});
+export type RuleSummary = z.infer<typeof RuleSummarySchema>;
+
+/** A Space's document health: lint results and broken links (D-46). */
+export const SpaceHealthSchema = z.object({
+  space: z.string(),
+  configVersion: z.number().int(),
+  totalPages: z.number().int(),
+  /** Pages never checked or checked under an older config; recheck them. */
+  stalePages: z.number().int(),
+  totals: z.object({
+    errors: z.number().int(),
+    warnings: z.number().int(),
+    infos: z.number().int(),
+  }),
+  rules: z.array(
+    z.object({
+      ruleId: z.string(),
+      severity: SEVERITY,
+      pages: z.number().int(),
+      count: z.number().int(),
+    }),
+  ),
+  /** Pages with findings, most errors first (at most 200). */
+  pages: z.array(
+    PageRefSchema.extend({
+      errors: z.number().int(),
+      warnings: z.number().int(),
+      infos: z.number().int(),
+      stale: z.boolean(),
+      rules: z.array(RuleSummarySchema),
+    }),
+  ),
+  /** Wiki links whose target does not exist, as of now (at most 500 links). */
+  brokenLinks: z.array(
+    PageRefSchema.extend({
+      targets: z.array(z.object({ spaceKey: z.string(), title: z.string() })),
+    }),
+  ),
+});
+export type SpaceHealth = z.infer<typeof SpaceHealthSchema>;
+
+export const RecheckResultSchema = z.object({
+  checked: z.number().int(),
+  /** Pages still to check; call again until 0. */
+  remaining: z.number().int(),
+});
+export type RecheckResult = z.infer<typeof RecheckResultSchema>;
