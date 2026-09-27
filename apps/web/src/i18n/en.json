@@ -225,5 +225,28 @@
     "image-alt": "Image without alt",
     "code-lang": "Code block without language",
     "doc-length": "Long document"
+  },
+  "comments": {
+    "title": "Comments",
+    "openCount": "{{count}} open",
+    "showResolved": "Show {{count}} resolved thread(s)",
+    "hideResolved": "Hide resolved threads",
+    "placeholder": "Leave a comment or question (Markdown, ⌘Enter to post)",
+    "replyPlaceholder": "Reply (⌘Enter to post)",
+    "new": "New comment",
+    "reply": "Reply",
+    "section": "Section",
+    "wholePage": "Whole page",
+    "submit": "Comment",
+    "cancel": "Cancel",
+    "resolve": "Resolve",
+    "reopen": "Reopen",
+    "resolvedBy": "Resolved by {{name}}",
+    "edited": "(edited)",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "confirmDelete": "Delete this comment?",
+    "sectionBadge": "{{count}} open comment(s) on this section"
   }
 }

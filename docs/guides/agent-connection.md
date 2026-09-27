@@ -77,6 +77,8 @@ claude mcp add --transport http clavis https://clavis.crawl-proxy.workers.dev/mc
 | `list_sections` · `read_section` | viewer | 페이지의 섹션(헤딩) 목록과 id·해시, 섹션 하나 읽기 |
 | `update_section` | editor | 섹션 하나 교체(`baseSectionHash` 필수) 또는 끝에 추가(`append`) |
 | `set_page_meta` | editor | status·owner·tags만 변경 (본문을 보내지 않음) |
+| `list_comments` · `add_comment` | viewer | 페이지 댓글 스레드 읽기, 댓글·답글 달기 (`read_page`에 `open_comments=N` 표시) |
+| `resolve_comment` | editor | 스레드 해결 / 다시 열기 |
 | `move_page` · `delete_page` | editor | 이동, 휴지통으로 이동 (30일 내 복원 가능) |
 
 viewer 역할 에이전트에게는 쓰기 도구가 목록에 나타나지 않습니다.
@@ -106,6 +108,16 @@ set_page_meta   page=k3x9q1 status=review
 - 섹션 id는 페이지 목차의 앵커와 같습니다(`…/p/회의-k3x9q1#액션-아이템`). 헤딩 텍스트로 불러도 됩니다.
 - `replace`는 **그 섹션만** 바뀌지 않았으면 저장됩니다. 그사이 사람이 다른 섹션을 고쳤어도 충돌하지 않습니다. 섹션이 바뀌었으면 최신 섹션 내용과 새 해시를 알려 주니 다시 적용하세요.
 - `append`는 섹션 마지막 줄 뒤에 붙입니다. 목록 항목은 기존 목록에 이어지고, 문단은 빈 줄로 나뉩니다.
+
+### 댓글 반영 흐름
+
+```
+read_page       page=k3x9q1                    → 헤더에 open_comments=1
+list_comments   page=k3x9q1                    → "- [01J…] toby on #범위: 환불도 넣어 주세요"
+update_section  page=k3x9q1 section=범위 …      → 문서 수정
+add_comment     page=k3x9q1 replyTo=01J… body="환불을 범위에 추가했습니다."
+resolve_comment comment=01J…
+```
 
 - **충돌**: 그사이 다른 사람이 저장했다면 `update_page`가 "Current revision is N"과 함께 실패합니다. `read_page`로 다시 읽고 변경을 다시 적용하세요.
 - **검사 오류**: frontmatter 누락, 없는 첨부 참조 같은 오류는 저장을 막고 `- L2 error clavis/frontmatter-required: …` 형식으로 알려 줍니다. 경고는 저장된 뒤 함께 표시됩니다.

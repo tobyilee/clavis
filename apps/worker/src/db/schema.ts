@@ -144,6 +144,40 @@ export const pageLint = sqliteTable('page_lint', {
   checkedAt: integer('checked_at').notNull(),
 });
 
+/**
+ * Page comments (D-44): a thread is a root comment plus replies one level deep. Roots may
+ * point at a section (heading id) and are resolved as a whole. A root with replies cannot be
+ * deleted (resolve it instead), so deletes remove the row.
+ */
+export const comments = sqliteTable(
+  'comments',
+  {
+    id: text('id').primaryKey(),
+    pageId: text('page_id')
+      .notNull()
+      .references(() => pages.id),
+    /** The root comment's id; a root has thread_id = id. */
+    threadId: text('thread_id').notNull(),
+    authorId: text('author_id')
+      .notNull()
+      .references(() => actors.id),
+    /** Markdown, at most 10KB. */
+    body: text('body').notNull(),
+    /** Roots only: the heading id the thread is about (D-48 section ids). */
+    sectionId: text('section_id'),
+    createdAt: createdAt(),
+    updatedAt: integer('updated_at'),
+    resolvedAt: integer('resolved_at'),
+    resolvedBy: text('resolved_by').references(() => actors.id),
+  },
+  (t) => [
+    index('comments_page').on(t.pageId, t.threadId, t.createdAt),
+    index('comments_open')
+      .on(t.pageId)
+      .where(sql`${t.id} = ${t.threadId} AND ${t.resolvedAt} IS NULL`),
+  ],
+);
+
 export const attachments = sqliteTable(
   'attachments',
   {

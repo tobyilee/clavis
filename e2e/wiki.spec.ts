@@ -119,3 +119,31 @@ test('dashboard: findings and broken links, backlinks, jump to the line', async 
   await expect(page.getByText('이 페이지를 링크하는 문서 1개')).toBeVisible();
   await expect(page.getByRole('link', { name: '링크 문서' }).last()).toBeVisible();
 });
+
+test('comments: section thread with badge, reply, resolve', async ({ page, request }) => {
+  await ensureSpace(request, 'QA', '품질');
+  const fm = '---\ntype: note\nstatus: draft\nowner: dev@example.com\n---\n';
+  const res = await request.post('/api/v1/spaces/QA/pages', {
+    data: { title: '댓글 문서', content: `${fm}## 범위\n\n본문\n\n## 일정\n\n미정\n` },
+  });
+  const p = (await res.json()).page;
+  await page.goto(`/s/QA/p/${p.slug}-${p.shortId}`);
+
+  await page.getByLabel('새 댓글').fill('일정은 **언제** 정하나요?');
+  await page.getByLabel('섹션').selectOption({ label: '일정' });
+  await page.getByRole('button', { name: '댓글 달기' }).click();
+  const thread = page.locator('article[id^="comment-"]');
+  await expect(thread.locator('strong')).toHaveText('언제');
+  await expect(thread.getByRole('link', { name: '§ 일정' })).toBeVisible();
+  // The heading shows the open thread count.
+  await expect(page.getByRole('button', { name: '이 섹션의 열린 댓글 1개' })).toBeVisible();
+
+  await thread.getByRole('button', { name: '답글' }).click();
+  await thread.getByLabel('답글').fill('다음 주에 정합니다.');
+  await thread.getByRole('button', { name: '답글' }).last().click();
+  await expect(thread.getByText('다음 주에 정합니다.')).toBeVisible();
+
+  await thread.getByRole('button', { name: '해결' }).click();
+  await expect(page.getByRole('button', { name: '해결된 스레드 1개 보기' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '이 섹션의 열린 댓글 1개' })).toHaveCount(0);
+});

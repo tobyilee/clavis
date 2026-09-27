@@ -6,15 +6,18 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AttachmentList } from '@/components/attachment-list';
 import { Backlinks } from '@/components/backlinks';
+import { Comments, threadAnchor } from '@/components/comments';
 import { Notice } from '@/components/notice';
 import { PageActions } from '@/components/page-actions';
 import { Author, PageMeta } from '@/components/page-meta';
 import { TocAside, TocInline } from '@/components/toc';
 import { isApiError } from '@/lib/api';
 import { useAttachments } from '@/lib/attachments';
+import { sectionCounts, threadsQuery } from '@/lib/comments';
 import { pageQuery, spaceQuery } from '@/lib/queries';
 import { pageParams } from '@/lib/urls';
 import { renderMarkdown } from '@/markdown/render';
+import { type SectionComments, SectionCommentsContext } from '@/markdown/section-comments';
 import { useRenderContext } from '@/markdown/use-render-context';
 
 export const Route = createFileRoute('/s/$key/p/$slugId')({ component: PageView });
@@ -30,6 +33,15 @@ function PageView() {
   const rendered = useMemo(
     () => (page.data ? renderMarkdown(page.data.content, ctx) : null),
     [page.data, ctx],
+  );
+  const threads = useQuery({ ...threadsQuery(page.data?.id ?? ''), enabled: !!page.data });
+  const sectionComments = useMemo<SectionComments>(
+    () => ({
+      counts: sectionCounts(threads.data),
+      open: (id) =>
+        document.getElementById(threadAnchor(id))?.scrollIntoView({ behavior: 'smooth' }),
+    }),
+    [threads.data],
   );
 
   if (!shortId || isApiError(page.error, 404)) {
@@ -86,9 +98,12 @@ function PageView() {
           </div>
         </header>
         <TocInline items={rendered.toc} />
-        <div className="prose-clavis">{rendered.element}</div>
+        <SectionCommentsContext.Provider value={sectionComments}>
+          <div className="prose-clavis">{rendered.element}</div>
+        </SectionCommentsContext.Provider>
         <AttachmentList attachments={attachments.list} />
         <Backlinks pageId={p.id} spaceKey={p.spaceKey} />
+        <Comments pageId={p.id} toc={rendered.toc} ctx={ctx} />
       </article>
       <aside className="hidden w-56 shrink-0 xl:block">
         <TocAside items={rendered.toc} />

@@ -1,6 +1,7 @@
 import { admin } from './admin';
 import { attachments } from './attachments';
 import { authoring } from './authoring';
+import { comments } from './comments';
 import { docs } from './docs';
 import { health } from './health';
 import { me } from './me';
@@ -32,6 +33,7 @@ export function buildApi() {
     spaces,
     pages,
     sections,
+    comments,
     quality,
     trash,
     search,

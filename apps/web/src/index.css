@@ -119,6 +119,17 @@
   @apply rounded-md;
 }
 
+/* Comments reuse the renderer at a compact size: no big vertical rhythm around a line. */
+.prose-comment {
+  @apply prose-sm;
+}
+.prose-comment > :first-child {
+  @apply mt-0;
+}
+.prose-comment > :last-child {
+  @apply mb-0;
+}
+
 /* Wiki links (D-14): broken ones are dashed red so they stand out while reading. */
 .prose-clavis a.wikilink {
   @apply decoration-dotted underline-offset-4;

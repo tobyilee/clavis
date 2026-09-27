@@ -50,18 +50,21 @@ describe('MCP endpoint', () => {
 
     const tools = await rpc('tools/list', {}, editor, 2);
     expect(tools.json.result.tools.map((t: { name: string }) => t.name).sort()).toEqual([
+      'add_comment',
       'create_page',
       'delete_page',
       'get_backlinks',
       'get_space_health',
       'get_space_tree',
       'lint_markdown',
+      'list_comments',
       'list_sections',
       'list_spaces',
       'list_templates',
       'move_page',
       'read_page',
       'read_section',
+      'resolve_comment',
       'search_pages',
       'set_page_meta',
       'update_page',
@@ -75,6 +78,9 @@ describe('MCP endpoint', () => {
     const names = tools.json.result.tools.map((t: { name: string }) => t.name);
     expect(names).toContain('search_pages');
     expect(names).not.toContain('create_page');
+    expect(names).not.toContain('resolve_comment');
+    // Viewers may comment (D-45).
+    expect(names).toContain('add_comment');
     const res = await rpc('tools/call', { name: 'create_page', arguments: {} }, viewer);
     expect(res.json.result?.isError ?? res.json.error).toBeTruthy();
   });
@@ -207,6 +213,38 @@ describe('agent workflow (plan M1)', () => {
     const page = (await tool(editor, 'read_page', { page: id })).text;
     expect(page).toContain('status: review');
     expect(page).toContain('- [ ] 환불 정책 초안 (hermes)');
+  });
+
+  it('reads, answers and resolves review comments (D-53)', async () => {
+    const created = await tool(editor, 'create_page', {
+      space: 'PAY',
+      title: '검토 문서',
+      content: `${FM()}## 범위\n\n본문\n`,
+    });
+    const id = /PAY\/(\w+)/.exec(created.text)?.[1] ?? '';
+    const q = await call(`/api/v1/pages/${id}/comments`, {
+      ...ADMIN,
+      method: 'POST',
+      body: { body: '범위에\n환불도 넣어 주세요', sectionId: '범위' },
+    });
+    expect((await tool(editor, 'read_page', { page: id })).text).toContain('open_comments=1');
+    const list = (await tool(editor, 'list_comments', { page: id })).text;
+    expect(list).toBe(`- [${q.json.id}] owner on #범위: 범위에\n    환불도 넣어 주세요`);
+
+    const reply = await tool(editor, 'add_comment', {
+      page: id,
+      body: '환불을 범위에 추가했습니다.',
+      replyTo: q.json.id,
+    });
+    expect(reply.text).toMatch(new RegExp(`in thread ${q.json.id}\\.$`));
+    expect((await tool(editor, 'resolve_comment', { comment: q.json.id })).text).toBe(
+      `Thread ${q.json.id} resolved.`,
+    );
+    expect((await tool(editor, 'list_comments', { page: id })).text).toBe('No open comments.');
+    const all = (await tool(editor, 'list_comments', { page: id, includeResolved: true })).text;
+    expect(all).toContain('(resolved)');
+    expect(all).toContain('  - [');
+    expect(all).toContain('hermes (agent): 환불을 범위에 추가했습니다.');
   });
 
   it('reports backlinks and space health', async () => {

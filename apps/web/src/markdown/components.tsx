@@ -3,6 +3,7 @@ import type { Components } from 'hast-util-to-jsx-runtime';
 import { lazy, Suspense } from 'react';
 import { MarkdownLink } from './link';
 import { textOf } from './plugins';
+import { sectionHeadings } from './section-comments';
 
 const CodeBlock = lazy(() => import('./code-block'));
 const Mermaid = lazy(() => import('./mermaid'));
@@ -36,6 +37,7 @@ function Pre({ node, children, ...rest }: { node?: Element; children?: React.Rea
 }
 
 export const markdownComponents: Partial<Components> = {
+  ...sectionHeadings,
   pre: Pre,
   a: MarkdownLink,
   table: ({ node: _node, ...props }) => (

@@ -14,6 +14,7 @@ import { TEMPLATES } from '@clavis/shared/templates';
 import { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import type { Actor } from '../services/actors';
+import { addComment, listThreads, openThreadCount, setResolved } from '../services/comments';
 import { ServiceError } from '../services/errors';
 import { lintContent } from '../services/links';
 import {
@@ -49,6 +50,11 @@ Writing (editor agents)
   update_section. Others may edit other sections meanwhile without a conflict. To add a
   list item or a note (meeting action items, logs), update_section with mode "append".
 - To change only status, owner or tags, use set_page_meta.
+
+Comments
+- read_page shows open_comments=N. list_comments shows review threads from people and
+  agents. When you address one in the page, reply with add_comment (replyTo) saying what
+  you changed, then resolve_comment. Ask questions with add_comment instead of guessing.
 - Link pages with [[Page title]] or [[SPACEKEY:Page title]]; attachments with
   ![alt](attachments/file.png).
 - Warnings do not block a save, but fix them when you can; lint_markdown checks a draft.
@@ -196,6 +202,29 @@ const INPUT = {
   ),
   delete_page: cached(z.object({ page: pageArg })),
   list_sections: cached(z.object({ page: pageArg })),
+  list_comments: cached(
+    z.object({
+      page: pageArg,
+      includeResolved: z.boolean().optional().describe('Also list resolved threads'),
+    }),
+  ),
+  add_comment: cached(
+    z.object({
+      page: pageArg,
+      body: z.string().describe('Markdown'),
+      replyTo: z.string().optional().describe('Comment id to reply to; omit for a new thread'),
+      section: z
+        .string()
+        .optional()
+        .describe('New threads: the section id (from list_sections) it is about'),
+    }),
+  ),
+  resolve_comment: cached(
+    z.object({
+      comment: z.string().describe('Any comment id in the thread'),
+      reopen: z.boolean().optional(),
+    }),
+  ),
   read_section: cached(z.object({ page: pageArg, section: sectionArg })),
   update_section: cached(
     z.object({
@@ -291,7 +320,8 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
     async ({ page }) =>
       guard(async () => {
         const found = await getPage(DB, page);
-        const header = `<!-- clavis: ${found.spaceKey}/${found.shortId} "${found.title}" revision=${found.revision} updated_by=${found.updatedBy.name} -->`;
+        const open = await openThreadCount(DB, found.id);
+        const header = `<!-- clavis: ${found.spaceKey}/${found.shortId} "${found.title}" revision=${found.revision} updated_by=${found.updatedBy.name} open_comments=${open} -->`;
         return text(`${header}\n${found.content}`);
       }),
   );
@@ -460,7 +490,61 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
       }),
   );
 
+  server.registerTool(
+    'list_comments',
+    {
+      title: 'List comments',
+      description: 'Comment threads on a page (open ones unless includeResolved), with replies.',
+      inputSchema: INPUT.list_comments,
+      annotations: { readOnlyHint: true },
+    },
+    async ({ page, includeResolved }) =>
+      guard(async () => {
+        const threads = await listThreads(DB, page, includeResolved ? 'all' : 'open');
+        if (threads.length === 0) return text('No open comments.');
+        const who = (a: { name: string; kind: string }) =>
+          `${a.name}${a.kind === 'agent' ? ' (agent)' : ''}`;
+        const quote = (body: string) => body.replace(/\n/g, '\n    ');
+        const lines = threads.map((t) => {
+          const head = `- [${t.id}] ${who(t.author)}${t.sectionId ? ` on #${t.sectionId}` : ''}${t.resolvedAt ? ' (resolved)' : ''}: ${quote(t.body)}`;
+          const replies = t.replies.map((r) => `  - [${r.id}] ${who(r.author)}: ${quote(r.body)}`);
+          return [head, ...replies].join('\n');
+        });
+        return text(lines.join('\n'));
+      }),
+  );
+
+  // Anyone who can read may comment (D-45).
+  server.registerTool(
+    'add_comment',
+    {
+      title: 'Add comment',
+      description: 'Comment on a page, or reply in a thread with replyTo.',
+      inputSchema: INPUT.add_comment,
+    },
+    async ({ page, body, replyTo, section }) =>
+      guard(async () => {
+        const c = await addComment(DB, actor, page, { body, replyTo, sectionId: section });
+        return text(`Added comment ${c.id}${replyTo ? ` in thread ${c.threadId}` : ''}.`);
+      }),
+  );
+
   if (!canWrite) return server;
+
+  server.registerTool(
+    'resolve_comment',
+    {
+      title: 'Resolve comment thread',
+      description: 'Mark a comment thread resolved (or reopen it).',
+      inputSchema: INPUT.resolve_comment,
+      annotations: { idempotentHint: true },
+    },
+    async ({ comment, reopen }) =>
+      guard(async () => {
+        const r = await setResolved(DB, actor, comment, !reopen);
+        return text(`Thread ${r.threadId} ${reopen ? 'reopened' : 'resolved'}.`);
+      }),
+  );
 
   // ── Write (editor and admin only) ─────────────────────────────────────────
 

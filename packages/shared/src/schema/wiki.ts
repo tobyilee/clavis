@@ -319,3 +319,43 @@ export const PageMetaPatchSchema = z
     'Set at least one of status, owner, tags',
   );
 export type PageMetaPatch = z.infer<typeof PageMetaPatchSchema>;
+
+/** Comment body limit (D-44). */
+export const MAX_COMMENT_BYTES = 10 * 1024;
+
+export const CommentSchema = z.object({
+  id: z.string(),
+  author: ActorRefSchema,
+  /** Markdown. */
+  body: z.string(),
+  createdAt: z.number(),
+  updatedAt: z.number().nullable(),
+});
+export type Comment = z.infer<typeof CommentSchema>;
+
+/** A root comment with its replies, oldest first (D-44). */
+export const ThreadSchema = CommentSchema.extend({
+  /** Heading id (section) the thread is about, or null for the whole page. */
+  sectionId: z.string().nullable(),
+  resolvedAt: z.number().nullable(),
+  resolvedBy: ActorRefSchema.nullable(),
+  replies: z.array(CommentSchema),
+});
+export type Thread = z.infer<typeof ThreadSchema>;
+
+const CommentBody = z
+  .string()
+  .trim()
+  .min(1)
+  .refine((b) => new TextEncoder().encode(b).byteLength <= MAX_COMMENT_BYTES, 'At most 10KB');
+
+export const CreateCommentSchema = z.object({
+  body: CommentBody,
+  /** Reply in this thread (any comment id of it); omit to start a thread. */
+  replyTo: z.string().optional(),
+  /** New threads only: the section (heading id) this is about. */
+  sectionId: z.string().max(200).optional(),
+});
+export type CreateCommentInput = z.infer<typeof CreateCommentSchema>;
+
+export const UpdateCommentSchema = z.object({ body: CommentBody });
