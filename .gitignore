@@ -10,3 +10,8 @@ coverage/
 
 # Local agent credentials (Access service token + Clavis API tokens)
 .agent.env
+
+# E2E
+e2e/.state/
+test-results/
+playwright-report/

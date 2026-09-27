@@ -274,7 +274,12 @@ export function PageEditor({ page, attachments }: { page: Page; attachments: Edi
               {t('editor.close')}
             </Link>
           </Button>
-          <Button onClick={() => void save(true)} disabled={saving || hasErrors} title="⌘S">
+          <Button
+            onClick={() => void save(true)}
+            disabled={saving || hasErrors}
+            title="⌘S"
+            aria-label={t('editor.save')}
+          >
             {saving ? <Loader2 className="animate-spin" /> : <Save />}
             <span className="hidden sm:inline">{t('editor.save')}</span>
           </Button>

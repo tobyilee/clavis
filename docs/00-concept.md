@@ -213,7 +213,7 @@ tags: [payment, api]
 | Webhook | 페이지 이벤트를 외부로 전달 | P3 |
 | 시맨틱 검색 | Workers AI 임베딩 + Vectorize | P3 |
 
-### 11.2 MCP 도구 (P1 초안)
+### 11.2 MCP 도구 (P1, 구현됨)
 | 도구 | 설명 |
 |---|---|
 | `list_spaces` | Space 목록 |
@@ -223,6 +223,7 @@ tags: [payment, api]
 | `create_page` | 페이지 생성 (템플릿 지정 가능). lint 결과 반환 |
 | `update_page` | 페이지 수정 (`revision` 필수). lint 결과 반환 |
 | `move_page` | 부모/순서 변경 |
+| `delete_page` | 휴지통으로 이동 (하위 포함, 30일 내 복원) |
 | `lint_markdown` | 저장 없이 규칙 검사 |
 | `list_templates` | 템플릿 목록 및 필수 섹션 |
 

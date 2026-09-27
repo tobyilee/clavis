@@ -23,6 +23,16 @@ jobs:
       - run: pnpm exec biome ci .
       - run: pnpm -r typecheck
       - run: pnpm -r test
+      # E2E smoke tests (D-39): the built SPA and Worker under wrangler dev, fresh local D1.
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
 
   deploy:
     name: Deploy to Cloudflare

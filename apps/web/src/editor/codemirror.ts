@@ -112,7 +112,7 @@ function completionSource(get: () => Completions) {
         from,
         options: get()
           .attachments()
-          .map((name) => ({ label: name, apply: encodeURI(name), type: 'variable' })),
+          .map((name) => ({ label: name, type: 'variable' })),
         validFor: /^[^)\s]*$/,
       };
     }

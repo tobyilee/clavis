@@ -34,9 +34,13 @@ export async function uploadFile(pageId: string, file: File): Promise<Attachment
   return (await res.json()) as Attachment;
 }
 
-/** Markdown that references an uploaded file (D-31): images inline, others as links. */
+/**
+ * Markdown that references an uploaded file (D-31): images inline, others as links. The
+ * server already reduced the name to letters, digits and . _ -, so it needs no escaping,
+ * and Korean names stay readable in the source.
+ */
 export function attachmentMarkdown(a: Pick<Attachment, 'filename' | 'mimeType'>): string {
-  const path = `attachments/${encodeURI(a.filename)}`;
+  const path = `attachments/${a.filename}`;
   const label = a.filename.replace(/\.[^.]+$/, '').replace(/[[\]]/g, '');
   return a.mimeType.startsWith('image/') ? `![${label}](${path})` : `[${a.filename}](${path})`;
 }
