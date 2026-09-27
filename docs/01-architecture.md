@@ -264,6 +264,7 @@ PUT /api/v1/pages/{ref}  { title?, content, baseRevision }
 ```
 
 - **D1 호출 2회**: 읽기 batch + 쓰기 batch. 서브리퀘스트 한도(50)와 무관한 수준이다. 생성·이동·삭제도 2~3회.
+- **CPU 실측**(H2, 운영): 100KB 저장 중앙값 7.5ms·p95 10ms, 2.5KB 생성 4ms. 문서는 한 번만 파싱하고(규칙들은 헤딩·링크 스캔을 memo로 공유), 저장 응답에는 본문을 넣지 않으며, 링크·태그는 `json_each`로 문장 하나에 넣는다. 상세: [`03-phase1-plan.md`](./03-phase1-plan.md) §9.
 - **revision 가드**: D1 batch에는 조건 분기가 없으므로, 첫 문장을 `SELECT CASE WHEN <revision 일치> THEN 1 ELSE json('…') END`로 두어 불일치 시 오류를 일으킨다. 읽기와 쓰기 사이에 다른 저장이 끼어들어도 덮어쓰지 않는다.
 - **바인딩 파라미터 한도**: D1은 문장당 바인딩 100개가 한도라 링크 목록은 `json_each(?)` 한 개로 넘긴다.
 - **AST 기반 파싱은 서버 금지**: remark·markdownlint는 Cloudflare 실측 10KB에 25ms 이상(S3). markdownlint 서식 규칙은 브라우저 에디터에서만 실행한다.
@@ -416,7 +417,9 @@ interface Violation { ruleId: string; severity: Severity; message: string; line:
 
 **결론**: 규모상 여유가 크다. 실제 병목은 **요청당 CPU 10ms**, **요청당 서브리퀘스트 50개**, **에이전트 폭주(루프 버그)**다.
 - **서브리퀘스트 규칙**: D1·R2 호출도 1개씩 센다. 서비스 코드는 행마다 쿼리하지 않고 `DB.batch()`로 묶는다 (batch 1회 = 1 서브리퀘스트).
-- 트리 조회는 `ETag`(tree_version)로 `304`를 반환해 D1 읽기를 줄인다.
+- 트리 조회는 `ETag`(tree_version)로 `304`를 반환해 D1 읽기를 줄이고, 완성된 트리 JSON을 `spaces.tree_json`에 캐시해 변경 후 첫 조회 때만 다시 만든다 (570페이지 2ms).
+- `/api/v1/openapi.json`은 빌드 시 생성한 문자열을 그대로 보낸다 (`pnpm --filter @clavis/worker openapi`, 최신인지 테스트가 확인). 요청마다 만들면 30~115ms였다.
+- MCP는 요청마다 서버를 새로 만들지만(stateless), 도구 스키마의 JSON Schema 변환은 isolate당 한 번만 한다 (호출당 15ms → 3.5ms).
 - 에이전트 토큰별 분당 호출 제한: Workers Rate Limiting 바인딩 (S7, 무료 플랜 사용 가능 확인). 기본 120회/60초, 초과 시 `429` + `Retry-After`.
 - 한도 초과 시 무료 플랜은 요청이 실패하므로, 대시보드 알림을 설정한다. 필요 시 Workers Paid($5/월) 전환이 유일한 비용 옵션이다.
 
