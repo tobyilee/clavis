@@ -24,14 +24,26 @@
     "noHome": "홈 페이지가 없습니다."
   },
   "tree": {
-    "empty": "페이지가 없습니다."
+    "empty": "페이지가 없습니다.",
+    "addChild": "\"{{title}}\" 아래에 페이지 추가"
   },
   "page": {
     "notFound": "페이지를 찾을 수 없습니다",
     "backToSpace": "Space 홈으로",
     "missingTitle": "\"{{title}}\" 페이지가 없습니다",
     "missingBody": "{{key}} Space에 이 제목의 페이지가 없습니다. 링크가 깨졌거나 제목이 바뀌었을 수 있습니다.",
-    "owner": "담당"
+    "owner": "담당",
+    "edit": "편집",
+    "more": "더 보기",
+    "addChild": "하위 페이지 추가",
+    "move": "이동",
+    "moveTitle": "\"{{title}}\" 이동",
+    "moveBody": "새 부모 페이지를 고르세요. 하위 페이지도 함께 이동하고, 새 위치의 맨 끝에 놓입니다.",
+    "newParent": "새 부모 페이지",
+    "topLevel": "(최상위)",
+    "delete": "삭제",
+    "deleteTitle": "\"{{title}}\" 삭제",
+    "deleteBody": "이 페이지와 모든 하위 페이지가 휴지통으로 이동합니다. 30일 안에 복원할 수 있습니다."
   },
   "status": {
     "draft": "초안",
@@ -61,5 +73,60 @@
   },
   "error": {
     "load": "불러오지 못했습니다."
+  },
+  "newPage": {
+    "heading": "새 페이지",
+    "under": "\"{{parent}}\" 아래에 만듭니다",
+    "template": "템플릿",
+    "create": "만들고 편집하기"
+  },
+  "editor": {
+    "title": "제목",
+    "type": "유형",
+    "status": "상태",
+    "save": "저장",
+    "close": "닫기",
+    "cancel": "취소",
+    "problems": "문제",
+    "errorsBlock": "오류가 있으면 저장할 수 없습니다",
+    "placeholder": "Markdown으로 작성하세요. [[ 를 입력하면 페이지 링크를 고를 수 있습니다.",
+    "tabEdit": "편집",
+    "tabPreview": "미리보기",
+    "yamlBroken": "frontmatter YAML에 오류가 있습니다. 에디터에서 직접 고쳐 주세요.",
+    "addTag": "태그 추가",
+    "removeTag": "태그 {{tag}} 삭제",
+    "missingSections": "필수 섹션 누락: {{sections}}.",
+    "addSections": "끝에 추가",
+    "draftFound": "저장하지 않은 초안이 있습니다 ({{when}}).",
+    "draftOutdated": "그 뒤로 다른 수정이 저장되었습니다.",
+    "restoreDraft": "초안 복구",
+    "discardDraft": "버리기",
+    "saved": "저장했습니다 (revision {{revision}}).",
+    "renamedLinks": "옛 제목으로 연결된 페이지 {{count}}개의 링크가 깨졌습니다.",
+    "lintFailed": "오류가 있어 저장하지 않았습니다. 아래 문제 목록을 확인하세요.",
+    "saveFailed": "저장하지 못했습니다. 잠시 후 다시 시도하세요.",
+    "confirmLeave": "저장하지 않은 변경이 있습니다. 나가시겠습니까? (초안은 이 브라우저에 남습니다)",
+    "conflictTitle": "다른 사람이 먼저 저장했습니다",
+    "conflictBody": "revision {{mine}}을(를) 편집하는 동안 revision {{theirs}}이(가) 저장되었습니다. 내 내용을 클립보드에 복사한 뒤 최신본을 불러와 다시 반영하세요.",
+    "keepEditing": "계속 편집",
+    "copyAndLoad": "내 내용 복사하고 최신본 불러오기",
+    "loadedLatest": "최신본을 불러왔습니다.",
+    "loadedLatestCopied": "최신본을 불러왔습니다. 내 내용은 클립보드에 있습니다.",
+    "readOnly": "편집 권한이 없습니다.",
+    "showProps": "속성 보기",
+    "hideProps": "속성 접기"
+  },
+  "lint": {
+    "frontmatter-missing": "문서는 YAML frontmatter(---)로 시작해야 합니다.",
+    "frontmatter-yaml": "frontmatter YAML 문법 오류입니다.",
+    "frontmatter-field": "frontmatter \"{{field}}\" 값이 없거나 허용되지 않는 값입니다.",
+    "attachment-exists": "첨부 파일 \"{{filename}}\"이(가) 이 페이지에 없습니다.",
+    "no-h1": "본문에 H1(#)을 쓰지 마세요. 페이지 제목이 H1입니다.",
+    "heading-increment": "헤딩 레벨이 H{{from}}에서 H{{to}}로 건너뜁니다.",
+    "wiki-link-exists": "\"{{target}}\" 페이지가 없습니다.",
+    "required-sections": "{{type}} 문서에는 \"## {{section}}\" 섹션이 필요합니다.",
+    "image-alt": "이미지에 대체 텍스트(alt)가 없습니다.",
+    "code-lang": "코드 블록에 언어가 없어 하이라이트되지 않습니다 (예: ```ts).",
+    "doc-length": "문서가 {{kb}}KB입니다. {{limitKb}}KB가 넘으면 하위 페이지로 나누는 것을 권장합니다."
   }
 }

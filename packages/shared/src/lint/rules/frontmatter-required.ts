@@ -7,10 +7,22 @@ export const frontmatterRequired: LintRule = {
   blocking: true,
   check({ split }) {
     if (split.raw === null) {
-      return [{ line: 1, message: 'Document must start with YAML frontmatter.' }];
+      return [
+        {
+          line: 1,
+          message: 'Document must start with YAML frontmatter.',
+          params: { kind: 'missing' },
+        },
+      ];
     }
     if (split.error) {
-      return [{ line: 1, message: `Frontmatter is not valid YAML: ${split.error}` }];
+      return [
+        {
+          line: 1,
+          message: `Frontmatter is not valid YAML: ${split.error}`,
+          params: { kind: 'yaml' },
+        },
+      ];
     }
     const result = FrontmatterSchema.safeParse(split.data ?? {});
     if (result.success) return [];

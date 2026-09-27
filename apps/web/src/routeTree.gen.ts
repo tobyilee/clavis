@@ -11,9 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SKeyIndexRouteImport } from './routes/s.$key.index'
+import { Route as SKeyNewRouteImport } from './routes/s.$key.new'
 import { Route as SKeyTrashRouteImport } from './routes/s.$key.trash'
 import { Route as SKeyPSlugIdRouteImport } from './routes/s.$key.p.$slugId'
 import { Route as SKeyWTitleRouteImport } from './routes/s.$key.w.$title'
+import { Route as SKeyPSlugIdEditRouteImport } from './routes/s.$key.p.$slugId_.edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -23,6 +25,11 @@ const IndexRoute = IndexRouteImport.update({
 const SKeyIndexRoute = SKeyIndexRouteImport.update({
   id: '/s/$key/',
   path: '/s/$key/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SKeyNewRoute = SKeyNewRouteImport.update({
+  id: '/s/$key/new',
+  path: '/s/$key/new',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SKeyTrashRoute = SKeyTrashRouteImport.update({
@@ -40,55 +47,78 @@ const SKeyWTitleRoute = SKeyWTitleRouteImport.update({
   path: '/s/$key/w/$title',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SKeyPSlugIdEditRoute = SKeyPSlugIdEditRouteImport.update({
+  id: '/s/$key/p/$slugId_/edit',
+  path: '/s/$key/p/$slugId/edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/s/$key/new': typeof SKeyNewRoute
   '/s/$key/trash': typeof SKeyTrashRoute
   '/s/$key/': typeof SKeyIndexRoute
   '/s/$key/p/$slugId': typeof SKeyPSlugIdRoute
   '/s/$key/w/$title': typeof SKeyWTitleRoute
+  '/s/$key/p/$slugId/edit': typeof SKeyPSlugIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/s/$key/new': typeof SKeyNewRoute
   '/s/$key/trash': typeof SKeyTrashRoute
   '/s/$key': typeof SKeyIndexRoute
   '/s/$key/p/$slugId': typeof SKeyPSlugIdRoute
   '/s/$key/w/$title': typeof SKeyWTitleRoute
+  '/s/$key/p/$slugId/edit': typeof SKeyPSlugIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/s/$key/new': typeof SKeyNewRoute
   '/s/$key/trash': typeof SKeyTrashRoute
   '/s/$key/': typeof SKeyIndexRoute
   '/s/$key/p/$slugId': typeof SKeyPSlugIdRoute
   '/s/$key/w/$title': typeof SKeyWTitleRoute
+  '/s/$key/p/$slugId_/edit': typeof SKeyPSlugIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/s/$key/new'
     | '/s/$key/trash'
     | '/s/$key/'
     | '/s/$key/p/$slugId'
     | '/s/$key/w/$title'
+    | '/s/$key/p/$slugId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/s/$key/trash' | '/s/$key' | '/s/$key/p/$slugId' | '/s/$key/w/$title'
+    | '/'
+    | '/s/$key/new'
+    | '/s/$key/trash'
+    | '/s/$key'
+    | '/s/$key/p/$slugId'
+    | '/s/$key/w/$title'
+    | '/s/$key/p/$slugId/edit'
   id:
     | '__root__'
     | '/'
+    | '/s/$key/new'
     | '/s/$key/trash'
     | '/s/$key/'
     | '/s/$key/p/$slugId'
     | '/s/$key/w/$title'
+    | '/s/$key/p/$slugId_/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SKeyNewRoute: typeof SKeyNewRoute
   SKeyTrashRoute: typeof SKeyTrashRoute
   SKeyIndexRoute: typeof SKeyIndexRoute
   SKeyPSlugIdRoute: typeof SKeyPSlugIdRoute
   SKeyWTitleRoute: typeof SKeyWTitleRoute
+  SKeyPSlugIdEditRoute: typeof SKeyPSlugIdEditRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -105,6 +135,13 @@ declare module '@tanstack/react-router' {
       path: '/s/$key'
       fullPath: '/s/$key/'
       preLoaderRoute: typeof SKeyIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/s/$key/new': {
+      id: '/s/$key/new'
+      path: '/s/$key/new'
+      fullPath: '/s/$key/new'
+      preLoaderRoute: typeof SKeyNewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/s/$key/trash': {
@@ -128,15 +165,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SKeyWTitleRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/s/$key/p/$slugId_/edit': {
+      id: '/s/$key/p/$slugId_/edit'
+      path: '/s/$key/p/$slugId/edit'
+      fullPath: '/s/$key/p/$slugId/edit'
+      preLoaderRoute: typeof SKeyPSlugIdEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SKeyNewRoute: SKeyNewRoute,
   SKeyTrashRoute: SKeyTrashRoute,
   SKeyIndexRoute: SKeyIndexRoute,
   SKeyPSlugIdRoute: SKeyPSlugIdRoute,
   SKeyWTitleRoute: SKeyWTitleRoute,
+  SKeyPSlugIdEditRoute: SKeyPSlugIdEditRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

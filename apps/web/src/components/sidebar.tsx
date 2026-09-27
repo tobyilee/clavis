@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useCanEdit } from '@/lib/me';
 import { useSpaces } from '@/lib/queries';
 import { useCurrentLocation } from '@/lib/route';
 import { PageTree } from './page-tree';
@@ -58,6 +59,7 @@ function SpaceSwitcher({ spaceKey }: { spaceKey: string | null }) {
 export function Sidebar() {
   const { t } = useTranslation();
   const { spaceKey, shortId } = useCurrentLocation();
+  const canEdit = useCanEdit();
   return (
     <nav className="flex h-full flex-col gap-2 p-3">
       <SpaceSwitcher spaceKey={spaceKey} />
@@ -70,9 +72,13 @@ export function Sidebar() {
       </div>
       {spaceKey && (
         <div className="flex flex-col gap-1 border-t pt-2">
-          <Button variant="ghost" size="sm" className="justify-start" disabled>
-            <FilePlus /> {t('app.newPage')}
-          </Button>
+          {canEdit && (
+            <Button variant="ghost" size="sm" className="justify-start" asChild>
+              <Link to="/s/$key/new" params={{ key: spaceKey }}>
+                <FilePlus /> {t('app.newPage')}
+              </Link>
+            </Button>
+          )}
           <Button variant="ghost" size="sm" className="justify-start" asChild>
             <Link to="/s/$key/trash" params={{ key: spaceKey }}>
               <Trash2 /> {t('app.trash')}

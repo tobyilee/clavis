@@ -5,6 +5,7 @@ import { ChevronRight, FileQuestion } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Notice } from '@/components/notice';
+import { PageActions } from '@/components/page-actions';
 import { Author, PageMeta } from '@/components/page-meta';
 import { TocAside, TocInline } from '@/components/toc';
 import { isApiError } from '@/lib/api';
@@ -69,7 +70,12 @@ function PageView() {
           ))}
         </nav>
         <header className="mb-8 border-b pb-5">
-          <h1 className="text-3xl font-bold tracking-tight break-words">{p.title}</h1>
+          <div className="flex items-start gap-3">
+            <h1 className="min-w-0 flex-1 text-3xl font-bold tracking-tight break-words">
+              {p.title}
+            </h1>
+            <PageActions page={p} isHome={space.data?.homePageShortId === p.shortId} />
+          </div>
           <PageMeta page={p} />
           <div className="mt-3">
             <Author page={p} />

@@ -24,14 +24,26 @@
     "noHome": "This space has no home page."
   },
   "tree": {
-    "empty": "No pages yet."
+    "empty": "No pages yet.",
+    "addChild": "Add a page under \"{{title}}\""
   },
   "page": {
     "notFound": "Page not found",
     "backToSpace": "Back to the space",
     "missingTitle": "No page titled \"{{title}}\"",
     "missingBody": "The {{key}} space has no page with this title. The link may be broken or the page renamed.",
-    "owner": "Owner"
+    "owner": "Owner",
+    "edit": "Edit",
+    "more": "More",
+    "addChild": "Add child page",
+    "move": "Move",
+    "moveTitle": "Move \"{{title}}\"",
+    "moveBody": "Pick the new parent page. Child pages move along, and the page goes last in its new place.",
+    "newParent": "New parent page",
+    "topLevel": "(Top level)",
+    "delete": "Delete",
+    "deleteTitle": "Delete \"{{title}}\"",
+    "deleteBody": "This page and all its child pages move to the trash. You can restore them within 30 days."
   },
   "status": {
     "draft": "Draft",
@@ -61,5 +73,60 @@
   },
   "error": {
     "load": "Could not load."
+  },
+  "newPage": {
+    "heading": "New page",
+    "under": "Creating under \"{{parent}}\"",
+    "template": "Template",
+    "create": "Create and edit"
+  },
+  "editor": {
+    "title": "Title",
+    "type": "Type",
+    "status": "Status",
+    "save": "Save",
+    "close": "Close",
+    "cancel": "Cancel",
+    "problems": "Problems",
+    "errorsBlock": "Errors must be fixed before saving",
+    "placeholder": "Write Markdown. Type [[ to link a page.",
+    "tabEdit": "Edit",
+    "tabPreview": "Preview",
+    "yamlBroken": "The frontmatter YAML has an error. Fix it in the editor.",
+    "addTag": "Add tag",
+    "removeTag": "Remove tag {{tag}}",
+    "missingSections": "Missing required sections: {{sections}}.",
+    "addSections": "Add at the end",
+    "draftFound": "You have an unsaved draft ({{when}}).",
+    "draftOutdated": "The page was saved again since then.",
+    "restoreDraft": "Restore draft",
+    "discardDraft": "Discard",
+    "saved": "Saved (revision {{revision}}).",
+    "renamedLinks": "{{count}} page(s) linking to the old title now have broken links.",
+    "lintFailed": "Not saved: fix the errors listed below.",
+    "saveFailed": "Could not save. Try again shortly.",
+    "confirmLeave": "You have unsaved changes. Leave anyway? (A draft stays in this browser.)",
+    "conflictTitle": "Someone saved first",
+    "conflictBody": "Revision {{theirs}} was saved while you edited revision {{mine}}. Copy your text to the clipboard, load the latest version, and reapply your change.",
+    "keepEditing": "Keep editing",
+    "copyAndLoad": "Copy mine and load latest",
+    "loadedLatest": "Loaded the latest version.",
+    "loadedLatestCopied": "Loaded the latest version. Your text is on the clipboard.",
+    "readOnly": "You do not have permission to edit.",
+    "showProps": "Show properties",
+    "hideProps": "Hide properties"
+  },
+  "lint": {
+    "frontmatter-missing": "The page must start with YAML frontmatter (---).",
+    "frontmatter-yaml": "The frontmatter YAML has a syntax error.",
+    "frontmatter-field": "Frontmatter \"{{field}}\" is missing or not an allowed value.",
+    "attachment-exists": "Attachment \"{{filename}}\" does not exist on this page.",
+    "no-h1": "Do not use H1 (#) in the body; the page title is the H1.",
+    "heading-increment": "Heading level jumps from H{{from}} to H{{to}}.",
+    "wiki-link-exists": "Page \"{{target}}\" does not exist.",
+    "required-sections": "A {{type}} page needs a \"## {{sectionEn}}\" section.",
+    "image-alt": "Image has no alt text.",
+    "code-lang": "Code block has no language (e.g. ```ts), so it is not highlighted.",
+    "doc-length": "The page is {{kb}}KB; consider splitting it into child pages over {{limitKb}}KB."
   }
 }

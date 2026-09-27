@@ -16,3 +16,9 @@ export function useMe() {
     retry: (count, err) => !(err instanceof ApiError && err.problem.status === 401) && count < 1,
   });
 }
+
+/** Editors and admins may change pages (D-37). The server enforces it; this only hides UI. */
+export function useCanEdit(): boolean {
+  const role = useMe().data?.role;
+  return role === 'editor' || role === 'admin';
+}
