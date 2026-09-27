@@ -10,7 +10,7 @@ export function problem<S extends ContentfulStatusCode>(
   status: S,
   slug: string,
   title: string,
-  extra: { detail?: string; violations?: Violation[] } = {},
+  extra: { detail?: string; violations?: Violation[]; revision?: number } = {},
 ) {
   const body: Problem = { type: PROBLEM_BASE + slug, title, status, ...extra };
   // c.json only sets application/json when no content-type is given.

@@ -68,3 +68,23 @@ export async function call(path: string, opts: CallOptions = {}) {
   }
   return { status: res.status, type, json };
 }
+
+export const ADMIN = { as: 'owner@gmail.com' };
+
+/** Makes owner@gmail.com the admin and returns a Bearer token for a new agent. */
+export async function agentWithRole(role: 'editor' | 'viewer', name = `bot-${role}`) {
+  await call('/api/v1/me', ADMIN);
+  const agent = await call('/api/v1/admin/agents', {
+    ...ADMIN,
+    method: 'POST',
+    body: { name, role },
+  });
+  const issued = await call(`/api/v1/admin/agents/${agent.json.id}/tokens`, {
+    ...ADMIN,
+    method: 'POST',
+  });
+  return { bearer: issued.json.token as string, id: agent.json.id as string };
+}
+
+export const FM = (type = 'note', status = 'draft') =>
+  `---\ntype: ${type}\nstatus: ${status}\nowner: owner@gmail.com\n---\n`;

@@ -41,7 +41,7 @@
 | D-33 | 문서 크기 상한 | Decided | 본문 100KB (저장 CPU 여유 확보, AI 컨텍스트 고려) |
 | D-34 | Space 삭제 | Decided | 보관(archive)만, 읽기 전용으로 숨김. key 변경 불가 |
 | D-35 | Space 홈 페이지 | Decided | Space 생성 시 홈 페이지(type `note`, 제목 = Space 이름) 자동 생성 |
-| D-36 | 휴지통 영구 삭제 | Decided | 30일 후, 기존 백업 Cron 창의 첫 실행에서 처리 |
+| D-36 | 휴지통 영구 삭제 | Decided | 30일 후, 기존 백업 Cron 창에서 처리 (실행당 최대 50페이지) |
 | D-37 | 편집 권한 범위 | Decided | editor는 페이지 전체 작업(삭제·복원 포함), admin은 Space 생성·보관과 사람·에이전트 관리 |
 | D-38 | PR Preview 배포 | Decided | P1에서 제외 (로컬 + 테스트 + main 자동 배포) |
 | D-39 | E2E 테스트 | Decided | Playwright 스모크 3~4개, CI check에 포함 |
@@ -181,6 +181,6 @@
 ### D-34 ~ D-43 — Phase 1 결정 (2026-09-27 확정)
 - [`03-phase1-plan.md`](./03-phase1-plan.md) §8의 추천안을 모두 채택했다.
 - **D-34**: Space는 보관만 한다. 보관된 Space는 목록에서 숨기고 읽기 전용이다. key는 URL·위키 링크의 일부이므로 생성 후 바꿀 수 없다.
-- **D-36**: 휴지통 영구 삭제는 Cron을 추가하지 않고 백업 Cron 창의 첫 실행에서 처리한다 (계정당 Cron 5개 제한).
+- **D-36**: 휴지통 영구 삭제는 Cron을 추가하지 않고 백업 Cron 창에서 처리한다 (계정당 Cron 5개 제한). 구현 시 "첫 실행"이 아니라 매 실행 앞부분에서 최대 50페이지씩 지우도록 했다 — 대상이 없으면 D1 조회 1회뿐이고, 한 번에 많을 때도 CPU·서브리퀘스트 한도를 넘지 않는다.
 - **D-38**: 10명 이하 팀에서는 PR별 미리보기 환경(별도 D1, Access 설정)의 비용이 효과보다 크다.
 - **D-41**: 에이전트가 읽는 API 메시지는 영어로 고정하고, 사람 UI는 `ruleId`와 `params`로 번역한다. `01-architecture.md` §7의 Accept-Language 방식을 대체한다.

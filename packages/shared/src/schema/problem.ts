@@ -20,5 +20,7 @@ export const ProblemSchema = z.object({
   status: z.number().int(),
   detail: z.string().optional(),
   violations: z.array(ViolationSchema).optional(),
+  /** On a 409 revision conflict: the page's current revision. */
+  revision: z.number().int().optional(),
 });
 export type Problem = z.infer<typeof ProblemSchema>;

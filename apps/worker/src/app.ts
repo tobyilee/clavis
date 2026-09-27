@@ -2,19 +2,26 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 import { createMcpHandler } from 'agents/mcp/server';
 import { HTTPException } from 'hono/http-exception';
 import { admin } from './api/admin';
+import { authoring } from './api/authoring';
+import { docs } from './api/docs';
 import { health } from './api/health';
 import { me } from './api/me';
+import { pages } from './api/pages';
 import { problem } from './api/problem';
 import { rateLimit } from './api/rate-limit';
 import { router } from './api/router';
+import { search } from './api/search';
+import { spaces } from './api/spaces';
+import { trash } from './api/trash';
 import { authenticate, requireRole } from './auth/middleware';
 import { buildMcpServer } from './mcp/server';
 import type { Actor } from './services/actors';
+import { ServiceError } from './services/errors';
 
 export type AppEnv = { Bindings: Env; Variables: { actor: Actor } };
 
 /** Reachable without a Clavis identity (Access still guards the whole Worker at the edge). */
-const PUBLIC_PATHS = new Set(['/api/v1/health', '/api/v1/openapi.json']);
+const PUBLIC_PATHS = new Set(['/api/v1/health', '/api/v1/openapi.json', '/api/v1/docs']);
 
 export function createApp() {
   const api = router();
@@ -26,6 +33,12 @@ export function createApp() {
   api.route('/', health);
   api.route('/', me);
   api.route('/', admin);
+  api.route('/', spaces);
+  api.route('/', pages);
+  api.route('/', trash);
+  api.route('/', search);
+  api.route('/', authoring);
+  api.route('/', docs);
   api.doc31('/openapi.json', {
     openapi: '3.1.0',
     info: { title: 'Clavis API', version: 'v1' },
@@ -54,6 +67,7 @@ export function createApp() {
   // run_worker_first paths (/api, /mcp, /files) reach the Worker, so every miss is an API miss.
   app.notFound((c) => problem(c, 404, 'not-found', 'Resource not found'));
   app.onError((err, c) => {
+    if (err instanceof ServiceError) return problem(c, err.status, err.slug, err.title, err.extra);
     if (err instanceof HTTPException) return problem(c, err.status, 'http-error', err.message);
     console.error(err);
     return problem(c, 500, 'internal', 'Internal server error');

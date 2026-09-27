@@ -166,7 +166,7 @@ A4 lint 규칙  B5 검색 API                             R5 모바일 읽기   
 | 트리 조회 | 1, 변경 없으면 304 | < 3ms (500페이지) | content 컬럼 제외 조회 |
 | 검색 | 1 | < 3ms | snippet은 D1이 계산 |
 | 첨부 업로드 | 2 (D1 1 + R2 put 1) | < 2ms | 스트리밍, 본문을 메모리에 읽지 않음 |
-| 휴지통 영구 삭제 (Cron) | D1 2 + R2 delete 1 (최대 1000개 키) | < 5ms | 백업 Cron 창의 첫 실행에 포함 |
+| 휴지통 영구 삭제 (Cron) | D1 2 + R2 delete 1 (최대 1000개 키) | < 5ms | 백업 Cron의 매 실행 앞부분, 실행당 최대 50페이지 |
 
 ## 8. 결정 사항
 
@@ -190,5 +190,6 @@ A4 lint 규칙  B5 검색 API                             R5 모바일 읽기   
 | 항목 | 상태 | 결과 | 날짜 |
 |---|---|---|---|
 | Step 0 | ✅ 완료 | 설계 문서를 실제 인증 구조로 수정, `0001_fts`(trigram + 트리거 + rebuild)·`0002_page_deleted_by` 마이그레이션, 공용 API 스키마(`schema/wiki.ts`, `schema/url.ts`), 템플릿 7종(`@clavis/shared/templates`, 한/영 섹션명), lint 규칙 4개 추가(required-sections, image-alt, code-lang, doc-length). 100KB 전체 lint가 Node에서 5ms 미만인지 회귀 테스트 | 2026-09-27 |
+| Step 1 | ✅ 완료 | REST: Space(생성 시 홈 페이지, 보관), 트리(ETag·304), 페이지 CRUD(JSON·`text/markdown`, `KEY:제목` 참조), 이동(fractional index, 자기 하위로 이동 금지), 휴지통·복원(제목 충돌 시 ` (restored)`), 검색(FTS/LIKE, 필터, 커서), `/lint`, `/templates`, `/docs`(Scalar). 저장은 D1 호출 2회(읽기 batch + 쓰기 batch, 쓰기 batch 첫 문장이 revision 가드). 휴지통 영구 삭제는 Cron 실행마다 최대 50페이지. Worker 테스트 56개 | 2026-09-27 |
 | H2 CPU 실측 | – | | |
 | Exit 점검 | – | | |
