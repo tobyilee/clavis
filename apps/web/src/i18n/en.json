@@ -7,15 +7,59 @@
   },
   "home": {
     "title": "Spaces",
-    "empty": "No spaces yet.",
-    "serverStatus": "Server status",
-    "serverOk": "OK",
-    "serverDown": "Unreachable"
+    "empty": "No spaces yet."
   },
   "auth": {
     "pendingTitle": "Waiting for approval",
     "pendingBody": "You're signed in as {{email}}. You'll see the wiki once an admin grants you a role.",
     "signedOutTitle": "Sign-in required",
     "signedOutBody": "Open Clavis again through the Cloudflare Access login."
+  },
+  "space": {
+    "choose": "Choose a space",
+    "spaces": "Spaces",
+    "all": "All spaces",
+    "pick": "Pick a space.",
+    "notFound": "Space not found",
+    "noHome": "This space has no home page."
+  },
+  "tree": {
+    "empty": "No pages yet."
+  },
+  "page": {
+    "notFound": "Page not found",
+    "backToSpace": "Back to the space",
+    "missingTitle": "No page titled \"{{title}}\"",
+    "missingBody": "The {{key}} space has no page with this title. The link may be broken or the page renamed.",
+    "owner": "Owner"
+  },
+  "status": {
+    "draft": "Draft",
+    "review": "In review",
+    "approved": "Approved",
+    "deprecated": "Deprecated"
+  },
+  "docType": {
+    "spec": "Spec",
+    "prd": "PRD",
+    "adr": "ADR",
+    "architecture": "Architecture",
+    "meeting": "Meeting",
+    "guide": "Guide",
+    "note": "Note"
+  },
+  "actorKind": {
+    "agent": "AI agent",
+    "human": "Person"
+  },
+  "callout": {
+    "note": "Note",
+    "tip": "Tip",
+    "important": "Important",
+    "warning": "Warning",
+    "caution": "Caution"
+  },
+  "error": {
+    "load": "Could not load."
   }
 }

@@ -18,7 +18,7 @@
 
 - URL: `https://clavis.crawl-proxy.workers.dev/mcp`
 - 전송 방식: Streamable HTTP (Stateless)
-- 도구: §5 참고 (읽기 7개, 쓰기 4개)
+- 도구: §5 참고 (읽기 6개, 쓰기 4개)
 
 ## 3. Hermes Agent 설정
 

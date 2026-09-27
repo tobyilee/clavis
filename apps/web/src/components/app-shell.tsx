@@ -1,30 +1,13 @@
-import { Link } from '@tanstack/react-router';
-import { FilePlus, Menu, Search, Trash2 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Link, useRouterState } from '@tanstack/react-router';
+import { Menu, Search } from 'lucide-react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { LANGUAGES } from '@/i18n';
 import { useMe } from '@/lib/me';
 import { cn } from '@/lib/utils';
-
-/** Page tree placeholder; the real tree arrives with the Page feature in Phase 1. */
-function SidebarNav() {
-  const { t } = useTranslation();
-  return (
-    <nav className="flex h-full flex-col gap-1 p-3 text-sm">
-      <p className="px-2 py-6 text-muted-foreground">{t('home.empty')}</p>
-      <div className="mt-auto flex flex-col gap-1">
-        <Button variant="ghost" size="sm" className="justify-start" disabled>
-          <FilePlus /> {t('app.newPage')}
-        </Button>
-        <Button variant="ghost" size="sm" className="justify-start" disabled>
-          <Trash2 /> {t('app.trash')}
-        </Button>
-      </div>
-    </nav>
-  );
-}
+import { Sidebar } from './sidebar';
 
 function LanguageToggle() {
   const { i18n } = useTranslation();
@@ -62,18 +45,23 @@ function CurrentUser() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // The mobile drawer closes once a link in it has navigated.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs on navigation
+  useEffect(() => setMenuOpen(false), [pathname]);
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
-        <Sheet>
+        <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden" aria-label="Menu">
               <Menu />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0">
+          <SheetContent side="left" className="w-72 p-0 pt-8">
             <SheetTitle className="sr-only">Navigation</SheetTitle>
-            <SidebarNav />
+            <Sidebar />
           </SheetContent>
         </Sheet>
         <Link to="/" className="font-semibold tracking-tight">
@@ -92,13 +80,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <CurrentUser />
       </header>
       <div className="flex flex-1">
-        <aside className="hidden w-64 shrink-0 border-r bg-sidebar md:block">
-          <SidebarNav />
+        <aside className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-64 shrink-0 border-r bg-sidebar md:block">
+          <Sidebar />
         </aside>
         <main className="min-w-0 flex-1 px-4 py-6 md:px-8">{children}</main>
-        <aside className="hidden w-56 shrink-0 p-4 text-sm text-muted-foreground xl:block">
-          {t('app.toc')}
-        </aside>
       </div>
     </div>
   );

@@ -10,33 +10,85 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SKeyIndexRouteImport } from './routes/s.$key.index'
+import { Route as SKeyTrashRouteImport } from './routes/s.$key.trash'
+import { Route as SKeyPSlugIdRouteImport } from './routes/s.$key.p.$slugId'
+import { Route as SKeyWTitleRouteImport } from './routes/s.$key.w.$title'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SKeyIndexRoute = SKeyIndexRouteImport.update({
+  id: '/s/$key/',
+  path: '/s/$key/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SKeyTrashRoute = SKeyTrashRouteImport.update({
+  id: '/s/$key/trash',
+  path: '/s/$key/trash',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SKeyPSlugIdRoute = SKeyPSlugIdRouteImport.update({
+  id: '/s/$key/p/$slugId',
+  path: '/s/$key/p/$slugId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SKeyWTitleRoute = SKeyWTitleRouteImport.update({
+  id: '/s/$key/w/$title',
+  path: '/s/$key/w/$title',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/s/$key/trash': typeof SKeyTrashRoute
+  '/s/$key/': typeof SKeyIndexRoute
+  '/s/$key/p/$slugId': typeof SKeyPSlugIdRoute
+  '/s/$key/w/$title': typeof SKeyWTitleRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/s/$key/trash': typeof SKeyTrashRoute
+  '/s/$key': typeof SKeyIndexRoute
+  '/s/$key/p/$slugId': typeof SKeyPSlugIdRoute
+  '/s/$key/w/$title': typeof SKeyWTitleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/s/$key/trash': typeof SKeyTrashRoute
+  '/s/$key/': typeof SKeyIndexRoute
+  '/s/$key/p/$slugId': typeof SKeyPSlugIdRoute
+  '/s/$key/w/$title': typeof SKeyWTitleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/s/$key/trash'
+    | '/s/$key/'
+    | '/s/$key/p/$slugId'
+    | '/s/$key/w/$title'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    '/' | '/s/$key/trash' | '/s/$key' | '/s/$key/p/$slugId' | '/s/$key/w/$title'
+  id:
+    | '__root__'
+    | '/'
+    | '/s/$key/trash'
+    | '/s/$key/'
+    | '/s/$key/p/$slugId'
+    | '/s/$key/w/$title'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SKeyTrashRoute: typeof SKeyTrashRoute
+  SKeyIndexRoute: typeof SKeyIndexRoute
+  SKeyPSlugIdRoute: typeof SKeyPSlugIdRoute
+  SKeyWTitleRoute: typeof SKeyWTitleRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +100,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/s/$key/': {
+      id: '/s/$key/'
+      path: '/s/$key'
+      fullPath: '/s/$key/'
+      preLoaderRoute: typeof SKeyIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/s/$key/trash': {
+      id: '/s/$key/trash'
+      path: '/s/$key/trash'
+      fullPath: '/s/$key/trash'
+      preLoaderRoute: typeof SKeyTrashRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/s/$key/p/$slugId': {
+      id: '/s/$key/p/$slugId'
+      path: '/s/$key/p/$slugId'
+      fullPath: '/s/$key/p/$slugId'
+      preLoaderRoute: typeof SKeyPSlugIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/s/$key/w/$title': {
+      id: '/s/$key/w/$title'
+      path: '/s/$key/w/$title'
+      fullPath: '/s/$key/w/$title'
+      preLoaderRoute: typeof SKeyWTitleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SKeyTrashRoute: SKeyTrashRoute,
+  SKeyIndexRoute: SKeyIndexRoute,
+  SKeyPSlugIdRoute: SKeyPSlugIdRoute,
+  SKeyWTitleRoute: SKeyWTitleRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

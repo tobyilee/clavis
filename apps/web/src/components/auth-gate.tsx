@@ -3,18 +3,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '@/lib/api';
 import { useMe } from '@/lib/me';
-
-function Notice({ icon, title, body }: { icon: ReactNode; title: string; body: string }) {
-  return (
-    <div className="mx-auto mt-16 max-w-md rounded-lg border p-6 text-center">
-      <div className="mx-auto mb-3 flex size-10 items-center justify-center rounded-full bg-muted">
-        {icon}
-      </div>
-      <h1 className="text-lg font-semibold">{title}</h1>
-      <p className="mt-2 text-sm text-muted-foreground">{body}</p>
-    </div>
-  );
-}
+import { Notice } from './notice';
 
 /** Shows the wiki only to approved people; pending accounts wait for an admin (D-29). */
 export function AuthGate({ children }: { children: ReactNode }) {

@@ -1,6 +1,8 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
-@custom-variant dark (&:is(.dark *));
+/* Colors follow the OS setting (see :root below), so the dark variant does too. */
+@custom-variant dark (@media (prefers-color-scheme: dark));
 
 :root {
   --radius: 0.5rem;
@@ -87,4 +89,105 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
+}
+
+/* ── Rendered Markdown ───────────────────────────────────────────── */
+
+.prose-clavis {
+  @apply prose prose-neutral max-w-none dark:prose-invert;
+  --tw-prose-body: var(--foreground);
+  --tw-prose-headings: var(--foreground);
+  overflow-wrap: anywhere;
+}
+.prose-clavis :where(h2, h3, h4) {
+  scroll-margin-top: 4.5rem;
+}
+.prose-clavis :where(code):not(:where(pre *)) {
+  @apply rounded bg-muted px-1 py-0.5 font-normal;
+}
+.prose-clavis :where(code):not(:where(pre *))::before,
+.prose-clavis :where(code):not(:where(pre *))::after {
+  content: none;
+}
+.prose-clavis .table-wrap {
+  @apply my-6 overflow-x-auto;
+}
+.prose-clavis .table-wrap table {
+  @apply my-0;
+}
+.prose-clavis img {
+  @apply rounded-md;
+}
+
+/* Wiki links (D-14): broken ones are dashed red so they stand out while reading. */
+.prose-clavis a.wikilink {
+  @apply decoration-dotted underline-offset-4;
+}
+.prose-clavis a.wikilink-broken {
+  @apply text-destructive decoration-dashed;
+}
+
+/* Callouts: GitHub alert syntax > [!NOTE] */
+.prose-clavis blockquote.callout {
+  @apply not-italic rounded-md border-l-4 px-4 py-1 font-normal;
+  --callout: oklch(0.6 0.15 250);
+  border-left-color: var(--callout);
+  background: color-mix(in oklch, var(--callout) 8%, transparent);
+}
+.prose-clavis blockquote.callout p::before,
+.prose-clavis blockquote.callout p::after {
+  content: none;
+}
+.prose-clavis blockquote.callout-tip {
+  --callout: oklch(0.62 0.15 150);
+}
+.prose-clavis blockquote.callout-important {
+  --callout: oklch(0.58 0.2 300);
+}
+.prose-clavis blockquote.callout-warning {
+  --callout: oklch(0.72 0.16 75);
+}
+.prose-clavis blockquote.callout-caution {
+  --callout: oklch(0.6 0.22 25);
+}
+.prose-clavis .callout-title {
+  @apply font-semibold;
+  color: var(--callout);
+}
+.prose-clavis blockquote.callout > p {
+  @apply my-2;
+}
+/* GFM task lists: the checkbox replaces the bullet. */
+.prose-clavis li.task-list-item {
+  @apply list-none;
+}
+.prose-clavis ul.contains-task-list {
+  @apply pl-1;
+}
+.prose-clavis li.task-list-item input {
+  @apply my-0 mr-2 align-middle;
+}
+
+/* Shiki dual themes (defaultColor: false): pick the variables by color scheme. */
+.prose-clavis .code-block pre {
+  @apply my-6 overflow-x-auto rounded-md border text-sm;
+}
+.shiki,
+.shiki span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+}
+@media (prefers-color-scheme: dark) {
+  .shiki,
+  .shiki span {
+    color: var(--shiki-dark);
+    background-color: var(--shiki-dark-bg);
+  }
+}
+
+.prose-clavis .mermaid {
+  @apply my-6 flex justify-center overflow-x-auto;
+}
+.prose-clavis .mermaid-error {
+  @apply my-6 rounded-md border border-destructive/50 p-3 text-sm text-destructive;
 }

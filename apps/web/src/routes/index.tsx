@@ -1,31 +1,38 @@
-import { useQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { apiGet } from '@/lib/api';
+import { useSpaces } from '@/lib/queries';
 
-interface Health {
-  status: 'ok';
-  version: string;
-  db: 'ok' | 'error';
-}
+export const Route = createFileRoute('/')({ component: SpaceList });
 
-export const Route = createFileRoute('/')({ component: Home });
-
-function Home() {
+function SpaceList() {
   const { t } = useTranslation();
-  const health = useQuery({ queryKey: ['health'], queryFn: () => apiGet<Health>('/health') });
-  const ok = health.data?.status === 'ok' && health.data.db === 'ok';
-
+  const spaces = useSpaces();
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-4xl">
       <h1 className="text-2xl font-bold">{t('home.title')}</h1>
-      <p className="mt-4 text-muted-foreground">{t('home.empty')}</p>
-      <p className="mt-8 flex items-center gap-2 text-sm">
-        <span className={`size-2 rounded-full ${ok ? 'bg-green-500' : 'bg-red-500'}`} />
-        {t('home.serverStatus')}:{' '}
-        {health.isPending ? '…' : ok ? t('home.serverOk') : t('home.serverDown')}
-        {health.data && <span className="text-muted-foreground">v{health.data.version}</span>}
-      </p>
+      {spaces.isError && <p className="mt-4 text-destructive">{t('error.load')}</p>}
+      {spaces.data?.length === 0 && <p className="mt-4 text-muted-foreground">{t('home.empty')}</p>}
+      <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+        {spaces.data?.map((s) => (
+          <li key={s.key}>
+            <Link
+              to="/s/$key"
+              params={{ key: s.key }}
+              className="flex h-full flex-col rounded-lg border p-4 transition-colors hover:bg-accent"
+            >
+              <span className="flex items-center gap-2">
+                <span className="rounded bg-primary px-1.5 py-0.5 font-mono text-xs font-bold text-primary-foreground">
+                  {s.key}
+                </span>
+                <span className="font-semibold">{s.name}</span>
+              </span>
+              {s.description && (
+                <span className="mt-2 text-sm text-muted-foreground">{s.description}</span>
+              )}
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

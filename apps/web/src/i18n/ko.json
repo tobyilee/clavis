@@ -7,15 +7,59 @@
   },
   "home": {
     "title": "Space",
-    "empty": "아직 Space가 없습니다.",
-    "serverStatus": "서버 상태",
-    "serverOk": "정상",
-    "serverDown": "연결 실패"
+    "empty": "아직 Space가 없습니다."
   },
   "auth": {
     "pendingTitle": "승인 대기 중",
     "pendingBody": "{{email}} 계정으로 로그인했습니다. 관리자가 권한을 부여하면 문서를 볼 수 있습니다.",
     "signedOutTitle": "로그인이 필요합니다",
     "signedOutBody": "Cloudflare Access 로그인을 거쳐 다시 접속해 주세요."
+  },
+  "space": {
+    "choose": "Space 선택",
+    "spaces": "Space",
+    "all": "모든 Space",
+    "pick": "Space를 선택하세요.",
+    "notFound": "Space를 찾을 수 없습니다",
+    "noHome": "홈 페이지가 없습니다."
+  },
+  "tree": {
+    "empty": "페이지가 없습니다."
+  },
+  "page": {
+    "notFound": "페이지를 찾을 수 없습니다",
+    "backToSpace": "Space 홈으로",
+    "missingTitle": "\"{{title}}\" 페이지가 없습니다",
+    "missingBody": "{{key}} Space에 이 제목의 페이지가 없습니다. 링크가 깨졌거나 제목이 바뀌었을 수 있습니다.",
+    "owner": "담당"
+  },
+  "status": {
+    "draft": "초안",
+    "review": "검토 중",
+    "approved": "승인됨",
+    "deprecated": "폐기됨"
+  },
+  "docType": {
+    "spec": "명세",
+    "prd": "PRD",
+    "adr": "ADR",
+    "architecture": "아키텍처",
+    "meeting": "회의록",
+    "guide": "가이드",
+    "note": "노트"
+  },
+  "actorKind": {
+    "agent": "AI 에이전트",
+    "human": "사람"
+  },
+  "callout": {
+    "note": "참고",
+    "tip": "팁",
+    "important": "중요",
+    "warning": "주의",
+    "caution": "경고"
+  },
+  "error": {
+    "load": "불러오지 못했습니다."
   }
 }
