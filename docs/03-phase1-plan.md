@@ -1,6 +1,6 @@
 # Clavis — Phase 1 계획 (MVP)
 
-> 상태: **Draft (검토 대기)** · 작성일: 2026-09-27
+> 상태: **In Progress** · 작성일: 2026-09-27 · 결정 확정: 2026-09-27 (§8 추천안 전부 채택)
 > 선행 문서: [`00-concept.md`](./00-concept.md) · [`01-architecture.md`](./01-architecture.md) · [`02-phase0-plan.md`](./02-phase0-plan.md) · [`decisions.md`](./decisions.md)
 
 ---
@@ -168,9 +168,9 @@ A4 lint 규칙  B5 검색 API                             R5 모바일 읽기   
 | 첨부 업로드 | 2 (D1 1 + R2 put 1) | < 2ms | 스트리밍, 본문을 메모리에 읽지 않음 |
 | 휴지통 영구 삭제 (Cron) | D1 2 + R2 delete 1 (최대 1000개 키) | < 5ms | 백업 Cron 창의 첫 실행에 포함 |
 
-## 8. 검토가 필요한 결정 (제안)
+## 8. 결정 사항
 
-Phase 1을 시작하기 전에 확인받을 사항이다. 각 항목의 **추천안**으로 계획을 작성했으며, 다르게 정하면 해당 작업을 수정한다.
+아래 추천안을 모두 채택했다 (2026-09-27, [`decisions.md`](./decisions.md) D-34~D-43).
 
 | ID | 주제 | 추천안 | 대안 |
 |---|---|---|---|
@@ -189,5 +189,6 @@ Phase 1을 시작하기 전에 확인받을 사항이다. 각 항목의 **추천
 
 | 항목 | 상태 | 결과 | 날짜 |
 |---|---|---|---|
+| Step 0 | ✅ 완료 | 설계 문서를 실제 인증 구조로 수정, `0001_fts`(trigram + 트리거 + rebuild)·`0002_page_deleted_by` 마이그레이션, 공용 API 스키마(`schema/wiki.ts`, `schema/url.ts`), 템플릿 7종(`@clavis/shared/templates`, 한/영 섹션명), lint 규칙 4개 추가(required-sections, image-alt, code-lang, doc-length). 100KB 전체 lint가 Node에서 5ms 미만인지 회귀 테스트 | 2026-09-27 |
 | H2 CPU 실측 | – | | |
 | Exit 점검 | – | | |

@@ -1,0 +1,1 @@
+ALTER TABLE `pages` ADD `deleted_by` text REFERENCES actors(id);

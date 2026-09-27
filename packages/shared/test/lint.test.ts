@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { hasErrors, lint } from '../src/lint';
 
-const FM = '---\ntype: spec\nstatus: draft\nowner: toby@team.dev\n---\n';
+const FM = '---\ntype: note\nstatus: draft\nowner: toby@team.dev\n---\n';
 
 describe('lint', () => {
   it('passes a well-formed document', () => {

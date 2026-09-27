@@ -6,7 +6,8 @@
   "exports": {
     "./schema": "./src/schema/index.ts",
     "./markdown": "./src/markdown/index.ts",
-    "./lint": "./src/lint/index.ts"
+    "./lint": "./src/lint/index.ts",
+    "./templates": "./src/templates/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",

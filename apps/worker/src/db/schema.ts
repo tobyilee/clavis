@@ -77,7 +77,9 @@ export const pages = sqliteTable(
     createdAt: createdAt(),
     updatedAt: integer('updated_at').notNull(),
     deletedAt: integer('deleted_at'),
+    /** Pages deleted together (a subtree) share a batch and are restored together. */
     deletedBatch: text('deleted_batch'),
+    deletedBy: text('deleted_by').references(() => actors.id),
   },
   (t) => [
     uniqueIndex('pages_title_uniq').on(t.spaceId, t.title).where(sql`${t.deletedAt} IS NULL`),

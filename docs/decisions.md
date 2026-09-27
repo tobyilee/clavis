@@ -39,6 +39,16 @@
 | D-31 | 첨부 참조 문법 | Decided | `attachments/<파일명>` 상대 경로 |
 | D-32 | 형제 페이지 순서 | Decided | fractional index 문자열 |
 | D-33 | 문서 크기 상한 | Decided | 본문 100KB (저장 CPU 여유 확보, AI 컨텍스트 고려) |
+| D-34 | Space 삭제 | Decided | 보관(archive)만, 읽기 전용으로 숨김. key 변경 불가 |
+| D-35 | Space 홈 페이지 | Decided | Space 생성 시 홈 페이지(type `note`, 제목 = Space 이름) 자동 생성 |
+| D-36 | 휴지통 영구 삭제 | Decided | 30일 후, 기존 백업 Cron 창의 첫 실행에서 처리 |
+| D-37 | 편집 권한 범위 | Decided | editor는 페이지 전체 작업(삭제·복원 포함), admin은 Space 생성·보관과 사람·에이전트 관리 |
+| D-38 | PR Preview 배포 | Decided | P1에서 제외 (로컬 + 테스트 + main 자동 배포) |
+| D-39 | E2E 테스트 | Decided | Playwright 스모크 3~4개, CI check에 포함 |
+| D-40 | 코드 하이라이트 | Decided | Shiki (언어 지연 로딩, 라이트·다크 테마) |
+| D-41 | lint 메시지 언어 | Decided | `ruleId` + 파라미터 + 영어 기본 메시지, UI가 `ruleId`로 번역 |
+| D-42 | 제목 변경 시 위키 링크 | Decided | 자동 치환 없음 → 깨진 링크 warning, 저장 응답에 영향 페이지 수 |
+| D-43 | 동시 편집 표시 | Decided | P1은 409 감지만 |
 
 ---
 
@@ -167,3 +177,10 @@
 - **서비스 토큰 정책의 Action은 반드시 `Service Auth`**. `Allow`로 두면 Access가 서비스 토큰을 평가하지 않고(`service_token_status=false`) 사람 로그인을 요구한다. Worker 화면에서 만든 `clavis - Cloudflare Workers` 앱에서도 Service Auth 정책은 정상 동작한다 — 경로별 앱 분리는 필요 없었다.
 - **자격 증명 파일은 쉘로 source하지 않는다**. `KEY= value`처럼 공백이 있으면 값이 명령으로 실행되어 오류 메시지에 노출된다. `scripts/agent-env.py`로 읽는다 (공백·따옴표·`CF-Access-Client-Id:` 접두어 허용). 이 문제로 서비스 토큰 시크릿이 한 번 노출되어 교체했다.
 - `ACCESS_AUD`는 쉼표로 여러 AUD를 받을 수 있다 (앱을 추가할 경우 대비).
+
+### D-34 ~ D-43 — Phase 1 결정 (2026-09-27 확정)
+- [`03-phase1-plan.md`](./03-phase1-plan.md) §8의 추천안을 모두 채택했다.
+- **D-34**: Space는 보관만 한다. 보관된 Space는 목록에서 숨기고 읽기 전용이다. key는 URL·위키 링크의 일부이므로 생성 후 바꿀 수 없다.
+- **D-36**: 휴지통 영구 삭제는 Cron을 추가하지 않고 백업 Cron 창의 첫 실행에서 처리한다 (계정당 Cron 5개 제한).
+- **D-38**: 10명 이하 팀에서는 PR별 미리보기 환경(별도 D1, Access 설정)의 비용이 효과보다 크다.
+- **D-41**: 에이전트가 읽는 API 메시지는 영어로 고정하고, 사람 UI는 `ruleId`와 `params`로 번역한다. `01-architecture.md` §7의 Accept-Language 방식을 대체한다.

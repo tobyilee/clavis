@@ -99,8 +99,8 @@ Agent (API Token, 역할 부여, 작성자로 표시)
 /s/{SPACEKEY}/p/{slug}-{shortId}      → 페이지 보기   [D-08]
 /s/{SPACEKEY}/p/{slug}-{shortId}/edit → 페이지 편집
 /search?q=...                         → 검색
-/api/v1/...                           → REST API   (Access 우회, API Token 인증)
-/mcp                                  → MCP 엔드포인트 (Access 우회, API Token 인증)
+/api/v1/...                           → REST API   (Access 뒤, 사람은 Access 신원·에이전트는 API Token)
+/mcp                                  → MCP 엔드포인트 (Access 서비스 토큰 + API Token)
 ```
 
 - `shortId`가 페이지를 식별하는 기준이다. slug는 장식이며, slug가 달라도 `shortId`로 찾아 정규 URL로 리다이렉트한다.
@@ -236,13 +236,13 @@ tags: [payment, api]
 ## 12. 인증 & 권한 `[D-05]`
 
 ```
-브라우저 ──▶ Cloudflare Access (SSO: Google/GitHub/이메일 OTP) ──▶ Worker
-                                              │ Cf-Access-Jwt-Assertion 검증
+브라우저 ──▶ Cloudflare Access (이메일 PIN, 추후 Google) ──▶ Worker
+                                              │ Access JWT 검증 → email
                                               ▼
-                                   users 테이블 (email → 역할)
+                                   actors 테이블 (email → 역할, 첫 로그인은 승인 대기)
 
-에이전트 ──▶ /api/*, /mcp  (Access 정책에서 bypass) ──▶ Worker
-                 Authorization: Bearer <API Token>  ──▶ tokens 테이블 (해시 저장)
+에이전트 ──▶ Cloudflare Access (서비스 토큰) ──▶ Worker
+                 Authorization: Bearer <API Token>  ──▶ api_tokens 테이블 (해시 저장)
 ```
 
 - **전역 역할**: `Admin`(Space·사용자·토큰 관리), `Editor`(문서 읽기/쓰기), `Viewer`(읽기).
@@ -345,4 +345,5 @@ tags: [payment, api]
 1. ~~기술 아키텍처 문서~~ → [`01-architecture.md`](./01-architecture.md) (v0.1 작성됨)
 2. D-28 ~ D-32 제안 검토
 3. Phase 0 Spike(S1~S7) 수행 및 결과 반영
-4. Phase 1 상세 명세 및 개발 계획(`02-phase1-plan.md`)
+4. ~~Phase 0 계획~~ → [`02-phase0-plan.md`](./02-phase0-plan.md) (완료)
+5. Phase 1 계획 → [`03-phase1-plan.md`](./03-phase1-plan.md)

@@ -1,13 +1,20 @@
 import type { LintRule, RuleViolation } from '../types';
 
-const ATX_HEADING_RE = /^ {0,3}(#{1,6})(?:[ \t]|$)/;
+const ATX_HEADING_RE = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/;
 
-function headings(lines: { text: string; line: number; inFence: boolean }[]) {
-  const out: { level: number; line: number }[] = [];
+export interface Heading {
+  level: number;
+  text: string;
+  line: number;
+}
+
+/** ATX headings outside code fences. */
+export function headings(lines: { text: string; line: number; inFence: boolean }[]): Heading[] {
+  const out: Heading[] = [];
   for (const l of lines) {
     if (l.inFence) continue;
     const m = ATX_HEADING_RE.exec(l.text);
-    if (m?.[1]) out.push({ level: m[1].length, line: l.line });
+    if (m?.[1]) out.push({ level: m[1].length, text: (m[2] ?? '').trim(), line: l.line });
   }
   return out;
 }

@@ -5,6 +5,8 @@ import type { Violation } from '../schema/problem';
 import { attachmentExists } from './rules/attachment-exists';
 import { frontmatterRequired } from './rules/frontmatter-required';
 import { headingIncrement, noH1 } from './rules/headings';
+import { codeLang, docLength, imageAlt } from './rules/info-rules';
+import { requiredSectionsRule } from './rules/required-sections';
 import { wikiLinkExists } from './rules/wiki-link-exists';
 import type { LintDocument, LintEnv, LintRule } from './types';
 
@@ -14,6 +16,10 @@ export const DEFAULT_RULES: readonly LintRule[] = [
   noH1,
   headingIncrement,
   wikiLinkExists,
+  requiredSectionsRule,
+  imageAlt,
+  codeLang,
+  docLength,
 ];
 
 export interface LintOptions extends LintEnv {

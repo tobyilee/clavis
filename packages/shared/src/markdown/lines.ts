@@ -4,9 +4,11 @@ export interface ScannedLine {
   line: number;
   /** True for lines inside a fenced code block, including the fence lines themselves. */
   inFence: boolean;
+  /** Set on a fence's opening line: the info string after the backticks (e.g. "ts"), or "". */
+  fenceInfo?: string;
 }
 
-const FENCE_RE = /^ {0,3}(`{3,}|~{3,})/;
+const FENCE_RE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 
 /** Splits a Markdown body into lines, tracking fenced code blocks. Cheap: no AST. */
 export function scanLines(body: string, startLine = 1): ScannedLine[] {
@@ -18,11 +20,13 @@ export function scanLines(body: string, startLine = 1): ScannedLine[] {
     const m = FENCE_RE.exec(text);
     if (fence === null && m?.[1]) {
       fence = m[1];
-      out.push({ text, line: startLine + i, inFence: true });
+      out.push({ text, line: startLine + i, inFence: true, fenceInfo: (m[2] ?? '').trim() });
       continue;
     }
     if (fence !== null) {
-      if (m?.[1] && m[1][0] === fence[0] && m[1].length >= fence.length) fence = null;
+      // A closing fence uses the same character, is at least as long, and has no info string.
+      const closes = m?.[1] && m[1][0] === fence[0] && m[1].length >= fence.length;
+      if (closes && !m[2]?.trim()) fence = null;
       out.push({ text, line: startLine + i, inFence: true });
       continue;
     }

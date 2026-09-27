@@ -1,6 +1,6 @@
-# Clavis — 기술 아키텍처 (Draft v0.1)
+# Clavis — 기술 아키텍처 (v0.2)
 
-> 상태: **Draft** · 작성일: 2026-09-27
+> 상태: **Active** · 작성일: 2026-09-27 · v0.2: Phase 0 결과 반영 (인증 구조, 서버 lint 범위, 백업)
 > 선행 문서: [`00-concept.md`](./00-concept.md) · 결정 로그: [`decisions.md`](./decisions.md)
 > Cloudflare 한도 수치는 2026-09 기준 공식 문서에서 확인한 값이다 (§11 참고).
 
@@ -10,8 +10,8 @@
 
 ```
                          ┌───────────────────── Cloudflare ─────────────────────┐
- 사람(브라우저) ──SSO──▶ │ Cloudflare Access                                      │
-                         │   │  (/api/*, /mcp 는 bypass → Worker가 직접 인증)     │
+ 사람(브라우저) ─이메일 PIN─▶ Cloudflare Access (Worker 전체 보호)                  │
+ 에이전트 ─서비스 토큰────▶   │  사람: Access JWT, 에이전트: Service Auth 정책     │
                          │   ▼                                                    │
                          │ ┌─────────────── clavis Worker (단일 배포) ──────────┐ │
                          │ │ Static Assets : React SPA  (Worker 미호출, 무료·무제한) │
@@ -96,20 +96,30 @@ clavis/
 | 경로 | 처리 | 인증 |
 |---|---|---|
 | `/`, `/s/**`, `/search` … | Static Assets (SPA index.html) | Cloudflare Access (엣지) |
-| `/api/v1/**` | Hono REST | Bearer 토큰 **또는** Access 쿠키 |
-| `/mcp` | MCP 핸들러 | Bearer 토큰 |
-| `/files/{attachmentId}` | R2 프록시 | Bearer 토큰 **또는** Access 쿠키 |
+| `/api/v1/**` | Hono REST | Access(엣지) + Worker: Bearer 토큰 **또는** Access JWT |
+| `/mcp` | MCP 핸들러 | Access 서비스 토큰(엣지) + Bearer 토큰 |
+| `/files/{attachmentId}` | R2 프록시 | Access(엣지) + Worker: Bearer 토큰 **또는** Access JWT |
+
+모든 경로가 Access 뒤에 있다. Access를 통과하지 못한 요청은 Worker에 도달하지 않는다 (예외 없음, Bypass 없음).
 
 ## 4. 인증 & 권한 (D-05, D-29)
 
-### 4.1 흐름
+### 4.1 흐름 (D-05 개정)
 ```
-요청 ─┬─ Authorization: Bearer clv_xxx ──▶ SHA-256 해시 → api_tokens 조회 → actor(agent)
-      └─ Cookie: CF_Authorization=<JWT> ──▶ JWKS 서명 검증 + aud 확인 → email → actor(human)
-      (둘 다 없으면 401)
+엣지 (Cloudflare Access, Worker 단위 앱)
+  사람      ─ 이메일 PIN 로그인(추후 Google), @gmail.com 허용 ─▶ 통과, Cf-Access-Jwt-Assertion 헤더 주입
+  에이전트  ─ CF-Access-Client-Id / CF-Access-Client-Secret (Service Auth 정책) ─▶ 통과
+  그 외     ─ 로그인 페이지로 302
+
+Worker (authenticate 미들웨어) — "Clavis 안에서 누구인가"
+  Authorization: Bearer clv_xxx ──▶ SHA-256 해시 → api_tokens 조회 → actor(agent)   (우선)
+  Access 신원 ──▶ ctx.access 또는 Cf-Access-Jwt-Assertion JWT 검증 → email → actor(human)
+  (둘 다 없으면 401)
 ```
-- `/api/*`, `/mcp`, `/files/*`는 Access 정책에서 **Bypass**한다. SPA가 호출할 때는 Access가 헤더를 주입하지 않으므로, Worker가 **`CF_Authorization` 쿠키의 JWT를 직접 검증**한다 (`jose` + `https://<team>.cloudflareaccess.com/cdn-cgi/access/certs`).
-- Bypass 경로는 Access 로그가 남지 않으므로 Worker에서 인증 실패를 로깅한다.
+- `ctx.access.getIdentity()`는 실제로 채워지지 않는 경우가 있어, Worker가 `Cf-Access-Jwt-Assertion` JWT를 직접 검증한다 (`jose`, JWKS `https://<team>.cloudflareaccess.com/cdn-cgi/access/certs`, `iss` = 팀 도메인, `aud` = `ACCESS_AUD`).
+- 서비스 토큰 정책의 Action은 **Service Auth**여야 한다. `Allow`로 두면 Access가 토큰을 무시한다 (S4에서 확인).
+- 로컬 개발은 `apps/worker/.dev.vars`의 `DEV_ACCESS_EMAIL`로 사람을 흉내 낸다 (localhost 요청에만 적용).
+- 연결 방법: [`guides/agent-connection.md`](./guides/agent-connection.md)
 
 ### 4.2 Actor 모델
 사람과 에이전트를 **Actor** 하나로 통합하여 작성자 표시·권한 검사를 동일하게 처리한다.
@@ -118,8 +128,8 @@ clavis/
 |---|---|---|
 | `kind` | `human` | `agent` |
 | 식별 | Access 이메일 | API Token (1 actor : N token) |
-| 생성 | 첫 로그인 시 자동 생성 (`Viewer`), **최초 사용자는 `Admin`** | Admin이 UI에서 생성 |
-| 역할 | Admin / Editor / Viewer | Editor / Viewer (Admin 불가) |
+| 생성 | 첫 로그인 시 자동 생성 (`pending`, 승인 대기), **최초 사용자는 `Admin`** (D-29) | Admin이 UI에서 생성 |
+| 역할 | Admin / Editor / Viewer (+ `pending`) | Editor / Viewer (Admin 불가) |
 
 - 토큰 형식: `clv_` + 32바이트 랜덤(base62). DB에는 SHA-256 해시와 앞 8자(식별용)만 저장. 발급 시 1회만 노출.
 
@@ -272,7 +282,7 @@ interface Violation { ruleId: string; severity: string; message: string; line: n
 ```
 
 - **markdownlint** 규칙(헤딩 증가, 코드 블록 언어 등)은 어댑터로 감싸 같은 `Violation` 형식으로 변환한다.
-- 메시지는 i18n 키로 정의하여 UI는 한국어/영어로, API는 `Accept-Language`에 따라 반환한다.
+- 위반 항목은 `ruleId` + `params` + 영어 기본 메시지를 담는다. UI는 `ruleId`와 `params`로 한국어/영어 메시지를 만들고, API는 항상 영어 메시지를 반환한다 (D-41).
 - 문서 유형별 필수 섹션 규칙은 `templates/`의 정의를 참조한다 → **템플릿과 규칙이 한 곳에서 관리됨**.
 
 ## 8. REST API (D-26)
@@ -418,7 +428,7 @@ interface Violation { ruleId: string; severity: string; message: string; line: n
 |---|---|
 | XSS (Markdown 내 HTML) | `rehype-sanitize` 기본 스키마, 원시 HTML 비허용, Mermaid `strict` |
 | 토큰 유출 | 해시 저장, 발급 시 1회 노출, 폐기 기능, `last_used_at` 표시 |
-| Bypass 경로 무단 접근 | Bearer 또는 Access JWT 없으면 401, 실패 로깅 |
+| 무단 접근 | 모든 경로를 Access가 먼저 막고, Worker는 Bearer 또는 Access JWT가 없으면 401 |
 | 첨부 파일 악용 | 비공개 R2, 권한 확인 후 서빙, `Content-Disposition` 설정, SVG는 첨부 다운로드로만 제공 |
 | CSP | `default-src 'self'`, 이미지 `self` + `/files/` |
 
@@ -427,7 +437,7 @@ interface Violation { ruleId: string; severity: string; message: string; line: n
 | 환경 | 구성 |
 |---|---|
 | 로컬 | `pnpm dev` = `wrangler dev`(로컬 D1/R2) + Vite dev server 프록시. Access 대신 `apps/worker/.dev.vars`의 `DEV_ACCESS_EMAIL`로 사용자 주입 — localhost 요청에만 적용 |
-| Preview | PR마다 `wrangler versions upload` 미리보기 URL (별도 D1 `clavis-preview`) |
+| Preview | 없음 (D-38) — 로컬 + 테스트 + `main` 자동 배포 |
 | Production | `main` 머지 시 GitHub Actions → `wrangler deploy` + `d1 migrations apply` |
 
 - 마이그레이션: drizzle-kit이 생성한 SQL + FTS5 등 Drizzle이 표현하지 못하는 부분은 수동 SQL 파일.
