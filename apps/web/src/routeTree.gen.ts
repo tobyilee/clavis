@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as SKeyIndexRouteImport } from './routes/s.$key.index'
 import { Route as SKeyNewRouteImport } from './routes/s.$key.new'
 import { Route as SKeyTrashRouteImport } from './routes/s.$key.trash'
@@ -20,6 +22,16 @@ import { Route as SKeyPSlugIdEditRouteImport } from './routes/s.$key.p.$slugId_.
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SKeyIndexRoute = SKeyIndexRouteImport.update({
@@ -55,6 +67,8 @@ const SKeyPSlugIdEditRoute = SKeyPSlugIdEditRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/search': typeof SearchRoute
   '/s/$key/new': typeof SKeyNewRoute
   '/s/$key/trash': typeof SKeyTrashRoute
   '/s/$key/': typeof SKeyIndexRoute
@@ -64,6 +78,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/search': typeof SearchRoute
   '/s/$key/new': typeof SKeyNewRoute
   '/s/$key/trash': typeof SKeyTrashRoute
   '/s/$key': typeof SKeyIndexRoute
@@ -74,6 +90,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/search': typeof SearchRoute
   '/s/$key/new': typeof SKeyNewRoute
   '/s/$key/trash': typeof SKeyTrashRoute
   '/s/$key/': typeof SKeyIndexRoute
@@ -85,6 +103,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
+    | '/search'
     | '/s/$key/new'
     | '/s/$key/trash'
     | '/s/$key/'
@@ -94,6 +114,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
+    | '/search'
     | '/s/$key/new'
     | '/s/$key/trash'
     | '/s/$key'
@@ -103,6 +125,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
+    | '/search'
     | '/s/$key/new'
     | '/s/$key/trash'
     | '/s/$key/'
@@ -113,6 +137,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  SearchRoute: typeof SearchRoute
   SKeyNewRoute: typeof SKeyNewRoute
   SKeyTrashRoute: typeof SKeyTrashRoute
   SKeyIndexRoute: typeof SKeyIndexRoute
@@ -128,6 +154,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/s/$key/': {
@@ -177,6 +217,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  SearchRoute: SearchRoute,
   SKeyNewRoute: SKeyNewRoute,
   SKeyTrashRoute: SKeyTrashRoute,
   SKeyIndexRoute: SKeyIndexRoute,

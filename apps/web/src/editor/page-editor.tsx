@@ -3,7 +3,7 @@ import { requiredSections } from '@clavis/shared/templates';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useBlocker, useNavigate } from '@tanstack/react-router';
 import { cn } from 'cn';
-import { Eye, Loader2, Save } from 'lucide-react';
+import { Eye, Loader2, Paperclip, Save } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,8 @@ import { useLint, useViolationMessage } from './use-lint';
 export interface EditorAttachments {
   names: string[] | null;
   resolve: (filename: string) => string | null;
-  upload?: (files: File[], editor: MarkdownEditorHandle) => void;
+  /** Uploads files and inserts references; resolves to per-file error messages. */
+  upload?: (files: File[], editor: MarkdownEditorHandle) => Promise<string[]>;
 }
 
 function useDebounced<T>(value: T, ms: number): T {
@@ -218,6 +219,21 @@ export function PageEditor({ page, attachments }: { page: Page; attachments: Edi
     });
   };
 
+  const uploadFiles = (files: File[]) => {
+    const ed = editor.current;
+    if (!ed || !attachments.upload || files.length === 0) return;
+    setNotice({ tone: 'ok', text: t('editor.uploading', { count: files.length }) });
+    void attachments
+      .upload(files, ed)
+      .then((errors) =>
+        setNotice(
+          errors.length > 0
+            ? { tone: 'error', text: `${t('editor.uploadFailed')} ${errors.join('; ')}` }
+            : { tone: 'ok', text: t('editor.uploaded', { count: files.length }) },
+        ),
+      );
+  };
+
   const restoreDraft = () => {
     if (!draft) return;
     setTitle(draft.title);
@@ -236,6 +252,23 @@ export function PageEditor({ page, attachments }: { page: Page; attachments: Edi
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
+          {attachments.upload && (
+            <Button variant="ghost" size="icon" asChild>
+              <label title={t('editor.attach')}>
+                <Paperclip />
+                <span className="sr-only">{t('editor.attach')}</span>
+                <input
+                  type="file"
+                  multiple
+                  className="sr-only"
+                  onChange={(e) => {
+                    uploadFiles([...(e.target.files ?? [])]);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </Button>
+          )}
           <Button variant="ghost" asChild>
             <Link to="/s/$key/p/$slugId" params={pageParams(page)}>
               {t('editor.close')}
@@ -342,11 +375,7 @@ export function PageEditor({ page, attachments }: { page: Page; attachments: Edi
               typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
             }
             placeholder={t('editor.placeholder')}
-            onPasteFiles={
-              attachments.upload
-                ? (files) => editor.current && attachments.upload?.(files, editor.current)
-                : undefined
-            }
+            onPasteFiles={attachments.upload ? uploadFiles : undefined}
           />
         </div>
         <div

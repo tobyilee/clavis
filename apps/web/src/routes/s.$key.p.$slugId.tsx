@@ -4,11 +4,13 @@ import { createFileRoute, Link, Navigate } from '@tanstack/react-router';
 import { ChevronRight, FileQuestion } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { AttachmentList } from '@/components/attachment-list';
 import { Notice } from '@/components/notice';
 import { PageActions } from '@/components/page-actions';
 import { Author, PageMeta } from '@/components/page-meta';
 import { TocAside, TocInline } from '@/components/toc';
 import { isApiError } from '@/lib/api';
+import { useAttachments } from '@/lib/attachments';
 import { pageQuery, spaceQuery } from '@/lib/queries';
 import { pageParams } from '@/lib/urls';
 import { renderMarkdown } from '@/markdown/render';
@@ -22,7 +24,8 @@ function PageView() {
   const shortId = parseSlugId(slugId);
   const page = useQuery({ ...pageQuery(shortId ?? ''), enabled: !!shortId });
   const space = useQuery(spaceQuery(key));
-  const ctx = useRenderContext(key);
+  const attachments = useAttachments(page.data?.id ?? null);
+  const ctx = useRenderContext(key, attachments.resolve);
   const rendered = useMemo(
     () => (page.data ? renderMarkdown(page.data.content, ctx) : null),
     [page.data, ctx],
@@ -83,6 +86,7 @@ function PageView() {
         </header>
         <TocInline items={rendered.toc} />
         <div className="prose-clavis">{rendered.element}</div>
+        <AttachmentList attachments={attachments.list} />
       </article>
       <aside className="hidden w-56 shrink-0 xl:block">
         <TocAside items={rendered.toc} />

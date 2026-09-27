@@ -126,7 +126,7 @@ A4 lint 규칙  B5 검색 API                             R5 모바일 읽기   
 
 | ID | 작업 | 완료 기준 |
 |---|---|---|
-| F1 | 첨부 API | `POST /pages/{id}/attachments`(multipart, 25MB, 이름 충돌 시 `-1` 접미사), `GET /pages/{id}/attachments`, `DELETE /attachments/{id}`, `GET /files/{id}`(권한 확인 후 R2 스트리밍, `Cache-Control: private, max-age=86400`, SVG·HTML은 `Content-Disposition: attachment`). 업로드는 스트리밍으로 R2에 바로 넣어 CPU를 쓰지 않는다 |
+| F1 | 첨부 API | `POST /pages/{id}/attachments`(원본 바이트 본문 + `?filename=`, 25MB, 이름 충돌 시 `-1` 접미사), `GET /pages/{id}/attachments`, `DELETE /attachments/{id}`, `GET /files/{id}`(권한 확인 후 R2 스트리밍, `Cache-Control: private, max-age=86400`, SVG·HTML은 `Content-Disposition: attachment`). 업로드는 스트리밍으로 R2에 바로 넣어 CPU를 쓰지 않는다 |
 | F2 | 첨부 UI | 편집기에 드래그&드롭·붙여넣기 → 업로드 → `![](attachments/name.png)` 삽입(업로드 중 자리표시), 모바일은 파일 선택 버튼, 페이지의 첨부 목록 패널 |
 | F3 | 검색 UI | `/search` 결과(snippet 강조, 필터), 헤더 ⌘K 명령 팔레트(제목 빠른 이동은 트리 캐시, 본문은 검색 API) |
 | F4 | 휴지통 UI | Space별 휴지통 목록(삭제자·시간·하위 페이지 수), 복원 |
@@ -194,5 +194,6 @@ A4 lint 규칙  B5 검색 API                             R5 모바일 읽기   
 | Step 2 | ✅ 완료 (M3 대기) | MCP 도구 10개(읽기 6 + 쓰기 4, viewer에게는 쓰기 도구 비노출), 서버 instructions에 작성 규칙, 저장 결과·충돌·검사 오류를 에이전트가 바로 고칠 수 있는 텍스트로 반환(줄 번호, 다음 행동), 페이지 URL 포함. 가이드에 도구 목록·쓰기 흐름 추가. **M3(Hermes 실사용 검증)은 push·배포 후 사용자 진행** | 2026-09-27 |
 | Step 3 | ✅ 완료 | 라우트(`/`, `/s/$key` → 홈 페이지, `/s/$key/p/$slugId` + 정규 URL 리다이렉트, `/s/$key/w/$title` 위키 링크 해석), 사이드바(Space 전환, 트리 ETag 캐시·펼침 기억·현재 페이지 조상 자동 펼침), 렌더링(unified + GFM + 위키 링크·Callout·첨부 플러그인, sanitize, `data-line`, 헤딩 id), Shiki·Mermaid 지연 로딩(해당 블록이 있을 때만), 페이지 보기(breadcrumb, 유형·상태·담당·태그, 🤖/사람 작성자 표시, TOC 현재 위치 강조), 모바일(Drawer, 접이식 TOC, 375px 가로 스크롤 없음 확인). `/search`·`/admin` 라우트는 기능과 함께 Step 5에서. 초기 번들 157KB(gzip), 페이지 렌더러 청크 85KB | 2026-09-27 |
 | Step 4 | ✅ 완료 | CodeMirror 6 에디터(frontmatter 영역 인식, 코드 블록 언어별 하이라이트, ⌘S), 150ms 디바운스 미리보기 + `data-line` 양방향 스크롤 동기화, frontmatter 폼 ↔ YAML(주석·키 순서 보존), 필수 섹션 누락 시 "끝에 추가", 서버와 같은 Clavis 규칙 + 브라우저 전용 markdownlint(Clavis 규칙과 겹치는 MD001·MD040·MD045, 위키에 맞지 않는 MD013·MD028·MD041·MD060 등 제외) → 밑줄·Problems 패널(클릭 시 해당 줄), 409 충돌 다이얼로그(내 내용 복사 후 최신본), 초안 자동 보관·복구, 이탈 경고, `[[` 위키 링크·`KEY:` 다른 Space 자동완성, 새 페이지(템플릿 선택 → 편집), 페이지 메뉴(하위 추가·이동·삭제), 트리 드래그 이동(위/안/아래)과 `+` 버튼, 모바일 [편집 \| 미리보기] 탭과 접이식 속성. 로컬 브라우저에서 저장·충돌·초안·자동완성·새 페이지 흐름 확인. 편집 화면 청크 374KB(편집 시에만 로드) | 2026-09-27 |
+| Step 5 | ✅ 완료 | 첨부 API(원본 바이트를 본문으로 받아 R2로 스트리밍 — multipart 파싱 CPU를 피하려고 계획에서 변경, 25MB, 이름 정리·`-1` 접미사, 삭제), `/files/{id}`(권한 확인, 휴지통 페이지 파일 숨김, `sandbox` CSP·nosniff, SVG/HTML은 다운로드, ETag 304), 에디터 붙여넣기·드롭·파일 선택 업로드(자리표시 → 참조 삽입), 페이지 첨부 목록, 검색 화면(필터·더 보기·하이라이트), ⌘K 팔레트(현재 Space 제목 즉시 + 전문 검색), 휴지통 화면(복원·영구 삭제 예정일), 관리 화면(사람 승인·역할·중지, 에이전트 추가·토큰 1회 표시·폐기, Space 생성·수정·보관), Space 목록에 새 Space. Worker 테스트 66개 | 2026-09-27 |
 | H2 CPU 실측 | – | | |
 | Exit 점검 | – | | |

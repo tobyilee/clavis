@@ -96,6 +96,15 @@ update_page  page=k3x9q1 content=<수정한 원문 전체> baseRevision=1
 
 MCP와 같은 기능을 REST로도 쓸 수 있습니다. 명세는 `/api/v1/openapi.json`, 문서는 `/api/v1/docs`에 있습니다. 인증 헤더는 MCP와 같습니다. 페이지 원문만 받으려면 `Accept: text/markdown`을 보냅니다.
 
+**첨부 파일 업로드** (MCP 도구에는 없음, 파일당 25MB): 파일 내용을 그대로 본문으로 보냅니다(multipart 아님). 응답의 `filename`(이름이 겹치면 `-1`이 붙음)으로 본문에서 `![설명](attachments/<filename>)`처럼 참조합니다.
+
+```bash
+curl -X POST "https://clavis.crawl-proxy.workers.dev/api/v1/pages/<shortId>/attachments?filename=arch.png" \
+  -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
+  -H "Authorization: Bearer $CLAVIS_TOKEN" -H "Content-Type: image/png" \
+  --data-binary @arch.png
+```
+
 ## 7. 문제 해결
 
 | 증상 | 원인 |

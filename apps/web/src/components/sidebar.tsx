@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ChevronsUpDown, FilePlus, LayoutGrid, Trash2 } from 'lucide-react';
+import { ChevronsUpDown, FilePlus, LayoutGrid, Settings, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useCanEdit } from '@/lib/me';
+import { useCanEdit, useMe } from '@/lib/me';
 import { useSpaces } from '@/lib/queries';
 import { useCurrentLocation } from '@/lib/route';
 import { PageTree } from './page-tree';
@@ -60,6 +60,7 @@ export function Sidebar() {
   const { t } = useTranslation();
   const { spaceKey, shortId } = useCurrentLocation();
   const canEdit = useCanEdit();
+  const isAdmin = useMe().data?.role === 'admin';
   return (
     <nav className="flex h-full flex-col gap-2 p-3">
       <SpaceSwitcher spaceKey={spaceKey} />
@@ -70,6 +71,13 @@ export function Sidebar() {
           <p className="px-2 py-2 text-xs text-muted-foreground">{t('space.pick')}</p>
         )}
       </div>
+      {isAdmin && (
+        <Button variant="ghost" size="sm" className="justify-start" asChild>
+          <Link to="/admin">
+            <Settings /> {t('admin.title')}
+          </Link>
+        </Button>
+      )}
       {spaceKey && (
         <div className="flex flex-col gap-1 border-t pt-2">
           {canEdit && (

@@ -21,7 +21,18 @@
     "all": "All spaces",
     "pick": "Pick a space.",
     "notFound": "Space not found",
-    "noHome": "This space has no home page."
+    "noHome": "This space has no home page.",
+    "new": "New space",
+    "archived": "archived",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
+    "edit": "Edit {{key}}",
+    "key": "Key",
+    "keyHelp": "2-10 characters starting with a capital letter (used in URLs and wiki links; cannot change later)",
+    "name": "Name",
+    "description": "Description",
+    "create": "Create",
+    "save": "Save"
   },
   "tree": {
     "empty": "No pages yet.",
@@ -114,7 +125,11 @@
     "loadedLatestCopied": "Loaded the latest version. Your text is on the clipboard.",
     "readOnly": "You do not have permission to edit.",
     "showProps": "Show properties",
-    "hideProps": "Hide properties"
+    "hideProps": "Hide properties",
+    "attach": "Attach files",
+    "uploading": "Uploading {{count}} file(s)…",
+    "uploaded": "Attached {{count}} file(s).",
+    "uploadFailed": "Upload failed:"
   },
   "lint": {
     "frontmatter-missing": "The page must start with YAML frontmatter (---).",
@@ -128,5 +143,57 @@
     "image-alt": "Image has no alt text.",
     "code-lang": "Code block has no language (e.g. ```ts), so it is not highlighted.",
     "doc-length": "The page is {{kb}}KB; consider splitting it into child pages over {{limitKb}}KB."
+  },
+  "search": {
+    "placeholder": "Search titles and content",
+    "palette": "Type a page name or some text",
+    "space": "Space",
+    "allSpaces": "All spaces",
+    "allTypes": "All types",
+    "allStatuses": "All statuses",
+    "shortQuery": "Terms under 3 characters use plain substring matching (no index).",
+    "none": "No pages match \"{{q}}\".",
+    "more": "Load more",
+    "all": "Search everything for \"{{q}}\""
+  },
+  "trash": {
+    "help": "Deleted pages are kept for {{days}} days, then removed for good. Child pages are restored together.",
+    "empty": "The trash is empty.",
+    "restore": "Restore",
+    "withChildren": "with {{count}} child page(s)",
+    "purgeAt": "purged {{when}}",
+    "restored": "Restored {{count}} page(s).",
+    "renamed": "Renamed to \"{{title}}\" because the title was taken."
+  },
+  "admin": {
+    "title": "Admin",
+    "only": "Only admins can see this.",
+    "people": "People",
+    "agents": "AI agents",
+    "spaces": "Spaces",
+    "pending": "Pending",
+    "you": "You",
+    "role": "Role",
+    "enable": "Enable",
+    "disable": "Disable",
+    "agentName": "Agent name",
+    "addAgent": "Add agent",
+    "issueToken": "Issue token",
+    "lastUsed": "used {{when}}",
+    "neverUsed": "never used",
+    "revoke": "Revoke",
+    "tokenTitle": "Token for {{agent}}",
+    "tokenOnce": "This token is shown only now. Store it in the agent's settings. If it is lost, issue a new one and revoke this one.",
+    "copy": "Copy",
+    "done": "Done"
+  },
+  "role": {
+    "pending": "Pending",
+    "viewer": "Viewer",
+    "editor": "Editor",
+    "admin": "Admin"
+  },
+  "attachments": {
+    "title": "{{count}} attachment(s)"
   }
 }

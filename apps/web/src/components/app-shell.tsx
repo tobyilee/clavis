@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/s
 import { LANGUAGES } from '@/i18n';
 import { useMe } from '@/lib/me';
 import { cn } from '@/lib/utils';
+import { CommandPalette } from './command-palette';
 import { Sidebar } from './sidebar';
 
 function LanguageToggle() {
@@ -31,21 +32,43 @@ function LanguageToggle() {
 }
 
 function CurrentUser() {
+  const { t } = useTranslation();
   const { data } = useMe();
   if (!data) return null;
   return (
-    <span
-      className="hidden max-w-40 truncate text-xs text-muted-foreground sm:inline"
-      title={data.email ?? ''}
-    >
-      {data.name}
-    </span>
+    <>
+      {data.role === 'admin' && (
+        <Link
+          to="/admin"
+          className="hidden text-xs text-muted-foreground hover:text-foreground sm:inline"
+        >
+          {t('admin.title')}
+        </Link>
+      )}
+      <span
+        className="hidden max-w-40 truncate text-xs text-muted-foreground sm:inline"
+        title={data.email ?? ''}
+      >
+        {data.name}
+      </span>
+    </>
   );
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   // The mobile drawer closes once a link in it has navigated.
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs on navigation
@@ -69,8 +92,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
         <button
           type="button"
-          className="ml-auto flex h-9 w-full max-w-72 items-center gap-2 rounded-md border px-3 text-sm text-muted-foreground"
-          disabled
+          className="ml-auto flex h-9 w-full max-w-72 items-center gap-2 rounded-md border px-3 text-sm text-muted-foreground hover:bg-accent"
+          onClick={() => setPaletteOpen(true)}
         >
           <Search className="size-4" />
           <span className="flex-1 text-left">{t('app.search')}</span>
@@ -79,6 +102,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <LanguageToggle />
         <CurrentUser />
       </header>
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <div className="flex flex-1">
         <aside className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-64 shrink-0 border-r bg-sidebar md:block">
           <Sidebar />

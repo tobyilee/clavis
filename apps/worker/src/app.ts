@@ -2,8 +2,10 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 import { createMcpHandler } from 'agents/mcp/server';
 import { HTTPException } from 'hono/http-exception';
 import { admin } from './api/admin';
+import { attachments } from './api/attachments';
 import { authoring } from './api/authoring';
 import { docs } from './api/docs';
+import { files } from './api/files';
 import { health } from './api/health';
 import { me } from './api/me';
 import { pages } from './api/pages';
@@ -38,6 +40,7 @@ export function createApp() {
   api.route('/', trash);
   api.route('/', search);
   api.route('/', authoring);
+  api.route('/', attachments);
   api.route('/', docs);
   api.doc31('/openapi.json', {
     openapi: '3.1.0',
@@ -48,10 +51,13 @@ export function createApp() {
   const app = new OpenAPIHono<AppEnv>();
   app.use('/api/*', (c, next) => (PUBLIC_PATHS.has(c.req.path) ? next() : auth(c, next)));
   app.use('/mcp', auth);
+  app.use('/files/*', auth);
   // After authentication, so each actor (e.g. each agent token) has its own budget.
   app.use('/api/*', rateLimit());
   app.use('/mcp', rateLimit());
+  app.use('/files/*', rateLimit());
   app.route('/api/v1', api);
+  app.route('/', files);
   app.all('/mcp', requireRole('viewer'), (c) => {
     const actor = c.get('actor');
     const url = new URL(c.req.url);

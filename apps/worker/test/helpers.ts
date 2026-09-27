@@ -17,6 +17,8 @@ interface CallOptions {
   bearer?: string;
   method?: string;
   body?: unknown;
+  /** Sent as-is (not JSON), e.g. file bytes. */
+  raw?: BodyInit;
   headers?: Record<string, string>;
 }
 
@@ -42,7 +44,7 @@ export async function call(path: string, opts: CallOptions = {}) {
     new Request(`https://clavis.test${path}`, {
       method: opts.method ?? 'GET',
       headers,
-      body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+      body: opts.raw ?? (opts.body === undefined ? undefined : JSON.stringify(opts.body)),
     }),
     env,
     ctx,
@@ -50,6 +52,7 @@ export async function call(path: string, opts: CallOptions = {}) {
   await waitOnExecutionContext(base);
   const text = await res.text();
   const type = res.headers.get('content-type');
+  const resHeaders = res.headers;
   // Streamable HTTP may answer as SSE: take the JSON from the last "data:" line.
   const payload = type?.includes('text/event-stream')
     ? (text
@@ -66,7 +69,7 @@ export async function call(path: string, opts: CallOptions = {}) {
   } catch {
     json = { raw: text };
   }
-  return { status: res.status, type, json };
+  return { status: res.status, type, json, text, headers: resHeaders };
 }
 
 export const ADMIN = { as: 'owner@gmail.com' };
