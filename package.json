@@ -1,0 +1,22 @@
+{
+  "name": "clavis",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.6.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @clavis/worker --filter @clavis/web dev",
+    "build": "pnpm --filter @clavis/web build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "lint": "biome check .",
+    "format": "biome check --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
+    "@types/node": "^24.19.0",
+    "typescript": "^7.0.2"
+  }
+}

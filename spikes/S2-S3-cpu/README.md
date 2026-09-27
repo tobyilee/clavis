@@ -1,0 +1,14 @@
+# S2 / S3 — CPU cost of save and lint
+
+`pnpm bench` (full pipeline) and `pnpm exec tsx breakdown.ts` (per component). Node 24 on Apple Silicon;
+Workers hardware may be slower, so treat these as lower bounds. Remote `cpuTime` check pending (Step 2).
+
+| Scenario | 10KB p95 | 50KB p95 | 100KB p95 |
+|---|---|---|---|
+| S2 save (blocking rules + link extraction) | 0.21ms | 0.31ms | 0.51ms |
+| S3 full (Clavis rules + remark + markdownlint) | 12.9ms | 61.1ms | 120.7ms |
+
+Breakdown at 100KB (p50): Clavis rules (line scan) 0.40ms · remark+gfm 49.8ms · markdownlint 59.1ms.
+
+Conclusion: S2 **pass** with a large margin. S3 **fail** — any AST-based parsing costs ~0.5ms/KB
+and cannot run on the free plan beyond ~10KB. Clavis's line-scanning rules are ~100× cheaper.

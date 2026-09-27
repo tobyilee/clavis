@@ -1,0 +1,10 @@
+{
+  "app": { "search": "검색", "newPage": "새 페이지", "trash": "휴지통", "toc": "목차" },
+  "home": {
+    "title": "Space",
+    "empty": "아직 Space가 없습니다.",
+    "serverStatus": "서버 상태",
+    "serverOk": "정상",
+    "serverDown": "연결 실패"
+  }
+}

@@ -1,0 +1,10 @@
+packages:
+  - apps/*
+  - packages/*
+  - spikes/*
+allowBuilds:
+  esbuild: true
+  workerd: true
+minimumReleaseAgeExclude:
+  - '@tanstack/query-core@5.104.0'
+  - '@tanstack/react-query@5.104.0'

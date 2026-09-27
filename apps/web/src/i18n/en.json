@@ -1,0 +1,10 @@
+{
+  "app": { "search": "Search", "newPage": "New page", "trash": "Trash", "toc": "On this page" },
+  "home": {
+    "title": "Spaces",
+    "empty": "No spaces yet.",
+    "serverStatus": "Server status",
+    "serverOk": "OK",
+    "serverDown": "Unreachable"
+  }
+}
