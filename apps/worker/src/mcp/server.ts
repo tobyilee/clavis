@@ -107,14 +107,18 @@ function cached<T extends z.ZodType>(schema: T): T {
   const memo: Partial<Record<'input' | 'output', unknown>> = {};
   const jsonSchema = std.jsonSchema;
   if (!jsonSchema) return schema;
+  const once = <R>(io: 'input' | 'output', compute: () => R): R => {
+    if (!(io in memo)) memo[io] = compute();
+    return memo[io] as R;
+  };
   const wrapped = {
     ...std,
     validate: (value: unknown) => std.validate(value),
     jsonSchema: {
       input: (options: Parameters<typeof jsonSchema.input>[0]) =>
-        (memo.input ??= jsonSchema.input(options)) as ReturnType<typeof jsonSchema.input>,
+        once('input', () => jsonSchema.input(options)),
       output: (options: Parameters<typeof jsonSchema.output>[0]) =>
-        (memo.output ??= jsonSchema.output(options)) as ReturnType<typeof jsonSchema.output>,
+        once('output', () => jsonSchema.output(options)),
     },
   };
   return { '~standard': wrapped } as unknown as T;
