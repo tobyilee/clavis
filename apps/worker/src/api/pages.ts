@@ -1,6 +1,7 @@
 import { CreatePageSchema, MovePageSchema, UpdatePageSchema } from '@clavis/shared/schema';
 import { createRoute, z } from '@hono/zod-openapi';
 import { requireRole } from '../auth/middleware';
+import { recordView } from '../services/home';
 import {
   createPage,
   deletePage,
@@ -93,6 +94,9 @@ pages.openapi(
   }),
   async (c) => {
     const page = await getPage(c.env.DB, c.req.valid('param').ref);
+    const actor = c.get('actor');
+    // People's recently viewed list (D-50); after the response, so reading is not slowed.
+    if (actor.kind === 'human') c.executionCtx.waitUntil(recordView(c.env.DB, actor.id, page.id));
     if (c.req.header('accept')?.includes('text/markdown')) {
       return c.body(page.content, 200, {
         'content-type': 'text/markdown; charset=utf-8',

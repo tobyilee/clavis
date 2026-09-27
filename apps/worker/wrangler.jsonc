@@ -8,7 +8,8 @@
     "directory": "../web/dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/mcp", "/files/*"]
+    // *.md and llms.txt under /s are raw views for AI tools (D-51); other /s paths are the SPA.
+    "run_worker_first": ["/api/*", "/mcp", "/files/*", "/s/*.md", "/s/*/llms.txt", "/llms.txt"]
   },
   "d1_databases": [
     {

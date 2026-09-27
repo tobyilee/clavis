@@ -6,6 +6,7 @@ import { buildApi } from './api/index';
 import { OPENAPI_JSON } from './api/openapi.gen';
 import { problem } from './api/problem';
 import { rateLimit } from './api/rate-limit';
+import { raw } from './api/raw';
 import { authenticate, requireRole } from './auth/middleware';
 import { buildMcpServer } from './mcp/server';
 import type { Actor } from './services/actors';
@@ -29,12 +30,19 @@ export function createApp() {
   app.use('/api/*', (c, next) => (PUBLIC_PATHS.has(c.req.path) ? next() : auth(c, next)));
   app.use('/mcp', auth);
   app.use('/files/*', auth);
+  // Raw Markdown and llms.txt (D-51). Of /s/*, only these reach the Worker (run_worker_first);
+  // the rest is the single-page app.
+  app.use('/s/*', auth);
+  app.use('/llms.txt', auth);
   // After authentication, so each actor (e.g. each agent token) has its own budget.
   app.use('/api/*', rateLimit());
   app.use('/mcp', rateLimit());
   app.use('/files/*', rateLimit());
+  app.use('/s/*', rateLimit());
+  app.use('/llms.txt', rateLimit());
   app.route('/api/v1', api);
   app.route('/', files);
+  app.route('/', raw);
   // One MCP handler per hostname for the isolate's lifetime; each request still gets its own
   // McpServer (stateless transport). The factory finds the request's actor by the Request.
   const mcpRequests = new WeakMap<Request, { env: Env; actor: Actor; origin: string }>();
@@ -63,7 +71,8 @@ export function createApp() {
   });
 
   // Registered on the root app: Hono ignores notFound on mounted sub-apps. Only
-  // run_worker_first paths (/api, /mcp, /files) reach the Worker, so every miss is an API miss.
+  // run_worker_first paths (/api, /mcp, /files, raw views) reach the Worker, so every miss is
+  // an API miss.
   app.notFound((c) => problem(c, 404, 'not-found', 'Resource not found'));
   app.onError((err, c) => {
     if (err instanceof ServiceError) return problem(c, err.status, err.slug, err.title, err.extra);

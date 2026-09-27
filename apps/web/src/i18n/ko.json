@@ -7,7 +7,20 @@
   },
   "home": {
     "title": "Space",
-    "empty": "아직 Space가 없습니다."
+    "empty": "아직 Space가 없습니다.",
+    "favorites": "즐겨찾기",
+    "noFavorites": "페이지의 ☆를 누르면 여기에 모입니다.",
+    "recentViews": "최근 본 문서",
+    "noViews": "아직 본 문서가 없습니다.",
+    "recentChanges": "최근 변경",
+    "noChanges": "변경된 문서가 없습니다.",
+    "openComments": "내 문서의 열린 댓글",
+    "openThreads": "열린 스레드 {{count}}개",
+    "who": {
+      "all": "전체",
+      "human": "사람",
+      "agent": "에이전트"
+    }
   },
   "auth": {
     "pendingTitle": "승인 대기 중",
@@ -58,7 +71,12 @@
     "delete": "삭제",
     "deleteTitle": "\"{{title}}\" 삭제",
     "deleteBody": "이 페이지와 모든 하위 페이지가 휴지통으로 이동합니다. 30일 안에 복원할 수 있습니다.",
-    "backlinks": "이 페이지를 링크하는 문서 {{count}}개"
+    "backlinks": "이 페이지를 링크하는 문서 {{count}}개",
+    "star": "즐겨찾기에 추가",
+    "unstar": "즐겨찾기에서 빼기",
+    "copyForAi": "AI용 복사 (Markdown)",
+    "rawMarkdown": "원본 Markdown 열기 (.md)",
+    "copied": "복사했습니다"
   },
   "status": {
     "draft": "초안",

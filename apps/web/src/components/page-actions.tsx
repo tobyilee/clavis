@@ -1,7 +1,16 @@
 import type { Page, TreeNode } from '@clavis/shared/schema';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { FilePlus, FolderInput, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import {
+  Bot,
+  FileCode,
+  FilePlus,
+  FolderInput,
+  MoreHorizontal,
+  Pencil,
+  Star,
+  Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -22,9 +31,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Select } from '@/components/ui/input';
 import { apiSend, isApiError } from '@/lib/api';
+import { useFavorite } from '@/lib/home';
 import { useCanEdit } from '@/lib/me';
 import { treeQuery } from '@/lib/queries';
-import { pageParams } from '@/lib/urls';
+import { pageParams, pagePath } from '@/lib/urls';
 
 /** Flattens the tree for a parent picker, leaving out `exclude` and everything under it. */
 function parentOptions(
@@ -47,8 +57,16 @@ export function PageActions({ page, isHome }: { page: Page; isHome: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const tree = useQuery({ ...treeQuery(queryClient, page.spaceKey), enabled: dialog === 'move' });
+  const favorite = useFavorite(page.id);
+  const [copied, setCopied] = useState(false);
 
-  if (!canEdit) return null;
+  /** Title, link and the raw Markdown, ready to paste into an AI chat (D-51). */
+  const copyForAi = async () => {
+    const url = `${window.location.origin}${pagePath(page)}`;
+    await navigator.clipboard.writeText(`# ${page.title}\n\nSource: ${url}\n\n${page.content}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ['tree', page.spaceKey] });
@@ -88,11 +106,28 @@ export function PageActions({ page, isHome }: { page: Page; isHome: boolean }) {
 
   return (
     <div className="flex items-center gap-1">
-      <Button variant="outline" size="sm" asChild>
-        <Link to="/s/$key/p/$slugId/edit" params={pageParams(page)}>
-          <Pencil /> {t('page.edit')}
-        </Link>
+      {copied && (
+        <span className="text-xs text-muted-foreground" role="status">
+          {t('page.copied')}
+        </span>
+      )}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={favorite.toggle}
+        disabled={favorite.pending}
+        aria-pressed={favorite.starred}
+        aria-label={t(favorite.starred ? 'page.unstar' : 'page.star')}
+      >
+        <Star className={favorite.starred ? 'fill-amber-400 text-amber-500' : undefined} />
       </Button>
+      {canEdit && (
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/s/$key/p/$slugId/edit" params={pageParams(page)}>
+            <Pencil /> {t('page.edit')}
+          </Link>
+        </Button>
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" aria-label={t('page.more')}>
@@ -100,28 +135,41 @@ export function PageActions({ page, isHome }: { page: Page; isHome: boolean }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onSelect={() =>
-              void navigate({
-                to: '/s/$key/new',
-                params: { key: page.spaceKey },
-                search: { parent: page.id },
-              })
-            }
-          >
-            <FilePlus /> {t('page.addChild')}
+          <DropdownMenuItem onSelect={() => void copyForAi()}>
+            <Bot /> {t('page.copyForAi')}
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setDialog('move')}>
-            <FolderInput /> {t('page.move')}
+          <DropdownMenuItem asChild>
+            <a href={`${pagePath(page)}.md`} target="_blank" rel="noreferrer">
+              <FileCode /> {t('page.rawMarkdown')}
+            </a>
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            disabled={isHome}
-            onSelect={() => setDialog('delete')}
-            className="text-destructive focus:text-destructive"
-          >
-            <Trash2 /> {t('page.delete')}
-          </DropdownMenuItem>
+          {canEdit && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() =>
+                  void navigate({
+                    to: '/s/$key/new',
+                    params: { key: page.spaceKey },
+                    search: { parent: page.id },
+                  })
+                }
+              >
+                <FilePlus /> {t('page.addChild')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setDialog('move')}>
+                <FolderInput /> {t('page.move')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={isHome}
+                onSelect={() => setDialog('delete')}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 /> {t('page.delete')}
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

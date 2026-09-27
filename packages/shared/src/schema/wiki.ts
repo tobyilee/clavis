@@ -383,3 +383,27 @@ export const CreateCommentSchema = z.object({
 export type CreateCommentInput = z.infer<typeof CreateCommentSchema>;
 
 export const UpdateCommentSchema = z.object({ body: CommentBody });
+
+/** A page in a list on the home page. */
+export const PageListItemSchema = PageRefSchema.extend({
+  spaceKey: z.string(),
+  docType: z.string(),
+  status: z.string(),
+  updatedAt: z.number(),
+  updatedBy: ActorRefSchema,
+  /** When the list is about something else: starred, viewed, or the latest open comment. */
+  at: z.number().optional(),
+  /** Open comment threads (the comments list only). */
+  openThreads: z.number().int().optional(),
+});
+export type PageListItem = z.infer<typeof PageListItemSchema>;
+
+/** The signed-in person's home page (P3). */
+export const HomeSchema = z.object({
+  favorites: z.array(PageListItemSchema),
+  recentViews: z.array(PageListItemSchema),
+  recentChanges: z.array(PageListItemSchema),
+  /** Pages they own or created that have open comment threads (D-52). */
+  openComments: z.array(PageListItemSchema),
+});
+export type Home = z.infer<typeof HomeSchema>;

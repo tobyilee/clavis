@@ -124,7 +124,13 @@ resolve_comment comment=01J…
 - **제목**: 페이지 제목은 `title` 인자로 정합니다. 본문에 `# 제목`(H1)을 쓰지 않습니다.
 - **링크**: `[[페이지 제목]]`, 다른 Space는 `[[KEY:페이지 제목]]`. `update_page`로 제목을 바꾸면 다른 문서의 링크도 새 제목으로 고쳐지고, 응답에 고친 문서 수가 나옵니다. 너무 많아 고치지 못한 문서가 있으면 그 수도 알려 줍니다.
 
-## 6. REST API
+## 6. 원본 Markdown과 llms.txt
+
+- 페이지 URL 끝에 `.md`를 붙이면 frontmatter 포함 원문이 `text/markdown`으로 옵니다 (`X-Clavis-Revision` 헤더 포함).
+- `/llms.txt`는 Space 목록, `/s/{KEY}/llms.txt`는 그 Space의 페이지 트리(각 항목이 `.md` 링크)입니다.
+- 모두 Access 뒤에 있으므로 에이전트는 MCP와 같은 서비스 토큰 헤더와 Clavis 토큰이 필요합니다. 사람은 브라우저에서 바로 열 수 있고, 페이지 메뉴의 **AI용 복사**로 제목·URL·원문을 한 번에 복사해 AI 채팅에 붙여 넣을 수 있습니다.
+
+## 7. REST API
 
 MCP와 같은 기능을 REST로도 쓸 수 있습니다. 명세는 `/api/v1/openapi.json`, 문서는 `/api/v1/docs`에 있습니다. 인증 헤더는 MCP와 같습니다. 페이지 원문만 받으려면 `Accept: text/markdown`을 보냅니다.
 
@@ -137,7 +143,7 @@ curl -X POST "https://clavis.crawl-proxy.workers.dev/api/v1/pages/<shortId>/atta
   --data-binary @arch.png
 ```
 
-## 7. 문제 해결
+## 8. 문제 해결
 
 | 증상 | 원인 |
 |---|---|

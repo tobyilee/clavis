@@ -4,6 +4,7 @@ import { authoring } from './authoring';
 import { comments } from './comments';
 import { docs } from './docs';
 import { health } from './health';
+import { home } from './home';
 import { me } from './me';
 import { pages } from './pages';
 import { quality } from './quality';
@@ -29,6 +30,7 @@ export function buildApi() {
   for (const r of [
     health,
     me,
+    home,
     admin,
     spaces,
     pages,

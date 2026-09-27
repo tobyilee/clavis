@@ -7,7 +7,20 @@
   },
   "home": {
     "title": "Spaces",
-    "empty": "No spaces yet."
+    "empty": "No spaces yet.",
+    "favorites": "Favorites",
+    "noFavorites": "Star a page (☆) to keep it here.",
+    "recentViews": "Recently viewed",
+    "noViews": "Nothing viewed yet.",
+    "recentChanges": "Recent changes",
+    "noChanges": "No changes yet.",
+    "openComments": "Open comments on my pages",
+    "openThreads": "{{count}} open",
+    "who": {
+      "all": "All",
+      "human": "People",
+      "agent": "Agents"
+    }
   },
   "auth": {
     "pendingTitle": "Waiting for approval",
@@ -58,7 +71,12 @@
     "delete": "Delete",
     "deleteTitle": "Delete \"{{title}}\"",
     "deleteBody": "This page and all its child pages move to the trash. You can restore them within 30 days.",
-    "backlinks": "{{count}} page(s) link here"
+    "backlinks": "{{count}} page(s) link here",
+    "star": "Add to favorites",
+    "unstar": "Remove from favorites",
+    "copyForAi": "Copy for AI (Markdown)",
+    "rawMarkdown": "Open raw Markdown (.md)",
+    "copied": "Copied"
   },
   "status": {
     "draft": "Draft",

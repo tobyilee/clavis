@@ -176,3 +176,37 @@ test('space settings: stricter rule and a custom template', async ({ page, reque
   await typeAtEnd(page, '\n# 제목\n');
   await expect(page.getByRole('button', { name: '저장', exact: true })).toBeDisabled();
 });
+
+test('home: favorites, recently viewed; raw Markdown and llms.txt', async ({ page, request }) => {
+  await ensureSpace(request, 'HOME', '홈');
+  const fm = '---\ntype: note\nstatus: draft\nowner: dev@example.com\n---\n';
+  const res = await request.post('/api/v1/spaces/HOME/pages', {
+    data: { title: '자주 보는 문서', content: `${fm}본문\n` },
+  });
+  const p = (await res.json()).page;
+  const url = `/s/HOME/p/${encodeURI(`${p.slug}-${p.shortId}`)}`;
+
+  await page.goto(url);
+  await page.getByRole('button', { name: '즐겨찾기에 추가' }).click();
+  await expect(page.getByRole('button', { name: '즐겨찾기에서 빼기' })).toBeVisible();
+  const sidebarFavorites = page.getByRole('region', { name: '즐겨찾기' });
+  await expect(sidebarFavorites.getByRole('link', { name: '자주 보는 문서' })).toBeVisible();
+
+  await page.goto('/');
+  const favorites = page.locator('section', {
+    has: page.getByRole('heading', { name: '즐겨찾기' }),
+  });
+  await expect(favorites.getByRole('link', { name: /자주 보는 문서/ })).toBeVisible();
+  const viewed = page.locator('section', {
+    has: page.getByRole('heading', { name: '최근 본 문서' }),
+  });
+  await expect(viewed.getByRole('link', { name: /자주 보는 문서/ })).toBeVisible();
+
+  // These paths reach the Worker (run_worker_first), not the single-page app.
+  const md = await request.get(`${url}.md`);
+  expect(md.headers()['content-type']).toBe('text/markdown; charset=utf-8');
+  expect(await md.text()).toBe(`${fm}본문\n`);
+  const llms = await (await request.get('/s/HOME/llms.txt')).text();
+  expect(llms).toContain(`- [자주 보는 문서](http://localhost:8788${url}.md): note, draft`);
+  expect(await (await request.get('/llms.txt')).text()).toContain('- [홈 (HOME)]');
+});

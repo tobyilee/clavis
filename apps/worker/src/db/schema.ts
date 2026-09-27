@@ -92,6 +92,8 @@ export const pages = sqliteTable(
     uniqueIndex('pages_title_uniq').on(t.spaceId, t.title).where(sql`${t.deletedAt} IS NULL`),
     index('pages_tree').on(t.spaceId, t.parentId, t.position).where(sql`${t.deletedAt} IS NULL`),
     index('pages_deleted_batch').on(t.deletedBatch),
+    // Recent changes on the home page (P2).
+    index('pages_updated').on(t.updatedAt).where(sql`${t.deletedAt} IS NULL`),
   ],
 );
 
@@ -202,6 +204,42 @@ export const templates = sqliteTable(
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => [index('templates_space').on(t.spaceId)],
+);
+
+/** A person's starred pages (P1). */
+export const favorites = sqliteTable(
+  'favorites',
+  {
+    actorId: text('actor_id')
+      .notNull()
+      .references(() => actors.id),
+    pageId: text('page_id')
+      .notNull()
+      .references(() => pages.id),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.actorId, t.pageId] })],
+);
+
+/**
+ * The pages a person viewed last, one row per page, the newest 50 kept (D-50). Written after
+ * the response (waitUntil), so reading a page is not slowed down.
+ */
+export const pageViews = sqliteTable(
+  'page_views',
+  {
+    actorId: text('actor_id')
+      .notNull()
+      .references(() => actors.id),
+    pageId: text('page_id')
+      .notNull()
+      .references(() => pages.id),
+    viewedAt: integer('viewed_at').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.actorId, t.pageId] }),
+    index('page_views_recent').on(t.actorId, t.viewedAt),
+  ],
 );
 
 export const attachments = sqliteTable(
