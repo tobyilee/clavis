@@ -1,5 +1,6 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { updatePage } from '../src/services/pages';
 import { ADMIN, agentWithRole, call, FM, resetDb } from './helpers';
 
 let editor: { bearer: string };
@@ -219,9 +220,17 @@ describe('wiki links', () => {
       .bind(id)
       .all();
 
-  it('reconnects links when the target appears, breaks them on rename (D-42)', async () => {
+  const contentOf = async (id: string) =>
+    (await call(`/api/v1/pages/${id}`, viewer)).json as { content: string; revision: number };
+  const rename = (id: string, title: string, revision = 1) =>
+    call(`/api/v1/pages/${id}`, {
+      ...editor,
+      method: 'PUT',
+      body: { title, content: FM(), baseRevision: revision },
+    });
+
+  it('reconnects links when the target appears', async () => {
     const a = await page('안내', '[[정책]] [[PAY:정책]]\n');
-    expect(a).toBeTruthy();
     const created = await call('/api/v1/spaces/PAY/pages', {
       ...editor,
       method: 'POST',
@@ -231,13 +240,107 @@ describe('wiki links', () => {
 
     const target = await page('정책');
     expect((await linkOf(a.id)).results).toEqual([{ target_title: '정책', to_page_id: target.id }]);
+  });
 
-    const renamed = await call(`/api/v1/pages/${target.id}`, {
-      ...editor,
-      method: 'PUT',
-      body: { title: '환불 정책', content: FM(), baseRevision: 1 },
+  it('rewrites links in other pages on rename (D-42 revised)', async () => {
+    const target = await page('정책');
+    const a = await page(
+      '안내',
+      '[[정책]] [[정책|규정 보기]] [[PAY:정책]]\n\n```md\n[[정책]]\n```\n',
+    );
+    const b = await page('참고', '`[[정책]]` 는 예시, 진짜 링크는 [[정책]]\n');
+
+    const renamed = await rename(target.id, '환불 정책');
+    expect(renamed.status).toBe(200);
+    expect(renamed.json).toMatchObject({ linksUpdated: 2, linksToOldTitle: 0 });
+
+    const aNow = await contentOf(a.id);
+    expect(aNow.content).toBe(
+      `${FM()}[[환불 정책]] [[환불 정책|규정 보기]] [[PAY:환불 정책]]\n\n\`\`\`md\n[[정책]]\n\`\`\`\n`,
+    );
+    // The rewrite is a real edit: revision up, attributed to whoever renamed.
+    expect(aNow.revision).toBe(2);
+    expect((await call(`/api/v1/pages/${a.id}`, viewer)).json.updatedBy.name).toBe('bot-editor');
+    expect((await contentOf(b.id)).content).toContain(
+      '`[[정책]]` 는 예시, 진짜 링크는 [[환불 정책]]',
+    );
+
+    // Link rows follow, so the links still resolve and lint stays clean.
+    expect((await linkOf(a.id)).results).toEqual([
+      { target_title: '환불 정책', to_page_id: target.id },
+    ]);
+    const lint = await call('/api/v1/lint', {
+      ...viewer,
+      method: 'POST',
+      body: { content: aNow.content, space: 'PAY' },
     });
-    expect(renamed.json.linksToOldTitle).toBe(2);
+    expect(
+      lint.json.violations.filter(
+        (v: { ruleId: string }) => v.ruleId === 'clavis/wiki-link-exists',
+      ),
+    ).toEqual([]);
+  });
+
+  it('rewrites prefixed links from other spaces, but not their own-space links', async () => {
+    await call('/api/v1/spaces', {
+      ...ADMIN,
+      method: 'POST',
+      body: { key: 'ARCH', name: '아키텍처' },
+    });
+    const target = await page('정책');
+    const other = await page('원칙', '[[PAY:정책]] 와 [[정책]]\n', {}, 'ARCH');
+    const renamed = await rename(target.id, '환불 정책');
+    expect(renamed.json.linksUpdated).toBe(1);
+    // [[정책]] in ARCH means ARCH's own (missing) page, so it stays.
+    expect((await contentOf(other.id)).content).toContain('[[PAY:환불 정책]] 와 [[정책]]');
+  });
+
+  it('leaves pages past the rewrite cap with broken links', async () => {
+    const target = await page('정책');
+    // Two pages of ~95KB: the second pushes the running total past the 200KB cap.
+    const filler = `${'가'.repeat(31_000)}\n`;
+    const first = await page('큰 문서 1', `[[정책]]\n${filler}`);
+    const second = await page('큰 문서 2', `[[정책]]\n${filler}`);
+    const third = await page('큰 문서 3', `[[정책]]\n${filler}`);
+    const renamed = await rename(target.id, '환불 정책');
+    expect(renamed.json).toMatchObject({ linksUpdated: 2, linksToOldTitle: 1 });
+    const contents = await Promise.all([first, second, third].map((p) => contentOf(p.id)));
+    expect(contents.filter((c) => c.content.includes('[[환불 정책]]'))).toHaveLength(2);
+    const left = [first, second, third].find((_, i) => contents[i]?.content.includes('[[정책]]'));
+    expect((await linkOf(left?.id ?? '')).results).toEqual([
+      { target_title: '정책', to_page_id: null },
+    ]);
+  });
+
+  it('does not overwrite a referencing page saved in the meantime', async () => {
+    const target = await page('정책');
+    const a = await page('안내', '[[정책]]\n');
+    const actor = await env.DB.prepare("SELECT * FROM actors WHERE name = 'bot-editor'").first();
+    // A D1 wrapper that lands someone else's save on page a right before the rename's
+    // write batch (the second batch call), i.e. between its read and its write.
+    let batches = 0;
+    const racing = new Proxy(env.DB, {
+      get(db, prop) {
+        if (prop !== 'batch') return Reflect.get(db, prop).bind?.(db) ?? Reflect.get(db, prop);
+        return async (stmts: D1PreparedStatement[]) => {
+          if (++batches === 2) {
+            await db
+              .prepare('UPDATE pages SET content = ?, revision = revision + 1 WHERE id = ?')
+              .bind(`${FM()}다른 사람의 수정 [[정책]]\n`, a.id)
+              .run();
+          }
+          return db.batch(stmts);
+        };
+      },
+    });
+    const result = await updatePage(racing, actor as never, target.id, {
+      title: '환불 정책',
+      content: FM(),
+      baseRevision: 1,
+    });
+    expect(result).toMatchObject({ linksUpdated: 0, linksToOldTitle: 1 });
+    // Their text survives; the stale rewrite was skipped and the link reported as broken.
+    expect((await contentOf(a.id)).content).toContain('다른 사람의 수정 [[정책]]');
     expect((await linkOf(a.id)).results).toEqual([{ target_title: '정책', to_page_id: null }]);
   });
 });

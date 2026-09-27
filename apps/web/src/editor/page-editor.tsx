@@ -173,9 +173,13 @@ export function PageEditor({ page, attachments }: { page: Page; attachments: Edi
         content,
         revision: result.page.revision,
       });
-      const renamed = result.linksToOldTitle
-        ? ` ${t('editor.renamedLinks', { count: result.linksToOldTitle })}`
-        : '';
+      const renamed = [
+        result.linksUpdated ? t('editor.linksUpdated', { count: result.linksUpdated }) : '',
+        result.linksToOldTitle ? t('editor.renamedLinks', { count: result.linksToOldTitle }) : '',
+      ]
+        .filter(Boolean)
+        .map((m) => ` ${m}`)
+        .join('');
       setNotice({
         tone: 'ok',
         text: `${t('editor.saved', { revision: result.page.revision })}${renamed}`,

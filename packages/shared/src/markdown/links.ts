@@ -1,4 +1,4 @@
-import { type ScannedLine, stripInlineCode } from './lines';
+import { type ScannedLine, scanLines, stripInlineCode } from './lines';
 
 export interface WikiLink {
   /** Target space key, or null for the current space. */
@@ -53,4 +53,46 @@ export function extractAttachmentRefs(lines: ScannedLine[]): AttachmentRef[] {
     }
   }
   return out;
+}
+
+export interface RenameTarget {
+  /** Space of the renamed page. */
+  spaceKey: string;
+  oldTitle: string;
+  newTitle: string;
+}
+
+/**
+ * Rewrites wiki links to a renamed page: [[Old]] → [[New]], keeping aliases and an explicit
+ * KEY: prefix. Unprefixed links only count when the linking page is in the same space
+ * (D-23). Fenced code and inline code are left alone. Line endings are preserved.
+ */
+export function renameWikiLinks(
+  content: string,
+  linkingSpaceKey: string,
+  target: RenameTarget,
+): { content: string; count: number } {
+  const parts = content.split(/(\r?\n)/);
+  const lines = scanLines(parts.filter((_, i) => i % 2 === 0).join('\n'));
+  let count = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const text = parts[i * 2];
+    if (!line || line.inFence || text === undefined || !text.includes('[[')) continue;
+    // Replace only outside inline code spans.
+    parts[i * 2] = text.replace(
+      /(`+)[\s\S]*?\1|\[\[([^[\]|\n]+?)(\|[^[\]\n]+?)?\]\]/g,
+      (m, tick, inner, alias) => {
+        if (tick) return m;
+        const raw = String(inner).trim();
+        const prefixed = SPACE_PREFIX_RE.exec(raw);
+        const key = prefixed ? prefixed[1] : linkingSpaceKey;
+        const title = prefixed ? (prefixed[2] ?? '').trim() : raw;
+        if (key !== target.spaceKey || title !== target.oldTitle) return m;
+        count++;
+        return `[[${prefixed ? `${prefixed[1]}:` : ''}${target.newTitle}${alias ?? ''}]]`;
+      },
+    );
+  }
+  return { content: count > 0 ? parts.join('') : content, count };
 }

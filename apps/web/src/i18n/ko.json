@@ -113,7 +113,7 @@
     "restoreDraft": "초안 복구",
     "discardDraft": "버리기",
     "saved": "저장했습니다 (revision {{revision}}).",
-    "renamedLinks": "옛 제목으로 연결된 페이지 {{count}}개의 링크가 깨졌습니다.",
+    "renamedLinks": "옛 제목으로 연결된 문서 {{count}}개는 한 번에 고칠 수 있는 양을 넘어(또는 보관된 Space라) 링크가 깨졌습니다.",
     "lintFailed": "오류가 있어 저장하지 않았습니다. 아래 문제 목록을 확인하세요.",
     "saveFailed": "저장하지 못했습니다. 잠시 후 다시 시도하세요.",
     "confirmLeave": "저장하지 않은 변경이 있습니다. 나가시겠습니까? (초안은 이 브라우저에 남습니다)",
@@ -129,7 +129,8 @@
     "attach": "파일 첨부",
     "uploading": "파일 {{count}}개 업로드 중…",
     "uploaded": "파일 {{count}}개를 첨부했습니다.",
-    "uploadFailed": "업로드 실패:"
+    "uploadFailed": "업로드 실패:",
+    "linksUpdated": "이 페이지를 링크하던 문서 {{count}}개의 링크를 새 제목으로 바꿨습니다."
   },
   "lint": {
     "frontmatter-missing": "문서는 YAML frontmatter(---)로 시작해야 합니다.",

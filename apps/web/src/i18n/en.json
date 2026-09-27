@@ -113,7 +113,7 @@
     "restoreDraft": "Restore draft",
     "discardDraft": "Discard",
     "saved": "Saved (revision {{revision}}).",
-    "renamedLinks": "{{count}} page(s) linking to the old title now have broken links.",
+    "renamedLinks": "{{count}} page(s) still link to the old title (too many to rewrite at once, or archived); those links are broken.",
     "lintFailed": "Not saved: fix the errors listed below.",
     "saveFailed": "Could not save. Try again shortly.",
     "confirmLeave": "You have unsaved changes. Leave anyway? (A draft stays in this browser.)",
@@ -129,7 +129,8 @@
     "attach": "Attach files",
     "uploading": "Uploading {{count}} file(s)…",
     "uploaded": "Attached {{count}} file(s).",
-    "uploadFailed": "Upload failed:"
+    "uploadFailed": "Upload failed:",
+    "linksUpdated": "Updated links to the new title in {{count}} page(s)."
   },
   "lint": {
     "frontmatter-missing": "The page must start with YAML frontmatter (---).",

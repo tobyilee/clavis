@@ -1,4 +1,5 @@
 import { type LintDocument, parseDocument, utf8Length } from '@clavis/shared/lint';
+import { renameWikiLinks } from '@clavis/shared/markdown';
 import {
   type CreatePageInput,
   DOC_TYPES,
@@ -35,6 +36,13 @@ import {
   savedPage,
 } from './page-read';
 import { positionAmong, type Sibling } from './position';
+
+/**
+ * How much a rename rewrites in other pages (D-42 revised): every rewritten page is read
+ * and scanned by the Worker, so the total is capped to stay in the 10ms CPU budget. Pages
+ * past the cap keep the old title and show a broken-link warning, as before.
+ */
+export const RENAME_LIMITS = { pages: 50, bytes: 200_000 };
 
 // Every write below is two D1 calls: one read batch, then one write batch that also reads
 // the saved page back. See docs/03-phase1-plan.md §7 for the per-request budget.
@@ -339,24 +347,45 @@ export async function updatePage(
     `SELECT p.${col} FROM pages p JOIN spaces s ON s.id = p.space_id WHERE ${w.sql} LIMIT 1`;
   const doc = parseDocument(input.content);
   const targets = linkTargets(doc, null);
-  const [pageRes, tagsRes, ancRes, linksRes, attRes, titleRes, incomingRes] = await DB.batch([
-    ...pageStatements(DB, loc, { withContent: false }),
-    resolveLinksStatement(DB, targets, {
-      sql: `SELECT s.key FROM pages p JOIN spaces s ON s.id = p.space_id WHERE ${w.sql} LIMIT 1`,
-      binds: w.binds,
-    }),
-    DB.prepare(`SELECT filename FROM attachments WHERE page_id = (${target('id')})`).bind(
-      ...w.binds,
-    ),
-    DB.prepare(
-      `SELECT 1 FROM pages WHERE space_id = (${target('space_id')}) AND title = ?
+  const [pageRes, tagsRes, ancRes, linksRes, attRes, titleRes, incomingRes, refRes] =
+    await DB.batch([
+      ...pageStatements(DB, loc, { withContent: false }),
+      resolveLinksStatement(DB, targets, {
+        sql: `SELECT s.key FROM pages p JOIN spaces s ON s.id = p.space_id WHERE ${w.sql} LIMIT 1`,
+        binds: w.binds,
+      }),
+      DB.prepare(`SELECT filename FROM attachments WHERE page_id = (${target('id')})`).bind(
+        ...w.binds,
+      ),
+      DB.prepare(
+        `SELECT 1 FROM pages WHERE space_id = (${target('space_id')}) AND title = ?
        AND id != (${target('id')}) AND deleted_at IS NULL`,
-    ).bind(...w.binds, input.title ?? '', ...w.binds),
-    DB.prepare(
-      `SELECT COUNT(DISTINCT from_page_id) AS n FROM page_links
+      ).bind(...w.binds, input.title ?? '', ...w.binds),
+      DB.prepare(
+        `SELECT COUNT(DISTINCT from_page_id) AS n FROM page_links
        WHERE to_page_id = (${target('id')}) AND from_page_id != to_page_id`,
-    ).bind(...w.binds),
-  ]);
+      ).bind(...w.binds),
+      // Pages linking here, with content, up to the rewrite cap — only when the title changes
+      // (NULL != x is not true, so no title means no rows).
+      DB.prepare(
+        `SELECT id, space_key, revision, content FROM (
+         SELECT p.id, s.key AS space_key, p.revision, p.content,
+                ROW_NUMBER() OVER (ORDER BY p.id) AS n,
+                SUM(length(CAST(p.content AS BLOB))) OVER (ORDER BY p.id) AS running
+         FROM pages p JOIN spaces s ON s.id = p.space_id
+         WHERE p.id IN (SELECT from_page_id FROM page_links WHERE to_page_id = (${target('id')}))
+           AND p.id != (${target('id')}) AND p.deleted_at IS NULL AND s.archived_at IS NULL
+           AND ? != (${target('title')}))
+       WHERE n <= ? AND running <= ?`,
+      ).bind(
+        ...w.binds,
+        ...w.binds,
+        input.title ?? null,
+        ...w.binds,
+        RENAME_LIMITS.pages,
+        RENAME_LIMITS.bytes,
+      ),
+    ]);
   const current = pageFromResults([pageRes, tagsRes, ancRes] as D1Result[]);
   if (!current) throw notFound('Page');
   const row = current.row;
@@ -374,6 +403,21 @@ export async function updatePage(
   const violations = lintForSave(doc, row.space_key, resolved, attachments);
   const fm = derived(doc);
   const treeChanged = renamed || fm.docType !== row.doc_type || fm.status !== row.status;
+
+  // Rewrite [[old title]] in the pages that link here (D-42 revised).
+  const rewrites: { id: string; rev: number; content: string }[] = [];
+  if (renamed) {
+    const rename = { spaceKey: row.space_key, oldTitle: row.title, newTitle: title };
+    for (const ref of (refRes?.results ?? []) as {
+      id: string;
+      space_key: string;
+      revision: number;
+      content: string;
+    }[]) {
+      const out = renameWikiLinks(ref.content, ref.space_key, rename);
+      if (out.count > 0) rewrites.push({ id: ref.id, rev: ref.revision, content: out.content });
+    }
+  }
 
   try {
     const results = await DB.batch([
@@ -397,23 +441,19 @@ export async function updatePage(
       ...tagRows(DB, row.id, fm.tags),
       DB.prepare('DELETE FROM page_links WHERE from_page_id = ?').bind(row.id),
       ...linkRows(DB, row.id, row.space_key, targets, resolved),
-      // D-42: links to the old title break (and show as lint warnings); nothing is rewritten.
-      ...(renamed
-        ? [
-            DB.prepare('UPDATE page_links SET to_page_id = NULL WHERE to_page_id = ?').bind(row.id),
-            reconnectLinks(DB, row.id, row.space_key, title),
-          ]
-        : []),
+      ...(renamed ? renameStatements(DB, actor, row, title, rewrites, now) : []),
       ...(treeChanged ? [bumpTree(DB, row.space_id)] : []),
       ...pageStatements(DB, { idOrShortId: row.id }, { withContent: false }),
     ]);
     const page = pageFromResults(results.slice(-3));
     if (!page) throw new Error('updated page not found');
     const incoming = (incomingRes?.results[0] as { n: number } | undefined)?.n ?? 0;
+    // Rewrites that lost a race with another save were skipped by their revision check.
+    const updated = renamed ? await countRewritten(DB, rewrites, actor, now) : 0;
     return {
       page: savedPage(page),
       violations,
-      ...(renamed ? { linksToOldTitle: incoming } : {}),
+      ...(renamed ? { linksUpdated: updated, linksToOldTitle: incoming - updated } : {}),
     };
   } catch (e) {
     if (e instanceof Error && e.message.includes('malformed JSON')) {
@@ -426,6 +466,70 @@ export async function updatePage(
     if (isConstraint(e, 'title')) throw titleTaken(title);
     throw e;
   }
+}
+
+/**
+ * The rename's link work, as a fixed number of statements however many pages link here
+ * (D1 allows 50 queries per request): the rewritten pages go in as one JSON parameter.
+ */
+function renameStatements(
+  DB: D1Database,
+  actor: Actor,
+  row: PageRow,
+  newTitle: string,
+  rewrites: { id: string; rev: number; content: string }[],
+  now: number,
+): D1PreparedStatement[] {
+  const json = JSON.stringify(rewrites);
+  // A page counts as rewritten only if this batch just wrote it (same actor and time).
+  const rewritten = `SELECT json_extract(j.value, '$.id') FROM json_each(?) j
+     JOIN pages p ON p.id = json_extract(j.value, '$.id')
+     WHERE p.updated_by = ? AND p.updated_at = ?`;
+  return [
+    ...(rewrites.length > 0
+      ? [
+          DB.prepare(
+            `UPDATE pages SET
+               content = (SELECT json_extract(j.value, '$.content') FROM json_each(?1) j
+                          WHERE json_extract(j.value, '$.id') = pages.id),
+               revision = revision + 1, updated_by = ?2, updated_at = ?3
+             WHERE deleted_at IS NULL AND EXISTS (
+               SELECT 1 FROM json_each(?1) j
+               WHERE json_extract(j.value, '$.id') = pages.id AND json_extract(j.value, '$.rev') = pages.revision)`,
+          ).bind(json, actor.id, now),
+          // A rewritten page may already hold a (broken) link to the new title.
+          DB.prepare(
+            `DELETE FROM page_links WHERE target_space_key = ? AND target_title = ?
+               AND from_page_id IN (${rewritten})`,
+          ).bind(row.space_key, newTitle, json, actor.id, now),
+          DB.prepare(
+            `UPDATE page_links SET target_title = ?
+             WHERE to_page_id = ? AND target_title = ? AND from_page_id IN (${rewritten})`,
+          ).bind(newTitle, row.id, row.title, json, actor.id, now),
+        ]
+      : []),
+    // Links not rewritten (over the cap, archived, raced) break, as before.
+    DB.prepare(
+      'UPDATE page_links SET to_page_id = NULL WHERE to_page_id = ? AND target_title = ?',
+    ).bind(row.id, row.title),
+    reconnectLinks(DB, row.id, row.space_key, newTitle),
+  ];
+}
+
+async function countRewritten(
+  DB: D1Database,
+  rewrites: { id: string }[],
+  actor: Actor,
+  now: number,
+): Promise<number> {
+  if (rewrites.length === 0) return 0;
+  const row = await DB.prepare(
+    `SELECT COUNT(*) AS n FROM pages WHERE updated_by = ? AND updated_at = ?
+       AND id IN (SELECT json_extract(value, '$.id') FROM json_each(?))`,
+  )
+    .bind(actor.id, now, JSON.stringify(rewrites))
+    .first<{ n: number }>();
+  return row?.n ?? 0;
 }
 
 function conflict(revision: number) {

@@ -161,7 +161,7 @@ const INPUT = {
       content: z.string().describe('Full Markdown including frontmatter'),
       baseRevision: z.number().int().positive(),
       title: PageTitleSchema.optional().describe(
-        'New title; renaming breaks [[links]] to the old one',
+        'New title; [[links]] to the old title in other pages are rewritten',
       ),
     }),
   ),
@@ -348,11 +348,15 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
     async ({ page, ...input }) =>
       guard(async () => {
         const result = await updatePage(DB, actor, page, input);
-        const extra = result.linksToOldTitle
-          ? [
-              `${result.linksToOldTitle} page(s) still link to the old title; update them or they stay broken.`,
-            ]
-          : [];
+        const extra: string[] = [];
+        if (result.linksUpdated) {
+          extra.push(`Rewrote [[links]] to the new title in ${result.linksUpdated} other page(s).`);
+        }
+        if (result.linksToOldTitle) {
+          extra.push(
+            `${result.linksToOldTitle} page(s) still link to the old title (too many to rewrite at once, or archived); update them or they stay broken.`,
+          );
+        }
         return saved('Updated', result.page, result.violations, extra);
       }),
   );

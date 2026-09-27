@@ -144,7 +144,10 @@ export const SaveResultSchema = z.object({
   page: SavedPageSchema,
   /** Non-blocking lint findings (warnings and info). */
   violations: z.array(ViolationSchema),
-  /** Pages still linking to the old title after a rename (D-42). */
+  /** After a rename: pages whose [[links]] were rewritten to the new title (D-42 revised). */
+  linksUpdated: z.number().int().optional(),
+  /** After a rename: pages still linking to the old title (over the rewrite cap, archived,
+   *  or saved concurrently); their links are now broken. */
   linksToOldTitle: z.number().int().optional(),
 });
 export type SaveResult = z.infer<typeof SaveResultSchema>;

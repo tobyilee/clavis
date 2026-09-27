@@ -228,7 +228,7 @@ attachments (
 - **형제 순서는 fractional index** (D-32): `a0`, `a0V`, `a1`처럼 문자열 사이에 끼워 넣어 이동 시 **한 행만** 갱신한다. D1 쓰기 한도를 아끼고 동시 이동 충돌을 줄인다.
 - **휴지통**: 페이지 삭제 시 하위 트리 전체에 같은 `deleted_batch`를 기록한다. 복원 시 배치 단위로 되살리고, 부모가 없으면 Space 루트로 복원한다. 30일 후 Cron에서 영구 삭제(첨부 포함).
 - **제목 중복**: 부분 유니크 인덱스로 "삭제되지 않은 페이지끼리만" 유일성을 보장한다.
-- **제목 변경 시 링크**: `page_links.to_page_id`로 연결된 페이지의 본문에 있는 `[[옛 제목]]`은 P1에서 **자동으로 고치지 않는다**. 대신 해당 링크가 깨진 링크로 표시되고 lint warning이 뜬다. (자동 치환은 P2 검토)
+- **제목 변경 시 링크** (D-42 개정): `page_links.to_page_id`로 이 페이지를 링크하는 문서의 `[[옛 제목]]`을 같은 저장 요청 안에서 `[[새 제목]]`으로 고친다 (코드 블록 제외, 별칭·`KEY:` 유지). CPU를 위해 한 번에 50페이지·200KB까지만 고치고, 나머지는 깨진 링크로 남아 lint warning이 뜬다.
 
 ### 5.3 전문 검색 (FTS5, D-11)
 
@@ -258,9 +258,10 @@ PUT /api/v1/pages/{ref}  { title?, content, baseRevision }
   6. D1 쓰기 batch 1회 (단일 트랜잭션):
        revision 가드 (불일치면 json() 오류로 batch 전체 롤백 → 409)
        UPDATE pages (revision + 1, 파생 컬럼), page_tags·page_links 교체,
-       제목 변경 시 옛 링크 끊기·새 제목을 기다리던 링크 연결, 트리가 바뀌면 tree_version 증가,
+       제목 변경 시 참조 문서의 [[옛 제목]] 수정(50페이지·200KB까지, 문장 3개)·나머지 링크 끊기·새 제목을 기다리던 링크 연결,
+       트리가 바뀌면 tree_version 증가,
        저장된 페이지를 다시 SELECT (같은 batch 안에서)
-  7. 200 { page, violations(warning/info), linksToOldTitle? }
+  7. 200 { page(본문 제외), violations(warning/info), linksUpdated?, linksToOldTitle? }
 ```
 
 - **D1 호출 2회**: 읽기 batch + 쓰기 batch. 서브리퀘스트 한도(50)와 무관한 수준이다. 생성·이동·삭제도 2~3회.
