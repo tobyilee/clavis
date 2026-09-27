@@ -54,7 +54,6 @@ function NewPage() {
         template,
         parent: search.parent ?? null,
       });
-      queryClient.setQueryData(pageQuery(result.page.shortId).queryKey, result.page);
       void queryClient.invalidateQueries({ queryKey: ['tree', result.page.spaceKey] });
       await navigate({ to: '/s/$key/p/$slugId/edit', params: pageParams(result.page) });
     } catch (err) {

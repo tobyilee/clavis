@@ -87,7 +87,10 @@ export async function runBackupStep(
   if (state.done) return { state, wrote: null, pruned: [] };
 
   const [spaces, pathInfo, last, chunk] = await env.DB.batch([
-    env.DB.prepare('SELECT * FROM spaces ORDER BY key'),
+    // Explicit columns: the cached tree JSON is derived data and stays out of backups.
+    env.DB.prepare(
+      'SELECT id, key, name, description, home_page_id, created_at, archived_at FROM spaces ORDER BY key',
+    ),
     env.DB.prepare('SELECT id, short_id, space_id, parent_id, title, deleted_at FROM pages'),
     env.DB.prepare('SELECT MAX(rowid) AS max FROM pages'),
     // The size cut runs inside D1, so the Worker never decodes more rows than it archives.

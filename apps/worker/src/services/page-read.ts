@@ -1,4 +1,4 @@
-import type { ActorRef, Page, PageRef } from '@clavis/shared/schema';
+import type { ActorRef, Page, PageRef, SavedPage } from '@clavis/shared/schema';
 
 /**
  * Read-side SQL for pages. Services compose these statements into D1 batches, because each
@@ -57,7 +57,7 @@ export interface PageRow {
 
 const PAGE_COLUMNS = `
   p.id, p.short_id, p.space_id, s.key AS space_key, s.archived_at AS space_archived_at,
-  p.parent_id, p.position, p.title, p.slug, p.content, p.doc_type, p.status, p.owner,
+  p.parent_id, p.position, p.title, p.slug, p.doc_type, p.status, p.owner,
   p.revision, p.created_at, p.updated_at,
   p.created_by, cb.name AS cb_name, cb.kind AS cb_kind,
   p.updated_by, ub.name AS ub_name, ub.kind AS ub_kind`;
@@ -68,12 +68,21 @@ const PAGE_FROM = `
   JOIN actors cb ON cb.id = p.created_by
   JOIN actors ub ON ub.id = p.updated_by`;
 
-/** The three statements that make up a full page: row, tags, ancestors (root first). */
-export function pageStatements(DB: D1Database, loc: PageLocator): D1PreparedStatement[] {
+/**
+ * The three statements that make up a full page: row, tags, ancestors (root first).
+ * `withContent: false` skips the body, e.g. when reading back a page the caller just sent.
+ */
+export function pageStatements(
+  DB: D1Database,
+  loc: PageLocator,
+  { withContent = true } = {},
+): D1PreparedStatement[] {
   const w = locatorWhere(loc);
   const from = `FROM pages p JOIN spaces s ON s.id = p.space_id WHERE ${w.sql} LIMIT 1`;
   return [
-    DB.prepare(`SELECT ${PAGE_COLUMNS} ${PAGE_FROM} WHERE ${w.sql} LIMIT 1`).bind(...w.binds),
+    DB.prepare(
+      `SELECT ${PAGE_COLUMNS}${withContent ? ', p.content' : ", '' AS content"} ${PAGE_FROM} WHERE ${w.sql} LIMIT 1`,
+    ).bind(...w.binds),
     DB.prepare(`SELECT tag FROM page_tags WHERE page_id = (SELECT p.id ${from}) ORDER BY tag`).bind(
       ...w.binds,
     ),
@@ -137,5 +146,11 @@ export const actorRef = (id: string, name: string, kind: 'human' | 'agent'): Act
 /** Strips the internal row before a page leaves the service layer. */
 export function publicPage(page: Page & { row?: PageRow }): Page {
   const { row: _row, ...rest } = page;
+  return rest;
+}
+
+/** The same, without the content (save results). */
+export function savedPage(page: Page & { row?: PageRow }): SavedPage {
+  const { row: _row, content: _content, ...rest } = page;
   return rest;
 }

@@ -1,4 +1,4 @@
-import { hasErrors, lint, parseDocument } from '@clavis/shared/lint';
+import { hasErrors, type LintDocument, lint, parseDocument } from '@clavis/shared/lint';
 import { extractWikiLinks } from '@clavis/shared/markdown';
 import type { Violation } from '@clavis/shared/schema';
 import { ServiceError } from './errors';
@@ -12,9 +12,13 @@ export interface LinkTarget {
 const linkKey = (spaceKey: string, title: string) => `${spaceKey}\u0000${title}`;
 
 /** Unique wiki link targets. Pass the page's space key when known; null leaves it to SQL. */
-export function linkTargets(content: string, currentSpaceKey: string | null): LinkTarget[] {
+export function linkTargets(
+  content: string | LintDocument,
+  currentSpaceKey: string | null,
+): LinkTarget[] {
+  const doc = typeof content === 'string' ? parseDocument(content) : content;
   const seen = new Map<string, LinkTarget>();
-  for (const l of extractWikiLinks(parseDocument(content).lines)) {
+  for (const l of extractWikiLinks(doc.lines)) {
     const spaceKey = l.spaceKey ?? currentSpaceKey;
     seen.set(linkKey(spaceKey ?? '', l.title), { spaceKey, title: l.title });
   }
@@ -55,7 +59,7 @@ export const lookupLink = (resolved: ResolvedLinks, t: LinkTarget, currentSpaceK
  * with all findings; otherwise the findings (warnings and info) are returned.
  */
 export function lintForSave(
-  content: string,
+  content: LintDocument,
   spaceKey: string,
   resolved: ResolvedLinks,
   attachments: ReadonlySet<string>,
@@ -83,7 +87,8 @@ export async function lintContent(
   const space = opts.space?.toUpperCase() ?? null;
   const pageWhere = '(p.id = ? OR p.short_id = ?) AND p.deleted_at IS NULL';
   const pageBinds = [opts.page ?? '', opts.page ?? ''];
-  const targets = linkTargets(content, space);
+  const doc = parseDocument(content);
+  const targets = linkTargets(doc, space);
   const [linksRes, attRes, pageRes] = await DB.batch([
     resolveLinksStatement(
       DB,
@@ -107,7 +112,7 @@ export async function lintContent(
   const attachments = new Set(
     ((attRes?.results ?? []) as { filename: string }[]).map((a) => a.filename),
   );
-  return lint(content, {
+  return lint(doc, {
     resolveLink: (key, title) =>
       key === null && currentKey === null
         ? true

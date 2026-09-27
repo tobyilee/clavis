@@ -98,7 +98,10 @@ describe('page lifecycle', () => {
       updatedBy: { name: 'bot-editor', kind: 'agent' },
       ancestors: [],
     });
-    expect(res.json.page.content).toContain('## 미결 사항');
+    // Save results leave the content out (the caller has it); read the page to see it.
+    expect(res.json.page.content).toBeUndefined();
+    const read = await call(`/api/v1/pages/${res.json.page.id}`, viewer);
+    expect(read.json.content).toContain('## 미결 사항');
   });
 
   it('rejects lint errors with 422 and saves nothing', async () => {

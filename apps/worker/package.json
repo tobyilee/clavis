@@ -11,7 +11,8 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
-    "agent:create": "tsx scripts/create-agent.ts"
+    "agent:create": "tsx scripts/create-agent.ts",
+    "openapi": "tsx scripts/openapi.ts"
   },
   "dependencies": {
     "@clavis/shared": "workspace:*",

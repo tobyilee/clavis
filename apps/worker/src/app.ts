@@ -1,20 +1,11 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { createMcpHandler } from 'agents/mcp/server';
 import { HTTPException } from 'hono/http-exception';
-import { admin } from './api/admin';
-import { attachments } from './api/attachments';
-import { authoring } from './api/authoring';
-import { docs } from './api/docs';
 import { files } from './api/files';
-import { health } from './api/health';
-import { me } from './api/me';
-import { pages } from './api/pages';
+import { buildApi } from './api/index';
+import { OPENAPI_JSON } from './api/openapi.gen';
 import { problem } from './api/problem';
 import { rateLimit } from './api/rate-limit';
-import { router } from './api/router';
-import { search } from './api/search';
-import { spaces } from './api/spaces';
-import { trash } from './api/trash';
 import { authenticate, requireRole } from './auth/middleware';
 import { buildMcpServer } from './mcp/server';
 import type { Actor } from './services/actors';
@@ -26,26 +17,12 @@ export type AppEnv = { Bindings: Env; Variables: { actor: Actor } };
 const PUBLIC_PATHS = new Set(['/api/v1/health', '/api/v1/openapi.json', '/api/v1/docs']);
 
 export function createApp() {
-  const api = router();
-  api.openAPIRegistry.registerComponent('securitySchemes', 'bearer', {
-    type: 'http',
-    scheme: 'bearer',
-    description: 'Agent API token (clv_…). People are identified by Cloudflare Access instead.',
-  });
-  api.route('/', health);
-  api.route('/', me);
-  api.route('/', admin);
-  api.route('/', spaces);
-  api.route('/', pages);
-  api.route('/', trash);
-  api.route('/', search);
-  api.route('/', authoring);
-  api.route('/', attachments);
-  api.route('/', docs);
-  api.doc31('/openapi.json', {
-    openapi: '3.1.0',
-    info: { title: 'Clavis API', version: 'v1' },
-  });
+  const api = buildApi();
+  // Generated at build time (pnpm --filter @clavis/worker openapi): building the document
+  // from the zod schemas cost 30-115ms of CPU per request, over the free plan's 10ms (H2).
+  api.get('/openapi.json', (c) =>
+    c.body(OPENAPI_JSON, 200, { 'content-type': 'application/json; charset=utf-8' }),
+  );
 
   const auth = authenticate();
   const app = new OpenAPIHono<AppEnv>();
@@ -58,15 +35,30 @@ export function createApp() {
   app.use('/files/*', rateLimit());
   app.route('/api/v1', api);
   app.route('/', files);
+  // One MCP handler per hostname for the isolate's lifetime; each request still gets its own
+  // McpServer (stateless transport). The factory finds the request's actor by the Request.
+  const mcpRequests = new WeakMap<Request, { env: Env; actor: Actor; origin: string }>();
+  const mcpHandlers = new Map<string, ReturnType<typeof createMcpHandler>>();
   app.all('/mcp', requireRole('viewer'), (c) => {
-    const actor = c.get('actor');
     const url = new URL(c.req.url);
-    const handler = createMcpHandler(() => buildMcpServer(c.env, actor, url.origin), {
-      route: '/mcp',
-      // Cloudflare only routes this Worker's own hostnames here, and Access has already
-      // admitted the request, so the request's own host is the one to allow.
-      allowedHostnames: [url.hostname],
-    });
+    let handler = mcpHandlers.get(url.hostname);
+    if (!handler) {
+      handler = createMcpHandler(
+        ({ requestInfo }) => {
+          const ctx = requestInfo && mcpRequests.get(requestInfo);
+          if (!ctx) throw new Error('MCP request without an authenticated actor');
+          return buildMcpServer(ctx.env, ctx.actor, ctx.origin);
+        },
+        {
+          route: '/mcp',
+          // Cloudflare only routes this Worker's own hostnames here, and Access has already
+          // admitted the request, so the request's own host is the one to allow.
+          allowedHostnames: [url.hostname],
+        },
+      );
+      mcpHandlers.set(url.hostname, handler);
+    }
+    mcpRequests.set(c.req.raw, { env: c.env, actor: c.get('actor'), origin: url.origin });
     return handler(c.req.raw, c.env, c.executionCtx as unknown as ExecutionContext);
   });
 

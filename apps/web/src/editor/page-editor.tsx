@@ -162,14 +162,15 @@ export function PageEditor({ page, attachments }: { page: Page; attachments: Edi
         content,
         baseRevision: saved.revision,
       });
-      queryClient.setQueryData(pageQuery(page.shortId).queryKey, result.page);
+      // The response leaves out the content we just sent.
+      queryClient.setQueryData(pageQuery(page.shortId).queryKey, { ...result.page, content });
       void queryClient.invalidateQueries({ queryKey: ['tree', page.spaceKey] });
       drafts.clear(page.id);
       setDraft(null);
       setSaveProblems([]);
       setSaved({
         title: result.page.title,
-        content: result.page.content,
+        content,
         revision: result.page.revision,
       });
       const renamed = result.linksToOldTitle

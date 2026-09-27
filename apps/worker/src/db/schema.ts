@@ -43,6 +43,9 @@ export const spaces = sqliteTable('spaces', {
   description: text('description'),
   homePageId: text('home_page_id'),
   treeVersion: integer('tree_version').notNull().default(0),
+  /** The tree as served, built on the first read after a change (H2: 500 pages cost ~7ms). */
+  treeJson: text('tree_json'),
+  treeJsonVersion: integer('tree_json_version'),
   createdAt: createdAt(),
   archivedAt: integer('archived_at'),
 });

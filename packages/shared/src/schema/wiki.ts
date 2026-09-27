@@ -135,8 +135,13 @@ export const MovePageSchema = z
   .refine((m) => !(m.after && m.before), 'Use either after or before, not both');
 export type MovePageInput = z.infer<typeof MovePageSchema>;
 
+/** A saved page without its content: the caller just sent the content (H2: echoing 100KB
+ *  back cost the Worker CPU for nothing). */
+export const SavedPageSchema = PageSchema.omit({ content: true });
+export type SavedPage = z.infer<typeof SavedPageSchema>;
+
 export const SaveResultSchema = z.object({
-  page: PageSchema,
+  page: SavedPageSchema,
   /** Non-blocking lint findings (warnings and info). */
   violations: z.array(ViolationSchema),
   /** Pages still linking to the old title after a rename (D-42). */

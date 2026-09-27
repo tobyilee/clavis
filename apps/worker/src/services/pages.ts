@@ -1,4 +1,4 @@
-import { parseDocument, utf8Length } from '@clavis/shared/lint';
+import { type LintDocument, parseDocument, utf8Length } from '@clavis/shared/lint';
 import {
   type CreatePageInput,
   DOC_TYPES,
@@ -32,6 +32,7 @@ import {
   pageStatements,
   parsePageRef,
   publicPage,
+  savedPage,
 } from './page-read';
 import { positionAmong, type Sibling } from './position';
 
@@ -81,8 +82,8 @@ function newShortId(): string {
 }
 
 /** Frontmatter-derived columns (D-28). Only called after lint passed, so it is valid. */
-function derived(content: string) {
-  const fm = parseDocument(content).frontmatter;
+function derived(doc: LintDocument) {
+  const fm = doc.frontmatter;
   if (!fm) throw new Error('derived() called on content without valid frontmatter');
   return { docType: fm.type, status: fm.status, owner: fm.owner, tags: [...new Set(fm.tags)] };
 }
@@ -129,23 +130,30 @@ export async function getPage(DB: D1Database, ref: string | PageLocator): Promis
 
 export interface SpaceTree {
   treeVersion: number;
-  tree: TreeNode[];
+  /** The response body: {"treeVersion":n,"tree":[...]} as JSON text. */
+  json: string;
 }
 
 /**
  * The whole tree of a space. `knownVersion` is the caller's cached tree_version (from the
- * ETag): when it still matches, the pages are not read at all and null is returned.
+ * ETag): when it still matches, nothing else is read and null is returned. Otherwise the
+ * JSON cached on the space row is served; only the first read after a change rebuilds it
+ * (H2: building a 500-page tree cost ~7ms CPU per request).
  */
 export async function getTree(
   DB: D1Database,
   spaceKey: string,
   knownVersion?: number,
 ): Promise<SpaceTree | null> {
-  const space = await DB.prepare('SELECT id, tree_version FROM spaces WHERE key = ?')
+  const space = await DB.prepare(
+    `SELECT id, tree_version, CASE WHEN tree_json_version = tree_version THEN tree_json END AS json
+     FROM spaces WHERE key = ?`,
+  )
     .bind(spaceKey.toUpperCase())
-    .first<{ id: string; tree_version: number }>();
+    .first<{ id: string; tree_version: number; json: string | null }>();
   if (!space) throw notFound('Space');
   if (knownVersion === space.tree_version) return null;
+  if (space.json) return { treeVersion: space.tree_version, json: space.json };
 
   const { results } = await DB.prepare(
     `SELECT id, parent_id, short_id, title, slug, doc_type, status FROM pages
@@ -181,7 +189,20 @@ export async function getTree(
     // A page whose parent is gone (should not happen) still shows up, at the top level.
     (parent ? parent.children : roots).push(node);
   }
-  return { treeVersion: space.tree_version, tree: roots };
+  const json = JSON.stringify({ treeVersion: space.tree_version, tree: roots });
+  // Only if nothing changed meanwhile; a stale cache would otherwise outlive the change.
+  await DB.prepare(
+    'UPDATE spaces SET tree_json = ?, tree_json_version = ? WHERE id = ? AND tree_version = ?',
+  )
+    .bind(json, space.tree_version, space.id, space.tree_version)
+    .run();
+  return { treeVersion: space.tree_version, json };
+}
+
+/** Parsed tree, for callers that need the nodes (MCP). */
+export async function getTreeNodes(DB: D1Database, spaceKey: string): Promise<TreeNode[]> {
+  const result = await getTree(DB, spaceKey);
+  return result ? (JSON.parse(result.json) as { tree: TreeNode[] }).tree : [];
 }
 
 // ── Create ───────────────────────────────────────────────────────────────────
@@ -203,7 +224,10 @@ export async function createPage(
     content = renderTemplate(type, { owner: actor.email ?? actor.name });
   }
   assertSize(content);
-  const targets = linkTargets(content, key);
+  // Parsed once: link extraction, lint and the derived columns share it (H2: a 100KB save
+  // scanned the page three times).
+  const doc = parseDocument(content);
+  const targets = linkTargets(doc, key);
   const parentRef = input.parent ?? null;
 
   const [spaceRes, parentRes, siblingsRes, titleRes, linksRes] = await DB.batch([
@@ -232,8 +256,8 @@ export async function createPage(
 
   const resolved = resolvedLinks(linksRes);
   // A new page has no attachments yet, so any attachments/ reference is an error.
-  const violations = lintForSave(content, key, resolved, new Set());
-  const fm = derived(content);
+  const violations = lintForSave(doc, key, resolved, new Set());
+  const fm = derived(doc);
   const position = positionAmong((siblingsRes?.results ?? []) as unknown as Sibling[], {
     after: input.after,
   });
@@ -268,11 +292,11 @@ export async function createPage(
         ...linkRows(DB, id, key, targets, resolved),
         reconnectLinks(DB, id, key, input.title),
         bumpTree(DB, space.id),
-        ...pageStatements(DB, { idOrShortId: id }),
+        ...pageStatements(DB, { idOrShortId: id }, { withContent: false }),
       ]);
       const page = pageFromResults(results.slice(-3));
       if (!page) throw new Error('created page not found');
-      return { page: publicPage(page), violations };
+      return { page: savedPage(page), violations };
     } catch (e) {
       if (isConstraint(e, 'short_id') && attempt < 3) continue;
       if (isConstraint(e, 'title')) throw titleTaken(input.title);
@@ -297,9 +321,10 @@ export async function updatePage(
   // though the page's id and space are not known yet.
   const target = (col: string) =>
     `SELECT p.${col} FROM pages p JOIN spaces s ON s.id = p.space_id WHERE ${w.sql} LIMIT 1`;
-  const targets = linkTargets(input.content, null);
+  const doc = parseDocument(input.content);
+  const targets = linkTargets(doc, null);
   const [pageRes, tagsRes, ancRes, linksRes, attRes, titleRes, incomingRes] = await DB.batch([
-    ...pageStatements(DB, loc),
+    ...pageStatements(DB, loc, { withContent: false }),
     resolveLinksStatement(DB, targets, {
       sql: `SELECT s.key FROM pages p JOIN spaces s ON s.id = p.space_id WHERE ${w.sql} LIMIT 1`,
       binds: w.binds,
@@ -330,8 +355,8 @@ export async function updatePage(
   const attachments = new Set(
     ((attRes?.results ?? []) as { filename: string }[]).map((a) => a.filename),
   );
-  const violations = lintForSave(input.content, row.space_key, resolved, attachments);
-  const fm = derived(input.content);
+  const violations = lintForSave(doc, row.space_key, resolved, attachments);
+  const fm = derived(doc);
   const treeChanged = renamed || fm.docType !== row.doc_type || fm.status !== row.status;
 
   try {
@@ -364,13 +389,13 @@ export async function updatePage(
           ]
         : []),
       ...(treeChanged ? [bumpTree(DB, row.space_id)] : []),
-      ...pageStatements(DB, { idOrShortId: row.id }),
+      ...pageStatements(DB, { idOrShortId: row.id }, { withContent: false }),
     ]);
     const page = pageFromResults(results.slice(-3));
     if (!page) throw new Error('updated page not found');
     const incoming = (incomingRes?.results[0] as { n: number } | undefined)?.n ?? 0;
     return {
-      page: publicPage(page),
+      page: savedPage(page),
       violations,
       ...(renamed ? { linksToOldTitle: incoming } : {}),
     };

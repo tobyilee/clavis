@@ -132,8 +132,11 @@ spaces.openapi(
     if (!result) {
       return c.body(null, 304, { etag: etag(knownVersion ?? 0) });
     }
-    c.header('etag', etag(result.treeVersion));
-    c.header('cache-control', 'private, no-cache');
-    return c.json(result, 200);
+    // The cached JSON text goes out as-is: no parse and re-serialize per request.
+    return c.body(result.json, 200, {
+      'content-type': 'application/json; charset=utf-8',
+      etag: etag(result.treeVersion),
+      'cache-control': 'private, no-cache',
+    }) as never;
   },
 );

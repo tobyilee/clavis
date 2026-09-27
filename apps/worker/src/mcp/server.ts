@@ -4,6 +4,7 @@ import {
   type Page,
   PageTitleSchema,
   pageSlugId,
+  type SavedPage,
   SNIPPET_CLOSE,
   SNIPPET_OPEN,
   type TreeNode,
@@ -15,7 +16,14 @@ import { z } from 'zod';
 import type { Actor } from '../services/actors';
 import { ServiceError } from '../services/errors';
 import { lintContent } from '../services/links';
-import { createPage, deletePage, getPage, getTree, movePage, updatePage } from '../services/pages';
+import {
+  createPage,
+  deletePage,
+  getPage,
+  getTreeNodes,
+  movePage,
+  updatePage,
+} from '../services/pages';
 import { searchPages } from '../services/search';
 import { listSpaces } from '../services/spaces';
 
@@ -89,6 +97,56 @@ async function guard(run: () => Promise<ToolResult>): Promise<ToolResult> {
 const pageArg = z.string().describe('Short id (e.g. "a1b2c3") or "SPACEKEY:Page title"');
 
 /**
+ * Tool input schemas, built once per isolate. The server itself must be new per request
+ * (stateless transport), but rebuilding every zod schema each time showed up in request
+ * CPU (H2).
+ */
+const INPUT = {
+  get_space_tree: z.object({ space: z.string().describe('Space key, e.g. "PAY"') }),
+  read_page: z.object({ page: pageArg }),
+  search_pages: z.object({
+    query: z.string().min(1).max(200),
+    space: z.string().optional().describe('Limit to a space key'),
+    type: z.enum(DOC_TYPES).optional(),
+    status: z.enum(DOC_STATUSES).optional(),
+    limit: z.number().int().min(1).max(50).optional(),
+  }),
+  list_templates: z.object({ locale: z.enum(['ko', 'en']).optional() }),
+  lint_markdown: z.object({
+    content: z.string().max(200_000),
+    space: z.string().optional(),
+    page: z.string().optional().describe('Short id of the page the content belongs to'),
+  }),
+  create_page: z.object({
+    space: z.string().describe('Space key, e.g. "PAY"'),
+    title: PageTitleSchema,
+    content: z.string().optional(),
+    template: z.enum(DOC_TYPES).optional(),
+    parent: z.string().optional().describe('Parent page short id; omit for top level'),
+    after: z.string().optional().describe('Sibling short id to place the page after'),
+  }),
+  update_page: z.object({
+    page: pageArg,
+    content: z.string().describe('Full Markdown including frontmatter'),
+    baseRevision: z.number().int().positive(),
+    title: PageTitleSchema.optional().describe(
+      'New title; renaming breaks [[links]] to the old one',
+    ),
+  }),
+  move_page: z.object({
+    page: pageArg,
+    parent: z
+      .string()
+      .nullable()
+      .optional()
+      .describe('New parent short id, null for top level; omit to keep the parent'),
+    after: z.string().optional().describe('Sibling short id to place after'),
+    before: z.string().optional().describe('Sibling short id to place before'),
+  }),
+  delete_page: z.object({ page: pageArg }),
+};
+
+/**
  * One MCP server per request (stateless transport). The authenticated actor is closed over,
  * so every tool runs with the caller's identity and role. `origin` makes page links absolute.
  */
@@ -101,7 +159,7 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
   const canWrite = actor.role === 'editor' || actor.role === 'admin';
   const pageUrl = (p: Pick<Page, 'spaceKey' | 'slug' | 'shortId'>) =>
     `${origin}/s/${p.spaceKey}/p/${encodeURI(pageSlugId(p.slug, p.shortId))}`;
-  const saved = (verb: string, page: Page, violations: Violation[], extra: string[] = []) => {
+  const saved = (verb: string, page: SavedPage, violations: Violation[], extra: string[] = []) => {
     const lines = [
       `${verb} ${page.spaceKey}/${page.shortId} "${page.title}" revision=${page.revision}`,
       pageUrl(page),
@@ -138,11 +196,10 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
     {
       title: 'Get space page tree',
       description: 'Return the page hierarchy of a space: short id, title, type and status.',
-      inputSchema: z.object({ space: z.string().describe('Space key, e.g. "PAY"') }),
+      inputSchema: INPUT.get_space_tree,
       annotations: { readOnlyHint: true },
     },
-    async ({ space }) =>
-      guard(async () => json(compactTree((await getTree(DB, space))?.tree ?? []))),
+    async ({ space }) => guard(async () => json(compactTree(await getTreeNodes(DB, space)))),
   );
 
   server.registerTool(
@@ -151,7 +208,7 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
       title: 'Read page',
       description:
         'Read a page as raw Markdown (with frontmatter). Returns the revision needed to update it later.',
-      inputSchema: z.object({ page: pageArg }),
+      inputSchema: INPUT.read_page,
       annotations: { readOnlyHint: true },
     },
     async ({ page }) =>
@@ -168,13 +225,7 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
       title: 'Search pages',
       description:
         'Full-text search over titles and content. Terms are ANDed; Korean and English substrings match.',
-      inputSchema: z.object({
-        query: z.string().min(1).max(200),
-        space: z.string().optional().describe('Limit to a space key'),
-        type: z.enum(DOC_TYPES).optional(),
-        status: z.enum(DOC_STATUSES).optional(),
-        limit: z.number().int().min(1).max(50).optional(),
-      }),
+      inputSchema: INPUT.search_pages,
       annotations: { readOnlyHint: true },
     },
     async ({ query, ...filters }) =>
@@ -200,7 +251,7 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
       title: 'List templates',
       description:
         'Document types with their required sections. Pass the type as `template` to create_page.',
-      inputSchema: z.object({ locale: z.enum(['ko', 'en']).optional() }),
+      inputSchema: INPUT.list_templates,
       annotations: { readOnlyHint: true },
     },
     async ({ locale = 'ko' }) =>
@@ -219,11 +270,7 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
       title: 'Lint Markdown',
       description:
         'Check Markdown against the wiki rules without saving. Give `space` to check wiki links, `page` to also check attachments.',
-      inputSchema: z.object({
-        content: z.string().max(200_000),
-        space: z.string().optional(),
-        page: z.string().optional().describe('Short id of the page the content belongs to'),
-      }),
+      inputSchema: INPUT.lint_markdown,
       annotations: { readOnlyHint: true },
     },
     async ({ content, space, page }) =>
@@ -246,14 +293,7 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
       title: 'Create page',
       description:
         'Create a page. Give `content` (full Markdown with frontmatter) or `template` (a document type) to start from the template.',
-      inputSchema: z.object({
-        space: z.string().describe('Space key, e.g. "PAY"'),
-        title: PageTitleSchema,
-        content: z.string().optional(),
-        template: z.enum(DOC_TYPES).optional(),
-        parent: z.string().optional().describe('Parent page short id; omit for top level'),
-        after: z.string().optional().describe('Sibling short id to place the page after'),
-      }),
+      inputSchema: INPUT.create_page,
     },
     async ({ space, ...input }) =>
       guard(async () => {
@@ -268,14 +308,7 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
       title: 'Update page',
       description:
         "Replace a page's Markdown (and optionally its title). baseRevision must be the revision from read_page.",
-      inputSchema: z.object({
-        page: pageArg,
-        content: z.string().describe('Full Markdown including frontmatter'),
-        baseRevision: z.number().int().positive(),
-        title: PageTitleSchema.optional().describe(
-          'New title; renaming breaks [[links]] to the old one',
-        ),
-      }),
+      inputSchema: INPUT.update_page,
       annotations: { idempotentHint: false },
     },
     async ({ page, ...input }) =>
@@ -295,16 +328,7 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
     {
       title: 'Move page',
       description: "Change a page's parent and/or its position among siblings.",
-      inputSchema: z.object({
-        page: pageArg,
-        parent: z
-          .string()
-          .nullable()
-          .optional()
-          .describe('New parent short id, null for top level; omit to keep the parent'),
-        after: z.string().optional().describe('Sibling short id to place after'),
-        before: z.string().optional().describe('Sibling short id to place before'),
-      }),
+      inputSchema: INPUT.move_page,
     },
     async ({ page, ...input }) =>
       guard(async () => {
@@ -320,7 +344,7 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
       title: 'Delete page',
       description:
         'Move a page and all its children to the trash. People can restore it within 30 days.',
-      inputSchema: z.object({ page: pageArg }),
+      inputSchema: INPUT.delete_page,
       annotations: { destructiveHint: true },
     },
     async ({ page }) =>

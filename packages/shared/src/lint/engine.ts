@@ -40,9 +40,13 @@ export function parseDocument(content: string): LintDocument {
   };
 }
 
-export function lint(content: string, options: LintOptions = {}): Violation[] {
+/**
+ * Runs the rules. Pass a LintDocument from parseDocument() when the caller needs the parsed
+ * document too (the server does), so a large page is scanned only once per save.
+ */
+export function lint(input: string | LintDocument, options: LintOptions = {}): Violation[] {
   const { blockingOnly = false, rules = DEFAULT_RULES, ...env } = options;
-  const doc = parseDocument(content);
+  const doc = typeof input === 'string' ? parseDocument(input) : input;
   const out: Violation[] = [];
   for (const rule of rules) {
     if (blockingOnly && !rule.blocking) continue;
