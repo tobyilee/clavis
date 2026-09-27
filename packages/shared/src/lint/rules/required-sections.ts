@@ -1,3 +1,5 @@
+import type { DocType } from '../../schema/frontmatter';
+import type { LintConfig } from '../../schema/lint-config';
 import { requiredSections } from '../../templates';
 import type { LintRule } from '../types';
 import { docHeadings } from './headings';
@@ -5,14 +7,25 @@ import { docHeadings } from './headings';
 /** Compares ignoring case and spaces, so "미결사항" matches "미결 사항". */
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '');
 
+export interface RequiredSection {
+  ko: string;
+  en: string;
+}
+
+/** A type's required H2 sections: the Space's list when it sets one, else the template's. */
+export function sectionsFor(type: DocType, config?: LintConfig): readonly RequiredSection[] {
+  const custom = config?.requiredSections[type];
+  if (custom) return custom.map((s) => ({ ko: s.ko, en: s.en ?? s.ko }));
+  return requiredSections(type);
+}
+
 export const requiredSectionsRule: LintRule = {
   id: 'clavis/required-sections',
   severity: 'warning',
-  blocking: false,
-  check(doc) {
+  check(doc, { config }) {
     const { frontmatter, split } = doc;
     if (!frontmatter) return [];
-    const sections = requiredSections(frontmatter.type);
+    const sections = sectionsFor(frontmatter.type, config);
     if (sections.length === 0) return [];
     const h2 = docHeadings(doc)
       .filter((h) => h.level === 2)

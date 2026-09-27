@@ -6,7 +6,6 @@ const EMPTY_ALT_RE = /!\[\s*\]\(/g;
 export const imageAlt: LintRule = {
   id: 'clavis/image-alt',
   severity: 'info',
-  blocking: false,
   check({ lines }) {
     const out: RuleViolation[] = [];
     for (const l of lines) {
@@ -26,7 +25,6 @@ export const imageAlt: LintRule = {
 export const codeLang: LintRule = {
   id: 'clavis/code-lang',
   severity: 'info',
-  blocking: false,
   check({ lines }) {
     return lines
       .filter((l) => l.fenceInfo === '')
@@ -43,15 +41,15 @@ export const DOC_LENGTH_SOFT_LIMIT = 50_000;
 export const docLength: LintRule = {
   id: 'clavis/doc-length',
   severity: 'info',
-  blocking: false,
-  check(doc) {
+  check(doc, { config }) {
+    const limitKb = config?.docLengthKb ?? DOC_LENGTH_SOFT_LIMIT / 1000;
     const bytes = memo(doc, 'bytes', () => utf8Length(doc.content));
-    if (bytes <= DOC_LENGTH_SOFT_LIMIT) return [];
+    if (bytes <= limitKb * 1000) return [];
     return [
       {
         line: 1,
-        message: `Page is ${Math.round(bytes / 1000)}KB; consider splitting it into child pages (over ${DOC_LENGTH_SOFT_LIMIT / 1000}KB).`,
-        params: { kb: Math.round(bytes / 1000), limitKb: DOC_LENGTH_SOFT_LIMIT / 1000 },
+        message: `Page is ${Math.round(bytes / 1000)}KB; consider splitting it into child pages (over ${limitKb}KB).`,
+        params: { kb: Math.round(bytes / 1000), limitKb },
       },
     ];
   },

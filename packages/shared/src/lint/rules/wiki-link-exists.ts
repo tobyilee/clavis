@@ -8,7 +8,6 @@ export const docWikiLinks = (doc: LintDocument) =>
 export const wikiLinkExists: LintRule = {
   id: 'clavis/wiki-link-exists',
   severity: 'warning',
-  blocking: false,
   check(doc, { resolveLink }) {
     if (!resolveLink) return [];
     return docWikiLinks(doc)

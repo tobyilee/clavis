@@ -1,6 +1,12 @@
 import { splitFrontmatter } from '../markdown/frontmatter';
 import { scanLines } from '../markdown/lines';
 import { FrontmatterSchema } from '../schema/frontmatter';
+import {
+  CONFIGURABLE_RULES,
+  type ConfigurableRule,
+  type LintConfig,
+  type RuleLevel,
+} from '../schema/lint-config';
 import type { Violation } from '../schema/problem';
 import { attachmentExists } from './rules/attachment-exists';
 import { frontmatterRequired } from './rules/frontmatter-required';
@@ -23,7 +29,7 @@ export const DEFAULT_RULES: readonly LintRule[] = [
 ];
 
 export interface LintOptions extends LintEnv {
-  /** Run only blocking rules, as the server does at save time. */
+  /** Run only rules that report errors under the current config. */
   blockingOnly?: boolean;
   rules?: readonly LintRule[];
 }
@@ -50,12 +56,22 @@ export function lint(input: string | LintDocument, options: LintOptions = {}): V
   const doc = typeof input === 'string' ? parseDocument(input) : input;
   const out: Violation[] = [];
   for (const rule of rules) {
-    if (blockingOnly && !rule.blocking) continue;
+    const severity = ruleSeverity(rule, env.config);
+    if (severity === 'off' || (blockingOnly && severity !== 'error')) continue;
     for (const v of rule.check(doc, env)) {
-      out.push({ ruleId: rule.id, severity: rule.severity, ...v });
+      out.push({ ruleId: rule.id, severity, ...v });
     }
   }
   return out.sort((a, b) => a.line - b.line || (a.column ?? 0) - (b.column ?? 0));
+}
+
+/**
+ * A rule's severity in a Space. The engine applies it to every finding, so raising a rule
+ * to error makes it block saves in the editor and on the server alike (D-47).
+ */
+export function ruleSeverity(rule: LintRule, config?: LintConfig): RuleLevel {
+  if (!(CONFIGURABLE_RULES as readonly string[]).includes(rule.id)) return rule.severity;
+  return config?.rules[rule.id as ConfigurableRule] ?? rule.severity;
 }
 
 export function hasErrors(violations: readonly Violation[]): boolean {

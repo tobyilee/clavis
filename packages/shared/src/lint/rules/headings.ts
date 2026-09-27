@@ -25,7 +25,6 @@ export function headings(lines: { text: string; line: number; inFence: boolean }
 export const noH1: LintRule = {
   id: 'clavis/no-h1',
   severity: 'warning',
-  blocking: false,
   check(doc) {
     return docHeadings(doc)
       .filter((h) => h.level === 1)
@@ -39,7 +38,6 @@ export const noH1: LintRule = {
 export const headingIncrement: LintRule = {
   id: 'clavis/heading-increment',
   severity: 'warning',
-  blocking: false,
   check(doc) {
     const out: RuleViolation[] = [];
     // The page title acts as H1, so the body may start at H2.

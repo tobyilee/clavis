@@ -4,7 +4,6 @@ import type { LintRule } from '../types';
 export const attachmentExists: LintRule = {
   id: 'clavis/attachment-exists',
   severity: 'error',
-  blocking: true,
   check({ lines }, { attachmentExists }) {
     if (!attachmentExists) return [];
     return extractAttachmentRefs(lines)

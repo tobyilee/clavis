@@ -1,6 +1,7 @@
 import type { SplitResult } from '../markdown/frontmatter';
 import type { ScannedLine } from '../markdown/lines';
 import type { Frontmatter } from '../schema/frontmatter';
+import type { LintConfig } from '../schema/lint-config';
 import type { Severity, Violation } from '../schema/problem';
 
 /** A document parsed once and shared by every rule. */
@@ -30,6 +31,8 @@ export interface LintEnv {
   resolveLink?: (spaceKey: string | null, title: string) => boolean;
   /** Returns true when the page has an attachment with this filename. Omit to skip. */
   attachmentExists?: (filename: string) => boolean;
+  /** The Space's rule settings (D-47). Omit for the defaults. */
+  config?: LintConfig;
 }
 
 export type RuleViolation = Omit<Violation, 'ruleId' | 'severity'>;
@@ -40,8 +43,7 @@ export type RuleViolation = Omit<Violation, 'ruleId' | 'severity'>;
  */
 export interface LintRule {
   id: string;
+  /** Default severity; a Space can change it (D-47). Errors block the save (D-09). */
   severity: Severity;
-  /** Blocking rules reject a save when they report an error (D-09). */
-  blocking: boolean;
   check(doc: LintDocument, env: LintEnv): RuleViolation[];
 }

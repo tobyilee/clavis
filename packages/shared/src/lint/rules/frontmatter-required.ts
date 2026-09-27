@@ -4,7 +4,6 @@ import type { LintRule, RuleViolation } from '../types';
 export const frontmatterRequired: LintRule = {
   id: 'clavis/frontmatter-required',
   severity: 'error',
-  blocking: true,
   check({ split }) {
     if (split.raw === null) {
       return [

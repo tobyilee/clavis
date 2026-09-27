@@ -193,7 +193,7 @@ A1 lint 설정   L2 깨진 링크 리포트     S2 섹션 REST       C2 댓글 M
 
 | 항목 | 상태 | 결과 | 날짜 |
 |---|---|---|---|
-| Step 0 | – | | |
+| Step 0 | ✅ 완료 | `LintConfigSchema`(규칙별 off·info·warning·error, 유형별 필수 섹션, 문서 길이 한도, `frontmatter-required`는 조정 불가), `lint(doc, { config })`에서 엔진이 심각도를 적용 — `error`로 올린 규칙은 서버·에디터에서 똑같이 저장을 막는다. 규칙의 `blocking` 플래그는 실제 심각도로 대체해 제거. 설정이 없으면 기존과 같은 결과(회귀 테스트). 마이그레이션은 각 Step에서 추가 | 2026-09-27 |
 | Step 1 | – | | |
 | Step 2 | – | | |
 | Step 3 | – | | |
