@@ -1,8 +1,6 @@
-import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { call, resetDb } from './helpers';
+import { ADMIN, agentWithRole, call, FM, resetDb } from './helpers';
 
-const admin = { as: 'owner@gmail.com' };
 const MCP_HEADERS = { accept: 'application/json, text/event-stream' };
 
 async function rpc(
@@ -19,57 +17,24 @@ async function rpc(
   });
 }
 
-async function agentToken() {
-  await call('/api/v1/me', admin);
-  const agent = await call('/api/v1/admin/agents', {
-    ...admin,
-    method: 'POST',
-    body: { name: 'hermes' },
-  });
-  const issued = await call(`/api/v1/admin/agents/${agent.json.id}/tokens`, {
-    ...admin,
-    method: 'POST',
-  });
-  return issued.json.token as string;
+/** Calls a tool; returns its text and whether it reported an error. */
+async function tool(auth: { bearer: string }, name: string, args: Record<string, unknown> = {}) {
+  const res = await rpc('tools/call', { name, arguments: args }, auth);
+  expect(res.status).toBe(200);
+  const result = res.json.result;
+  return { text: result.content[0].text as string, isError: result.isError === true };
 }
 
-async function seedWiki() {
-  const t = Date.now();
-  const owner = await env.DB.prepare(
-    "SELECT id FROM actors WHERE email = 'owner@gmail.com'",
-  ).first<{ id: string }>();
-  const by = owner?.id ?? '';
-  const page = (id: string, sid: string, parent: string | null, pos: string, title: string) =>
-    env.DB.prepare(
-      `INSERT INTO pages (id, short_id, space_id, parent_id, position, title, slug, content, doc_type, status,
-         created_by, updated_by, created_at, updated_at)
-       VALUES (?, ?, 's1', ?, ?, ?, 'slug', ?, 'spec', 'approved', ?, ?, ?, ?)`,
-    ).bind(
-      id,
-      sid,
-      parent,
-      pos,
-      title,
-      `---\ntype: spec\nstatus: approved\nowner: owner@gmail.com\n---\n## ${title}\n`,
-      by,
-      by,
-      t,
-      t,
-    );
-  await env.DB.batch([
-    env.DB.prepare(
-      "INSERT INTO spaces (id, key, name, created_at) VALUES ('s1', 'PAY', '결제', ?)",
-    ).bind(t),
-    page('p1', 'aaa111', null, 'a0', '설계'),
-    page('p2', 'bbb222', 'p1', 'a0', '결제 API'),
-  ]);
-}
+let editor: { bearer: string };
 
-beforeEach(resetDb);
+beforeEach(async () => {
+  await resetDb();
+  editor = await agentWithRole('editor', 'hermes');
+  await call('/api/v1/spaces', { ...ADMIN, method: 'POST', body: { key: 'PAY', name: '결제' } });
+});
 
 describe('MCP endpoint', () => {
-  it('initializes and lists the read tools for an agent', async () => {
-    const token = await agentToken();
+  it('initializes with instructions and lists every tool for an editor', async () => {
     const init = await rpc(
       'initialize',
       {
@@ -77,78 +42,132 @@ describe('MCP endpoint', () => {
         capabilities: {},
         clientInfo: { name: 'test', version: '0' },
       },
-      { bearer: token },
+      editor,
     );
     expect(init.status).toBe(200);
     expect(init.json.result.serverInfo.name).toBe('clavis');
-    expect(init.json.result.instructions).toContain('list_spaces');
+    expect(init.json.result.instructions).toContain('baseRevision');
 
-    const tools = await rpc('tools/list', {}, { bearer: token }, 2);
+    const tools = await rpc('tools/list', {}, editor, 2);
     expect(tools.json.result.tools.map((t: { name: string }) => t.name).sort()).toEqual([
+      'create_page',
+      'delete_page',
       'get_space_tree',
+      'lint_markdown',
       'list_spaces',
+      'list_templates',
+      'move_page',
       'read_page',
+      'search_pages',
+      'update_page',
     ]);
   });
 
-  it('runs tools as the calling actor', async () => {
-    const token = await agentToken();
-    await seedWiki();
-
-    const spaces = await rpc(
-      'tools/call',
-      { name: 'list_spaces', arguments: {} },
-      { bearer: token },
-    );
-    const listed = JSON.parse(spaces.json.result.content[0].text);
-    expect(listed).toEqual({
-      actor: 'hermes',
-      spaces: [{ key: 'PAY', name: '결제', description: null }],
-    });
-
-    const tree = await rpc(
-      'tools/call',
-      { name: 'get_space_tree', arguments: { space: 'pay' } },
-      { bearer: token },
-    );
-    expect(JSON.parse(tree.json.result.content[0].text)).toEqual([
-      {
-        shortId: 'aaa111',
-        title: '설계',
-        docType: 'spec',
-        status: 'approved',
-        children: [
-          {
-            shortId: 'bbb222',
-            title: '결제 API',
-            docType: 'spec',
-            status: 'approved',
-            children: [],
-          },
-        ],
-      },
-    ]);
-
-    const byTitle = await rpc(
-      'tools/call',
-      { name: 'read_page', arguments: { page: 'PAY:결제 API' } },
-      { bearer: token },
-    );
-    expect(byTitle.json.result.content[0].text).toContain('revision=1');
-    expect(byTitle.json.result.content[0].text).toContain('## 결제 API');
-
-    const missing = await rpc(
-      'tools/call',
-      { name: 'read_page', arguments: { page: 'zzz999' } },
-      { bearer: token },
-    );
-    expect(missing.json.result.isError).toBe(true);
+  it('hides write tools from viewer agents', async () => {
+    const viewer = await agentWithRole('viewer');
+    const tools = await rpc('tools/list', {}, viewer);
+    const names = tools.json.result.tools.map((t: { name: string }) => t.name);
+    expect(names).toContain('search_pages');
+    expect(names).not.toContain('create_page');
+    const res = await rpc('tools/call', { name: 'create_page', arguments: {} }, viewer);
+    expect(res.json.result?.isError ?? res.json.error).toBeTruthy();
   });
 
   it('rejects unauthenticated and pending callers before reaching MCP', async () => {
     expect((await rpc('tools/list', {}, {})).status).toBe(401);
-    await call('/api/v1/me', admin);
     const pending = await rpc('tools/list', {}, { as: 'stranger@gmail.com' });
     expect(pending.status).toBe(403);
+  });
+});
+
+describe('agent workflow (plan M1)', () => {
+  it('creates from a template, searches, reads, updates with the revision', async () => {
+    const created = await tool(editor, 'create_page', {
+      space: 'PAY',
+      title: '주간 회의 2026-09-27',
+      template: 'meeting',
+    });
+    expect(created.isError).toBe(false);
+    const shortId = /PAY\/([0-9a-z]{6})/.exec(created.text)?.[1] ?? '';
+    expect(created.text).toContain('revision=1');
+    expect(created.text).toContain(`https://clavis.test/s/PAY/p/`);
+
+    const tree = JSON.parse((await tool(editor, 'get_space_tree', { space: 'PAY' })).text);
+    expect(tree.map((n: { title: string }) => n.title)).toEqual(['결제', '주간 회의 2026-09-27']);
+    expect(Object.keys(tree[1]).sort()).toEqual([
+      'children',
+      'docType',
+      'shortId',
+      'status',
+      'title',
+    ]);
+
+    const found = await tool(editor, 'search_pages', { query: '액션 아이템' });
+    expect(found.text).toContain(`PAY/${shortId}`);
+    expect(found.text).toContain('**액션** **아이템**');
+
+    const read = await tool(editor, 'read_page', { page: 'PAY:주간 회의 2026-09-27' });
+    expect(read.text).toMatch(/revision=1 updated_by=hermes/);
+    const content = read.text
+      .split('\n')
+      .slice(1)
+      .join('\n')
+      .replace('## 결정 사항\n', '## 결정 사항\n\n- MCP 쓰기 도구 배포\n');
+
+    const updated = await tool(editor, 'update_page', { page: shortId, content, baseRevision: 1 });
+    expect(updated.text).toContain('revision=2');
+
+    const stale = await tool(editor, 'update_page', { page: shortId, content, baseRevision: 1 });
+    expect(stale.isError).toBe(true);
+    expect(stale.text).toContain('Current revision is 2');
+    expect(stale.text).toContain('read_page');
+  });
+
+  it('reports lint errors with line numbers and saves nothing', async () => {
+    const res = await tool(editor, 'create_page', {
+      space: 'PAY',
+      title: '초안',
+      content: '---\ntype: memo\nstatus: draft\nowner: hermes\n---\n',
+    });
+    expect(res.isError).toBe(true);
+    expect(res.text).toContain('Nothing was saved');
+    expect(res.text).toMatch(/- L2 error clavis\/frontmatter-required/);
+  });
+
+  it('reports warnings but saves', async () => {
+    const res = await tool(editor, 'create_page', {
+      space: 'PAY',
+      title: '노트',
+      content: `${FM()}# 제목\n[[없는 문서]]\n`,
+    });
+    expect(res.isError).toBe(false);
+    expect(res.text).toContain('Warnings (2), saved anyway');
+    expect(res.text).toContain('clavis/wiki-link-exists');
+  });
+
+  it('lints drafts, lists templates, moves and deletes', async () => {
+    const lint = await tool(editor, 'lint_markdown', {
+      content: `${FM('adr')}## Context\n`,
+      space: 'PAY',
+    });
+    expect(lint.text).toContain('Saving is allowed');
+    expect(lint.text).toContain('Decision');
+
+    const templates = JSON.parse((await tool(editor, 'list_templates', { locale: 'en' })).text);
+    expect(templates.find((t: { type: string }) => t.type === 'spec').requiredSections).toContain(
+      'Design',
+    );
+
+    const a = await tool(editor, 'create_page', { space: 'PAY', title: 'A', template: 'note' });
+    const b = await tool(editor, 'create_page', { space: 'PAY', title: 'B', template: 'note' });
+    const aId = /PAY\/([0-9a-z]{6})/.exec(a.text)?.[1];
+    const bId = /PAY\/([0-9a-z]{6})/.exec(b.text)?.[1];
+    const moved = await tool(editor, 'move_page', { page: bId, parent: aId });
+    expect(moved.text).toBe(`Moved PAY/${bId}: A / B`);
+
+    const deleted = await tool(editor, 'delete_page', { page: aId });
+    expect(deleted.text).toBe('Moved 2 page(s) to the trash.');
+    const gone = await tool(editor, 'read_page', { page: bId });
+    expect(gone).toEqual({ text: 'Page not found.', isError: true });
   });
 });

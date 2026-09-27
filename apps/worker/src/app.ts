@@ -54,11 +54,12 @@ export function createApp() {
   app.route('/api/v1', api);
   app.all('/mcp', requireRole('viewer'), (c) => {
     const actor = c.get('actor');
-    const handler = createMcpHandler(() => buildMcpServer(c.env, actor), {
+    const url = new URL(c.req.url);
+    const handler = createMcpHandler(() => buildMcpServer(c.env, actor, url.origin), {
       route: '/mcp',
       // Cloudflare only routes this Worker's own hostnames here, and Access has already
       // admitted the request, so the request's own host is the one to allow.
-      allowedHostnames: [new URL(c.req.url).hostname],
+      allowedHostnames: [url.hostname],
     });
     return handler(c.req.raw, c.env, c.executionCtx as unknown as ExecutionContext);
   });

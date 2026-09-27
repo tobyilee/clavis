@@ -191,5 +191,6 @@ A4 lint 규칙  B5 검색 API                             R5 모바일 읽기   
 |---|---|---|---|
 | Step 0 | ✅ 완료 | 설계 문서를 실제 인증 구조로 수정, `0001_fts`(trigram + 트리거 + rebuild)·`0002_page_deleted_by` 마이그레이션, 공용 API 스키마(`schema/wiki.ts`, `schema/url.ts`), 템플릿 7종(`@clavis/shared/templates`, 한/영 섹션명), lint 규칙 4개 추가(required-sections, image-alt, code-lang, doc-length). 100KB 전체 lint가 Node에서 5ms 미만인지 회귀 테스트 | 2026-09-27 |
 | Step 1 | ✅ 완료 | REST: Space(생성 시 홈 페이지, 보관), 트리(ETag·304), 페이지 CRUD(JSON·`text/markdown`, `KEY:제목` 참조), 이동(fractional index, 자기 하위로 이동 금지), 휴지통·복원(제목 충돌 시 ` (restored)`), 검색(FTS/LIKE, 필터, 커서), `/lint`, `/templates`, `/docs`(Scalar). 저장은 D1 호출 2회(읽기 batch + 쓰기 batch, 쓰기 batch 첫 문장이 revision 가드). 휴지통 영구 삭제는 Cron 실행마다 최대 50페이지. Worker 테스트 56개 | 2026-09-27 |
+| Step 2 | ✅ 완료 (M3 대기) | MCP 도구 10개(읽기 6 + 쓰기 4, viewer에게는 쓰기 도구 비노출), 서버 instructions에 작성 규칙, 저장 결과·충돌·검사 오류를 에이전트가 바로 고칠 수 있는 텍스트로 반환(줄 번호, 다음 행동), 페이지 URL 포함. 가이드에 도구 목록·쓰기 흐름 추가. **M3(Hermes 실사용 검증)은 push·배포 후 사용자 진행** | 2026-09-27 |
 | H2 CPU 실측 | – | | |
 | Exit 점검 | – | | |

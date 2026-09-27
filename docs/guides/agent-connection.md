@@ -18,7 +18,7 @@
 
 - URL: `https://clavis.crawl-proxy.workers.dev/mcp`
 - 전송 방식: Streamable HTTP (Stateless)
-- 도구 (Phase 0): `list_spaces`, `get_space_tree`, `read_page` — 모두 읽기 전용
+- 도구: §5 참고 (읽기 7개, 쓰기 4개)
 
 ## 3. Hermes Agent 설정
 
@@ -62,7 +62,41 @@ claude mcp add --transport http clavis https://clavis.crawl-proxy.workers.dev/mc
 
 에이전트마다 별도 Clavis 토큰을 발급해 작성자 표시와 호출 한도(120회/분)가 분리되게 한다.
 
-## 5. 문제 해결
+## 5. 도구 목록
+
+| 도구 | 권한 | 용도 |
+|---|---|---|
+| `list_spaces` · `get_space_tree` | viewer | Space와 페이지 트리 탐색 |
+| `search_pages` | viewer | 제목·본문 전문 검색 (3글자 이상은 색인, 짧으면 부분 일치) |
+| `read_page` | viewer | frontmatter 포함 원문 + `revision` |
+| `list_templates` · `lint_markdown` | viewer | 템플릿 필수 섹션 확인, 저장 전 검사 |
+| `create_page` | editor | 새 페이지 (`template`으로 시작하면 필수 섹션이 채워짐) |
+| `update_page` | editor | 원문 전체 교체. `baseRevision` 필수 |
+| `move_page` · `delete_page` | editor | 이동, 휴지통으로 이동 (30일 내 복원 가능) |
+
+viewer 역할 에이전트에게는 쓰기 도구가 목록에 나타나지 않습니다.
+
+### 쓰기 흐름 예시 (회의록)
+
+```
+list_templates                                 → meeting의 필수 섹션 확인
+create_page  space=TEAM title="주간 회의 2026-09-27" template=meeting
+                                               → "Created TEAM/k3x9q1 … revision=1" + 페이지 URL
+read_page    page=k3x9q1                       → 원문 + revision=1
+update_page  page=k3x9q1 content=<수정한 원문 전체> baseRevision=1
+                                               → "Updated … revision=2", 경고가 있으면 줄 번호와 함께
+```
+
+- **충돌**: 그사이 다른 사람이 저장했다면 `update_page`가 "Current revision is N"과 함께 실패합니다. `read_page`로 다시 읽고 변경을 다시 적용하세요.
+- **검사 오류**: frontmatter 누락, 없는 첨부 참조 같은 오류는 저장을 막고 `- L2 error clavis/frontmatter-required: …` 형식으로 알려 줍니다. 경고는 저장된 뒤 함께 표시됩니다.
+- **제목**: 페이지 제목은 `title` 인자로 정합니다. 본문에 `# 제목`(H1)을 쓰지 않습니다.
+- **링크**: `[[페이지 제목]]`, 다른 Space는 `[[KEY:페이지 제목]]`. 제목을 바꾸면 옛 제목으로 된 링크는 깨진 링크가 됩니다(자동으로 고치지 않음).
+
+## 6. REST API
+
+MCP와 같은 기능을 REST로도 쓸 수 있습니다. 명세는 `/api/v1/openapi.json`, 문서는 `/api/v1/docs`에 있습니다. 인증 헤더는 MCP와 같습니다. 페이지 원문만 받으려면 `Accept: text/markdown`을 보냅니다.
+
+## 7. 문제 해결
 
 | 증상 | 원인 |
 |---|---|
