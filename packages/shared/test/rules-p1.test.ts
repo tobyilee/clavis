@@ -94,7 +94,9 @@ describe('server lint budget', () => {
     lint(doc, env);
     const start = performance.now();
     for (let i = 0; i < 10; i++) lint(doc, env);
-    // Node is ~5x faster than a deployed Worker (S2); 5ms here leaves room under 10ms there.
-    expect((performance.now() - start) / 10).toBeLessThan(5);
+    // A guard against AST-based rules creeping back into the server lint (~0.5ms/KB, so
+    // ~50ms here, spike S3), not a benchmark: runner speed varies, so the bound is loose.
+    // The real budget (<10ms CPU on Workers) is measured in production (plan H2).
+    expect((performance.now() - start) / 10).toBeLessThan(20);
   });
 });
