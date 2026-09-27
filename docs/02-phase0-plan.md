@@ -1,6 +1,6 @@
 # Clavis — Phase 0 계획 (Foundation & Spike)
 
-> 상태: **In Progress** · 작성일: 2026-09-27
+> 상태: **Done** · 작성일: 2026-09-27 · 완료: 2026-09-27
 > 선행 문서: [`00-concept.md`](./00-concept.md) · [`01-architecture.md`](./01-architecture.md) · [`decisions.md`](./decisions.md)
 
 ---
@@ -16,7 +16,7 @@ Phase 0의 산출물은 기능이 아니라 **검증된 사실**과 **동작하�
 - [x] Spike S1~S7이 모두 **통과** 또는 **합의된 대안**으로 결론 나고, 결과가 `decisions.md`에 기록됨
 - [x] D-11(검색)이 `Verify` → `Decided`로 전환, D-28~D-33이 `Decided`로 전환
 - [x] 로컬에서 `pnpm dev` 한 번으로 SPA + Worker + 로컬 D1/R2가 동작 (로컬 로그인은 `apps/worker/.dev.vars`의 `DEV_ACCESS_EMAIL`, localhost 전용)
-- [ ] `main`에 push하면 CI(타입체크·테스트) 후 Cloudflare에 자동 배포
+- [x] `main`에 push하면 CI(타입체크·테스트) 후 Cloudflare에 자동 배포 (첫 실행 run 36300727831 성공, 배포 버전 메시지 = 커밋 SHA)
 - [x] 배포된 환경에서 사람(Access 로그인)과 에이전트(Bearer 토큰)가 모두 `GET /api/v1/me` 응답을 받음
 
 ## 3. 역할 분담
@@ -92,8 +92,8 @@ S2·S3 로컬 벤치마크 (근사치)
 
 | ID | 작업 | 완료 기준 |
 |---|---|---|
-| T10 | GitHub Actions | PR: 타입체크·Biome·Vitest / `main`: 마이그레이션 적용 + `wrangler deploy` |
-| T11 | Preview | PR마다 `wrangler versions upload`로 미리보기 URL 댓글 |
+| T10 | GitHub Actions | ✅ `.github/workflows/ci.yml` — check(Biome·타입체크·테스트)는 PR과 push, deploy(D1 마이그레이션 → 빌드 → 배포 → 스모크 테스트)는 `main` push에서 check 통과 후. 배포는 동시에 하나만. Secret: `CLOUDFLARE_API_TOKEN`(Workers 템플릿 + D1 Edit), `CLOUDFLARE_ACCOUNT_ID` |
+| T11 | Preview | ⏸ Phase 1로 연기 — 미리보기 URL도 Access 보호와 별도 D1이 필요해 설계가 더 필요함 |
 
 ## 6. Spike 판정 기준
 
