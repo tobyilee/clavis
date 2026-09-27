@@ -1,5 +1,6 @@
+import { sectionsFor } from '@clavis/shared/lint';
 import type { Page, SaveResult, Violation } from '@clavis/shared/schema';
-import { requiredSections } from '@clavis/shared/templates';
+import { DOC_TYPES, type DocType } from '@clavis/shared/schema';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useBlocker, useNavigate } from '@tanstack/react-router';
 import { cn } from 'cn';
@@ -17,7 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { apiGet, apiSend, isApiError } from '@/lib/api';
-import { indexTree, pageQuery, treeQuery } from '@/lib/queries';
+import { indexTree, pageQuery, spaceQuery, treeQuery } from '@/lib/queries';
 import { relativeTime } from '@/lib/time';
 import { pageParams } from '@/lib/urls';
 import { renderMarkdown } from '@/markdown/render';
@@ -95,7 +96,10 @@ export function PageEditor({
   // ── Lint & preview ───────────────────────────────────────────────────────
   const tree = useQuery(treeQuery(queryClient, page.spaceKey));
   const treeIndex = useMemo(() => (tree.data ? indexTree(tree.data.tree) : null), [tree.data]);
+  // The space's rules (D-47), so the editor agrees with the save.
+  const lintConfig = useQuery(spaceQuery(page.spaceKey)).data?.lintConfig;
   const violations = useLint(content, {
+    config: lintConfig,
     spaceKey: page.spaceKey,
     tree: treeIndex,
     attachments: attachments.names,
@@ -119,8 +123,10 @@ export function PageEditor({
     const present = violations
       .filter((v) => v.ruleId === 'clavis/required-sections')
       .map((v) => v.params?.section);
-    return requiredSections(fm.fields.type).filter((s) => present.includes(s.ko));
-  }, [fm, violations]);
+    const type = fm.fields.type as DocType;
+    if (!DOC_TYPES.includes(type)) return [];
+    return sectionsFor(type, lintConfig).filter((s) => present.includes(s.ko));
+  }, [fm, violations, lintConfig]);
 
   // ── Drafts & leaving ─────────────────────────────────────────────────────
   useEffect(() => {

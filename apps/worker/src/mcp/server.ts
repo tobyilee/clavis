@@ -10,7 +10,6 @@ import {
   type TreeNode,
   type Violation,
 } from '@clavis/shared/schema';
-import { TEMPLATES } from '@clavis/shared/templates';
 import { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import type { Actor } from '../services/actors';
@@ -30,6 +29,7 @@ import { spaceHealth } from '../services/quality';
 import { searchPages } from '../services/search';
 import { listSections, patchPageMeta, readSection, updateSection } from '../services/sections';
 import { listSpaces } from '../services/spaces';
+import { listTemplates } from '../services/templates';
 
 const INSTRUCTIONS = `Clavis is the team's Markdown wiki: specs, planning docs and architecture.
 Pages are referenced by short id (e.g. "a1b2c3") or "SPACEKEY:Page title".
@@ -42,8 +42,8 @@ Writing (editor agents)
 - Every page starts with frontmatter: type (spec|prd|adr|architecture|meeting|guide|note),
   status (draft|review|approved|deprecated), owner, tags. Saves with errors are rejected.
 - The page title is the \`title\` argument, not frontmatter, and not an H1 in the body.
-- New documents: call list_templates and pass \`template\` to create_page, so the page
-  starts with the sections its type requires.
+- New documents: call list_templates with the space and pass a template id as
+  \`template\` to create_page, so the page starts with the sections the space requires.
 - Before update_page, read_page to get the current revision and pass it as baseRevision.
   If someone saved in between you get a conflict: read again and reapply your change.
 - For a change to one part of a page, prefer sections: list_sections, read_section, then
@@ -160,7 +160,15 @@ const INPUT = {
       limit: z.number().int().min(1).max(50).optional(),
     }),
   ),
-  list_templates: cached(z.object({ locale: z.enum(['ko', 'en']).optional() })),
+  list_templates: cached(
+    z.object({
+      space: z
+        .string()
+        .optional()
+        .describe('Space key: include its custom templates and its required sections'),
+      locale: z.enum(['ko', 'en']).optional(),
+    }),
+  ),
   lint_markdown: cached(
     z.object({
       content: z.string().max(200_000),
@@ -173,7 +181,10 @@ const INPUT = {
       space: z.string().describe('Space key, e.g. "PAY"'),
       title: PageTitleSchema,
       content: z.string().optional(),
-      template: z.enum(DOC_TYPES).optional(),
+      template: z
+        .string()
+        .optional()
+        .describe('A document type (e.g. "meeting") or a custom template id from list_templates'),
       parent: z.string().optional().describe('Parent page short id; omit for top level'),
       after: z.string().optional().describe('Sibling short id to place the page after'),
     }),
@@ -457,17 +468,21 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
     {
       title: 'List templates',
       description:
-        'Document types with their required sections. Pass the type as `template` to create_page.',
+        "Templates with their required sections: the space's custom ones first, then one per document type. Pass the id as `template` to create_page.",
       inputSchema: INPUT.list_templates,
       annotations: { readOnlyHint: true },
     },
-    async ({ locale = 'ko' }) =>
-      json(
-        TEMPLATES.map((t) => ({
-          type: t.type,
-          name: t.name[locale],
-          requiredSections: t.sections.map((s) => s[locale]),
-        })),
+    async ({ space, locale = 'ko' }) =>
+      guard(async () =>
+        json(
+          (await listTemplates(DB, actor, { space, locale })).map((t) => ({
+            id: t.id,
+            name: t.name,
+            type: t.type,
+            ...(t.scope !== 'builtin' ? { scope: t.scope, description: t.description } : {}),
+            requiredSections: t.requiredSections,
+          })),
+        ),
       ),
   );
 

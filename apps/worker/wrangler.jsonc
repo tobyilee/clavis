@@ -20,9 +20,19 @@
   ],
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "clavis-files" }],
   // Per-key API limit (S7). Permissive and per-location by design: it stops runaway
-  // agents, it is not an accounting system.
+  // agents, it is not an accounting system. People get more: one page view makes about
+  // seven requests (page, tree, backlinks, comments, ...), and Access already gates them.
   "ratelimits": [
-    { "name": "API_RATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 120, "period": 60 } }
+    {
+      "name": "API_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 120, "period": 60 }
+    },
+    {
+      "name": "HUMAN_RATE_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 600, "period": 60 }
+    }
   ],
   // Chunked nightly backup (D-30): every 2 min, 17:00-18:58 UTC = 02:00-03:58 KST (60 runs)
   "triggers": { "crons": ["*/2 17-18 * * *"] },

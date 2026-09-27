@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DOC_STATUSES } from './frontmatter';
+import { LintConfigSchema } from './lint-config';
 import { ViolationSchema } from './problem';
 
 /**
@@ -39,6 +40,9 @@ export const SpaceSchema = z.object({
   treeVersion: z.number().int(),
   createdAt: z.number(),
   archivedAt: z.number().nullable(),
+  /** The Space's rule settings (D-47); the editor lints with them too. */
+  lintConfig: LintConfigSchema,
+  lintConfigVersion: z.number().int(),
 });
 export type Space = z.infer<typeof SpaceSchema>;
 
@@ -171,13 +175,33 @@ export const SNIPPET_OPEN = '';
 export const SNIPPET_CLOSE = '';
 
 export const TemplateSchema = z.object({
+  /** A built-in template's document type, or a custom template's id (D-49). */
+  id: z.string(),
+  scope: z.enum(['builtin', 'global', 'space']),
+  /** Space templates: their space. */
+  spaceKey: z.string().nullable(),
+  /** Document type (from the template's frontmatter). */
   type: z.string(),
   name: z.string(),
   description: z.string(),
+  /** Required sections for this type in the requested space. */
   requiredSections: z.array(z.string()),
+  /** Markdown; custom templates may use {{title}}, {{owner}}, {{date}}. */
   content: z.string(),
+  updatedAt: z.number().nullable(),
 });
 export type Template = z.infer<typeof TemplateSchema>;
+
+export const SaveTemplateSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  description: z.string().trim().max(300).default(''),
+  /** Markdown with valid frontmatter; checked with the space's rules. */
+  content: z.string().max(MAX_CONTENT_BYTES),
+});
+export const CreateTemplateSchema = SaveTemplateSchema.extend({
+  /** Space key, or null for every space (admin only). */
+  space: z.string().nullable(),
+});
 
 export const TrashEntrySchema = z.object({
   batchId: z.string(),

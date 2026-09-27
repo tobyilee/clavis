@@ -1,9 +1,10 @@
-import { Clock, LogIn } from 'lucide-react';
+import { Clock, LogIn, Timer } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '@/lib/api';
 import { useMe } from '@/lib/me';
 import { Notice } from './notice';
+import { Button } from './ui/button';
 
 /** Shows the wiki only to approved people; pending accounts wait for an admin (D-29). */
 export function AuthGate({ children }: { children: ReactNode }) {
@@ -20,7 +21,22 @@ export function AuthGate({ children }: { children: ReactNode }) {
       />
     );
   }
-  if (me.data?.role === 'pending') {
+  if (!me.data) {
+    // 429 (too many requests) or an outage: say so, instead of a page with no user.
+    const limited = me.error instanceof ApiError && me.error.problem.status === 429;
+    return (
+      <Notice
+        icon={limited ? <Timer className="size-5" /> : undefined}
+        title={t(limited ? 'auth.rateLimitedTitle' : 'error.load')}
+        body={limited ? t('auth.rateLimitedBody') : undefined}
+      >
+        <Button size="sm" variant="outline" onClick={() => void me.refetch()}>
+          {t('auth.retry')}
+        </Button>
+      </Notice>
+    );
+  }
+  if (me.data.role === 'pending') {
     return (
       <Notice
         icon={<Clock className="size-5" />}

@@ -421,7 +421,7 @@ interface Violation { ruleId: string; severity: Severity; message: string; line:
 - 트리 조회는 `ETag`(tree_version)로 `304`를 반환해 D1 읽기를 줄이고, 완성된 트리 JSON을 `spaces.tree_json`에 캐시해 변경 후 첫 조회 때만 다시 만든다 (570페이지 2ms).
 - `/api/v1/openapi.json`은 빌드 시 생성한 문자열을 그대로 보낸다 (`pnpm --filter @clavis/worker openapi`, 최신인지 테스트가 확인). 요청마다 만들면 30~115ms였다.
 - MCP는 요청마다 서버를 새로 만들지만(stateless), 도구 스키마의 JSON Schema 변환은 isolate당 한 번만 한다 (호출당 15ms → 3.5ms).
-- 에이전트 토큰별 분당 호출 제한: Workers Rate Limiting 바인딩 (S7, 무료 플랜 사용 가능 확인). 기본 120회/60초, 초과 시 `429` + `Retry-After`.
+- 에이전트 토큰별 분당 호출 제한: Workers Rate Limiting 바인딩 (S7, 무료 플랜 사용 가능 확인). 에이전트·비인증 120회/60초, 사람 600회/60초(별도 바인딩, Phase 2 Step 4 — 페이지 한 번에 요청이 7개 안팎이라 120회는 빠르게 둘러보기에 부족), 초과 시 `429` + `Retry-After`, 웹은 안내 화면과 다시 시도 버튼.
 - 한도 초과 시 무료 플랜은 요청이 실패하므로, 대시보드 알림을 설정한다. 필요 시 Workers Paid($5/월) 전환이 유일한 비용 옵션이다.
 
 ## 12. 프론트엔드

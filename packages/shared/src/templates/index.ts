@@ -112,10 +112,18 @@ function yamlScalar(v: string): string {
     : JSON.stringify(v);
 }
 
-/** Renders a new page's Markdown: frontmatter plus the required sections with hints. */
+/**
+ * Renders a new page's Markdown: frontmatter plus the required sections with hints. Pass
+ * `sections` when the Space sets its own required sections (D-47); they have no hints.
+ */
 export function renderTemplate(
   type: DocType,
-  opts: { owner: string; locale?: Locale; tags?: string[] },
+  opts: {
+    owner: string;
+    locale?: Locale;
+    tags?: string[];
+    sections?: readonly { ko: string; en: string; hint?: Section['hint'] }[];
+  },
 ): string {
   const locale = opts.locale ?? 'ko';
   const tags = opts.tags ?? [];
@@ -128,11 +136,24 @@ export function renderTemplate(
     '---',
     '',
   ].join('\n');
-  const sections = requiredSections(type)
+  const sections = (opts.sections ?? requiredSections(type))
     .map((sec) => {
-      const hint = sec.hint[locale];
+      const hint = sec.hint?.[locale];
       return hint ? `## ${sec[locale]}\n\n${hint}\n` : `## ${sec[locale]}\n`;
     })
     .join('\n');
   return sections ? `${fm}${sections}` : fm;
+}
+
+/**
+ * Placeholders in custom templates (D-49), filled when a page is created from one:
+ * {{title}}, {{owner}} (the creator) and {{date}} (YYYY-MM-DD, UTC).
+ */
+export function fillTemplate(
+  content: string,
+  vars: { title: string; owner: string; now?: number },
+): string {
+  const date = new Date(vars.now ?? Date.now()).toISOString().slice(0, 10);
+  const values: Record<string, string> = { title: vars.title, owner: vars.owner, date };
+  return content.replace(/\{\{\s*(title|owner|date)\s*\}\}/g, (_, k: string) => values[k] ?? '');
 }

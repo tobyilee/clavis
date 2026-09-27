@@ -3,8 +3,6 @@ import { renameWikiLinks } from '@clavis/shared/markdown';
 import {
   type Backlink,
   type CreatePageInput,
-  DOC_TYPES,
-  type DocType,
   MAX_CONTENT_BYTES,
   type MovePageInput,
   type Page,
@@ -13,7 +11,6 @@ import {
   type TreeNode,
   type UpdatePageInput,
 } from '@clavis/shared/schema';
-import { renderTemplate } from '@clavis/shared/templates';
 import { ulid } from 'ulid';
 import type { Actor } from './actors';
 import { notFound, ServiceError } from './errors';
@@ -39,6 +36,7 @@ import {
 } from './page-read';
 import { positionAmong, type Sibling } from './position';
 import { parseLintConfig, summarize, summaryStatement } from './quality';
+import { templateContent } from './templates';
 
 /**
  * How much a rename rewrites in other pages (D-42 revised): every rewritten page is read
@@ -269,11 +267,10 @@ export async function createPage(
   const key = spaceKey.toUpperCase();
   let content = input.content;
   if (content === undefined) {
-    const type = (input.template ?? 'note') as DocType;
-    if (!DOC_TYPES.includes(type)) {
-      throw new ServiceError(400, 'invalid-template', `Unknown template "${input.template}"`);
-    }
-    content = renderTemplate(type, { owner: actor.email ?? actor.name });
+    content = await templateContent(DB, key, input.template ?? 'note', {
+      title: input.title,
+      owner: actor.email ?? actor.name,
+    });
   }
   assertSize(content);
   // Parsed once: link extraction, lint and the derived columns share it (H2: a 100KB save

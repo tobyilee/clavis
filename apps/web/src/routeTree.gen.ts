@@ -15,6 +15,7 @@ import { Route as SearchRouteImport } from './routes/search'
 import { Route as SKeyIndexRouteImport } from './routes/s.$key.index'
 import { Route as SKeyHealthRouteImport } from './routes/s.$key.health'
 import { Route as SKeyNewRouteImport } from './routes/s.$key.new'
+import { Route as SKeySettingsRouteImport } from './routes/s.$key.settings'
 import { Route as SKeyTrashRouteImport } from './routes/s.$key.trash'
 import { Route as SKeyPSlugIdRouteImport } from './routes/s.$key.p.$slugId'
 import { Route as SKeyWTitleRouteImport } from './routes/s.$key.w.$title'
@@ -50,6 +51,11 @@ const SKeyNewRoute = SKeyNewRouteImport.update({
   path: '/s/$key/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SKeySettingsRoute = SKeySettingsRouteImport.update({
+  id: '/s/$key/settings',
+  path: '/s/$key/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SKeyTrashRoute = SKeyTrashRouteImport.update({
   id: '/s/$key/trash',
   path: '/s/$key/trash',
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/s/$key/health': typeof SKeyHealthRoute
   '/s/$key/new': typeof SKeyNewRoute
+  '/s/$key/settings': typeof SKeySettingsRoute
   '/s/$key/trash': typeof SKeyTrashRoute
   '/s/$key/': typeof SKeyIndexRoute
   '/s/$key/p/$slugId': typeof SKeyPSlugIdRoute
@@ -89,6 +96,7 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/s/$key/health': typeof SKeyHealthRoute
   '/s/$key/new': typeof SKeyNewRoute
+  '/s/$key/settings': typeof SKeySettingsRoute
   '/s/$key/trash': typeof SKeyTrashRoute
   '/s/$key': typeof SKeyIndexRoute
   '/s/$key/p/$slugId': typeof SKeyPSlugIdRoute
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/s/$key/health': typeof SKeyHealthRoute
   '/s/$key/new': typeof SKeyNewRoute
+  '/s/$key/settings': typeof SKeySettingsRoute
   '/s/$key/trash': typeof SKeyTrashRoute
   '/s/$key/': typeof SKeyIndexRoute
   '/s/$key/p/$slugId': typeof SKeyPSlugIdRoute
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/s/$key/health'
     | '/s/$key/new'
+    | '/s/$key/settings'
     | '/s/$key/trash'
     | '/s/$key/'
     | '/s/$key/p/$slugId'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/s/$key/health'
     | '/s/$key/new'
+    | '/s/$key/settings'
     | '/s/$key/trash'
     | '/s/$key'
     | '/s/$key/p/$slugId'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/s/$key/health'
     | '/s/$key/new'
+    | '/s/$key/settings'
     | '/s/$key/trash'
     | '/s/$key/'
     | '/s/$key/p/$slugId'
@@ -153,6 +165,7 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   SKeyHealthRoute: typeof SKeyHealthRoute
   SKeyNewRoute: typeof SKeyNewRoute
+  SKeySettingsRoute: typeof SKeySettingsRoute
   SKeyTrashRoute: typeof SKeyTrashRoute
   SKeyIndexRoute: typeof SKeyIndexRoute
   SKeyPSlugIdRoute: typeof SKeyPSlugIdRoute
@@ -204,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SKeyNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/s/$key/settings': {
+      id: '/s/$key/settings'
+      path: '/s/$key/settings'
+      fullPath: '/s/$key/settings'
+      preLoaderRoute: typeof SKeySettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/s/$key/trash': {
       id: '/s/$key/trash'
       path: '/s/$key/trash'
@@ -241,6 +261,7 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   SKeyHealthRoute: SKeyHealthRoute,
   SKeyNewRoute: SKeyNewRoute,
+  SKeySettingsRoute: SKeySettingsRoute,
   SKeyTrashRoute: SKeyTrashRoute,
   SKeyIndexRoute: SKeyIndexRoute,
   SKeyPSlugIdRoute: SKeyPSlugIdRoute,

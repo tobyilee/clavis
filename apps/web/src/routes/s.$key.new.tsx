@@ -1,5 +1,4 @@
-import { DOC_TYPES, type DocType, type SaveResult } from '@clavis/shared/schema';
-import { TEMPLATES } from '@clavis/shared/templates';
+import type { SaveResult } from '@clavis/shared/schema';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { cn } from 'cn';
@@ -12,17 +11,19 @@ import { Input } from '@/components/ui/input';
 import { apiSend, isApiError } from '@/lib/api';
 import { useCanEdit } from '@/lib/me';
 import { pageQuery } from '@/lib/queries';
+import { templatesQuery } from '@/lib/templates';
 import { pageParams } from '@/lib/urls';
 
 interface NewPageSearch {
   parent?: string;
-  template?: DocType;
+  /** A document type or a custom template id. */
+  template?: string;
 }
 
 export const Route = createFileRoute('/s/$key/new')({
   validateSearch: (s: Record<string, unknown>): NewPageSearch => ({
     parent: typeof s.parent === 'string' ? s.parent : undefined,
-    template: DOC_TYPES.includes(s.template as DocType) ? (s.template as DocType) : undefined,
+    template: typeof s.template === 'string' ? s.template : undefined,
   }),
   component: NewPage,
 });
@@ -36,11 +37,12 @@ function NewPage() {
   const queryClient = useQueryClient();
   const canEdit = useCanEdit();
   const [title, setTitle] = useState('');
-  const [template, setTemplate] = useState<DocType>(search.template ?? 'note');
+  const [template, setTemplate] = useState<string>(search.template ?? 'note');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const parent = useQuery({ ...pageQuery(search.parent ?? ''), enabled: !!search.parent });
   const locale = i18n.language.startsWith('ko') ? 'ko' : 'en';
+  const templates = useQuery(templatesQuery(key, locale));
 
   if (!canEdit) return <Notice title={t('editor.readOnly')} />;
 
@@ -87,27 +89,34 @@ function NewPage() {
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1.5 text-sm font-medium">{t('newPage.template')}</legend>
         <div className="grid gap-2 sm:grid-cols-2">
-          {TEMPLATES.map((tpl) => (
+          {templates.data?.map((tpl) => (
             <label
-              key={tpl.type}
+              key={tpl.id}
               className={cn(
                 'flex cursor-pointer flex-col gap-1 rounded-lg border p-3 text-sm hover:bg-accent',
-                template === tpl.type && 'border-foreground bg-accent',
+                template === tpl.id && 'border-foreground bg-accent',
               )}
             >
               <input
                 type="radio"
                 name="template"
-                value={tpl.type}
-                checked={template === tpl.type}
-                onChange={() => setTemplate(tpl.type)}
+                value={tpl.id}
+                checked={template === tpl.id}
+                onChange={() => setTemplate(tpl.id)}
                 className="sr-only"
               />
-              <span className="font-medium">{tpl.name[locale]}</span>
-              <span className="text-muted-foreground">{tpl.description[locale]}</span>
-              {tpl.sections.length > 0 && (
+              <span className="flex items-center gap-2 font-medium">
+                {tpl.name}
+                {tpl.scope !== 'builtin' && (
+                  <span className="rounded border px-1.5 text-[10px] font-normal text-muted-foreground">
+                    {t(`templates.scope.${tpl.scope}`)}
+                  </span>
+                )}
+              </span>
+              {tpl.description && <span className="text-muted-foreground">{tpl.description}</span>}
+              {tpl.requiredSections.length > 0 && (
                 <span className="text-xs text-muted-foreground">
-                  {tpl.sections.map((s) => s[locale]).join(' · ')}
+                  {tpl.requiredSections.join(' · ')}
                 </span>
               )}
             </label>

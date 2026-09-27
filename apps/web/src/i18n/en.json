@@ -13,7 +13,10 @@
     "pendingTitle": "Waiting for approval",
     "pendingBody": "You're signed in as {{email}}. You'll see the wiki once an admin grants you a role.",
     "signedOutTitle": "Sign-in required",
-    "signedOutBody": "Open Clavis again through the Cloudflare Access login."
+    "signedOutBody": "Open Clavis again through the Cloudflare Access login.",
+    "rateLimitedTitle": "Too many requests",
+    "rateLimitedBody": "Please try again in a moment (up to a minute).",
+    "retry": "Try again"
   },
   "space": {
     "choose": "Choose a space",
@@ -248,5 +251,58 @@
     "save": "Save",
     "confirmDelete": "Delete this comment?",
     "sectionBadge": "{{count}} open comment(s) on this section"
+  },
+  "settings": {
+    "nav": "Space settings",
+    "title": "{{name}} settings",
+    "rules": "Document rules",
+    "templates": "Templates",
+    "rulesHelp": "The rules documents in this space are checked with, in the editor, on save and in the agent API alike.",
+    "rulesReadOnly": "This space's document rules. Only admins can change them.",
+    "levels": "Rule levels",
+    "fixedError": "Error (fixed)",
+    "default": "Default ({{level}})",
+    "level": {
+      "off": "Off",
+      "info": "Info",
+      "warning": "Warning",
+      "error": "Error (blocks saving)"
+    },
+    "raisedWarning": "Rules raised to error block saving documents that break them from now on. Saved documents stay as they are and must be fixed on their next save.",
+    "sections": "Required sections by type",
+    "sectionsHelp": "Check to use a list for this space. One section per line; \"결정 | Decision\" accepts either name. An empty list means none.",
+    "sectionsFor": "Required sections for {{type}}",
+    "sectionsPlaceholder": "Background\nDecision | 결정",
+    "noSections": "No required sections",
+    "docLength": "Long document threshold",
+    "save": "Save",
+    "saved": "Saved. Existing documents are rechecked with the new rules on the document health page.",
+    "openHealth": "Open document health",
+    "levelShort": {
+      "off": "off",
+      "info": "info",
+      "warning": "warning",
+      "error": "error"
+    }
+  },
+  "templates": {
+    "help": "Your team's templates to pick from when creating a page. The seven built-in ones are always listed too.",
+    "none": "No custom templates yet.",
+    "new": "New template",
+    "edit": "Edit",
+    "name": "Name",
+    "description": "Description",
+    "everySpace": "Use in every space (admin)",
+    "content": "Content (Markdown)",
+    "startFrom": "Start from a built-in template…",
+    "placeholders": "{{title}} becomes the page title, {{owner}} its creator and {{date}} the creation date.",
+    "save": "Save template",
+    "delete": "Delete",
+    "confirmDelete": "Delete the template \"{{name}}\"? Pages made from it stay.",
+    "scope": {
+      "space": "This space",
+      "global": "Every space",
+      "builtin": "Built-in"
+    }
   }
 }

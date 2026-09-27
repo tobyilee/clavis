@@ -178,6 +178,32 @@ export const comments = sqliteTable(
   ],
 );
 
+/**
+ * Custom page templates (D-49): per space, or for every space when space_id is NULL. The
+ * seven built-in templates live in code (@clavis/shared/templates) and are not stored.
+ */
+export const templates = sqliteTable(
+  'templates',
+  {
+    id: text('id').primaryKey(),
+    spaceId: text('space_id').references(() => spaces.id),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    /** From the content's frontmatter, for grouping and required sections. */
+    docType: text('doc_type').notNull(),
+    content: text('content').notNull(),
+    createdBy: text('created_by')
+      .notNull()
+      .references(() => actors.id),
+    updatedBy: text('updated_by')
+      .notNull()
+      .references(() => actors.id),
+    createdAt: createdAt(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [index('templates_space').on(t.spaceId)],
+);
+
 export const attachments = sqliteTable(
   'attachments',
   {

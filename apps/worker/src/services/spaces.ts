@@ -1,4 +1,4 @@
-import type { Space } from '@clavis/shared/schema';
+import type { LintConfig, Space } from '@clavis/shared/schema';
 import { slugify } from '@clavis/shared/schema';
 import { renderTemplate } from '@clavis/shared/templates';
 import { ulid } from 'ulid';
@@ -14,11 +14,13 @@ interface SpaceRow {
   tree_version: number;
   created_at: number;
   archived_at: number | null;
+  lint_config: string | null;
+  lint_config_version: number;
 }
 
 const SELECT_SPACE = `
   SELECT s.id, s.key, s.name, s.description, h.short_id AS home_short_id, s.tree_version,
-         s.created_at, s.archived_at
+         s.created_at, s.archived_at, s.lint_config, s.lint_config_version
   FROM spaces s LEFT JOIN pages h ON h.id = s.home_page_id AND h.deleted_at IS NULL`;
 
 const toSpace = (r: SpaceRow): Space => ({
@@ -29,6 +31,11 @@ const toSpace = (r: SpaceRow): Space => ({
   treeVersion: r.tree_version,
   createdAt: r.created_at,
   archivedAt: r.archived_at,
+  // Stored configs were validated with their defaults filled in (setLintConfig).
+  lintConfig: r.lint_config
+    ? (JSON.parse(r.lint_config) as LintConfig)
+    : { rules: {}, requiredSections: {} },
+  lintConfigVersion: r.lint_config_version,
 });
 
 export async function listSpaces(DB: D1Database, includeArchived = false): Promise<Space[]> {
@@ -126,5 +133,23 @@ export async function updateSpace(
       .bind(...binds, space.id)
       .run();
   }
+  return getSpace(DB, key);
+}
+
+/**
+ * Replaces a space's rule config (D-47). The version bump marks every stored page summary
+ * stale, so the dashboard rechecks them (D-46); saves use the new rules right away.
+ */
+export async function setLintConfig(
+  DB: D1Database,
+  key: string,
+  config: LintConfig,
+): Promise<Space> {
+  const res = await DB.prepare(
+    'UPDATE spaces SET lint_config = ?, lint_config_version = lint_config_version + 1 WHERE key = ?',
+  )
+    .bind(JSON.stringify(config), key.toUpperCase())
+    .run();
+  if (!res.meta.changes) throw notFound('Space');
   return getSpace(DB, key);
 }

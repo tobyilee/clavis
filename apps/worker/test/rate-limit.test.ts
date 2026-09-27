@@ -26,3 +26,16 @@ describe('API rate limit', () => {
     expect(res.status).toBe(200);
   });
 });
+
+describe('people', () => {
+  it('get a larger budget than agents', async () => {
+    const { call, resetDb } = await import('./helpers');
+    await resetDb();
+    let ok = 0;
+    for (let i = 0; i < 130; i++) {
+      const res = await call('/api/v1/me', { as: 'busy@gmail.com' });
+      if (res.status === 200) ok++;
+    }
+    expect(ok).toBe(130);
+  });
+});

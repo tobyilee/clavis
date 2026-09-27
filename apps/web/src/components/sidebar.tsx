@@ -1,5 +1,13 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { Activity, ChevronsUpDown, FilePlus, LayoutGrid, Settings, Trash2 } from 'lucide-react';
+import {
+  Activity,
+  ChevronsUpDown,
+  FilePlus,
+  LayoutGrid,
+  Settings,
+  Settings2,
+  Trash2,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
@@ -90,6 +98,11 @@ export function Sidebar() {
           <Button variant="ghost" size="sm" className="justify-start" asChild>
             <Link to="/s/$key/health" params={{ key: spaceKey }}>
               <Activity /> {t('health.title')}
+            </Link>
+          </Button>
+          <Button variant="ghost" size="sm" className="justify-start" asChild>
+            <Link to="/s/$key/settings" params={{ key: spaceKey }}>
+              <Settings2 /> {t('settings.nav')}
             </Link>
           </Button>
           <Button variant="ghost" size="sm" className="justify-start" asChild>

@@ -147,3 +147,32 @@ test('comments: section thread with badge, reply, resolve', async ({ page, reque
   await expect(page.getByRole('button', { name: '해결된 스레드 1개 보기' })).toBeVisible();
   await expect(page.getByRole('button', { name: '이 섹션의 열린 댓글 1개' })).toHaveCount(0);
 });
+
+test('space settings: stricter rule and a custom template', async ({ page, request }) => {
+  await ensureSpace(request, 'SET', '설정');
+  await page.goto('/s/SET/settings');
+  await page.getByLabel('본문 H1').selectOption('error');
+  await expect(page.getByRole('note')).toContainText('저장을 막습니다');
+  await page.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('저장했습니다');
+
+  await page.getByRole('link', { name: '템플릿' }).click();
+  await page.getByRole('button', { name: '새 템플릿' }).click();
+  await page.getByLabel('이름').fill('주간 회의');
+  await page.getByLabel('기본 템플릿에서 시작…').selectOption({ label: '회의록' });
+  await expect(page.getByLabel('내용 (Markdown)')).toHaveValue(/owner: \{\{owner\}\}/);
+  await page.getByRole('button', { name: '템플릿 저장' }).click();
+  await expect(page.getByText('주간 회의')).toBeVisible();
+
+  await page.goto('/s/SET/new');
+  await page.getByLabel('제목').fill('9월 넷째 주');
+  await page.getByText('주간 회의').click();
+  await page.getByRole('button', { name: '만들고 편집하기' }).click();
+  await expect(page).toHaveURL(/\/edit$/);
+  await expect(page.locator('.cm-content')).toContainText('## 액션 아이템');
+  await expect(page.locator('.cm-content')).not.toContainText('{{owner}}');
+
+  // The space's rule applies in the editor: an H1 is now an error and blocks saving.
+  await typeAtEnd(page, '\n# 제목\n');
+  await expect(page.getByRole('button', { name: '저장', exact: true })).toBeDisabled();
+});

@@ -69,7 +69,7 @@ claude mcp add --transport http clavis https://clavis.crawl-proxy.workers.dev/mc
 | `list_spaces` · `get_space_tree` | viewer | Space와 페이지 트리 탐색 |
 | `search_pages` | viewer | 제목·본문 전문 검색 (3글자 이상은 색인, 짧으면 부분 일치) |
 | `read_page` | viewer | frontmatter 포함 원문 + `revision` |
-| `list_templates` · `lint_markdown` | viewer | 템플릿 필수 섹션 확인, 저장 전 검사 |
+| `list_templates` · `lint_markdown` | viewer | 템플릿과 필수 섹션 확인(`space`를 주면 그 Space의 커스텀 템플릿과 규칙 반영), 저장 전 검사 |
 | `get_backlinks` | viewer | 이 페이지를 링크하는 문서 (이름 변경·삭제 전 확인) |
 | `get_space_health` | viewer | Space의 규칙 위반 페이지(규칙·개수·첫 줄)와 깨진 위키 링크 |
 | `create_page` | editor | 새 페이지 (`template`으로 시작하면 필수 섹션이 채워짐) |
@@ -86,8 +86,8 @@ viewer 역할 에이전트에게는 쓰기 도구가 목록에 나타나지 않�
 ### 쓰기 흐름 예시 (회의록)
 
 ```
-list_templates                                 → meeting의 필수 섹션 확인
-create_page  space=TEAM title="주간 회의 2026-09-27" template=meeting
+list_templates space=TEAM                      → 커스텀 템플릿(id)과 meeting의 필수 섹션 확인
+create_page  space=TEAM title="주간 회의 2026-09-27" template=meeting   # 또는 커스텀 템플릿 id
                                                → "Created TEAM/k3x9q1 … revision=1" + 페이지 URL
 read_page    page=k3x9q1                       → 원문 + revision=1
 update_page  page=k3x9q1 content=<수정한 원문 전체> baseRevision=1

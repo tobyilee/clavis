@@ -1,8 +1,8 @@
-import { CreateSpaceSchema, UpdateSpaceSchema } from '@clavis/shared/schema';
+import { CreateSpaceSchema, LintConfigSchema, UpdateSpaceSchema } from '@clavis/shared/schema';
 import { createRoute, z } from '@hono/zod-openapi';
 import { requireRole } from '../auth/middleware';
 import { getTree } from '../services/pages';
-import { createSpace, getSpace, listSpaces, updateSpace } from '../services/spaces';
+import { createSpace, getSpace, listSpaces, setLintConfig, updateSpace } from '../services/spaces';
 import { problemResponse } from './problem';
 import { router } from './router';
 import { json, Space, SpaceKeyParam, TreeNode } from './schemas';
@@ -88,6 +88,32 @@ spaces.openapi(
   }),
   async (c) =>
     c.json(await updateSpace(c.env.DB, c.req.valid('param').key, c.req.valid('json')), 200),
+);
+
+spaces.openapi(
+  createRoute({
+    method: 'put',
+    path: '/spaces/{key}/lint-config',
+    tags,
+    security,
+    summary: "Replace the space's lint rule settings (admin, D-47)",
+    description:
+      'Rule levels (off, info, warning, error), required sections per document type, and the long-document threshold. clavis/frontmatter-required cannot be changed. A rule raised to error blocks saves of pages that break it from now on. Page summaries become stale and the dashboard rechecks them.',
+    middleware: [requireRole('admin')],
+    request: {
+      params: SpaceKeyParam,
+      body: {
+        content: { 'application/json': { schema: LintConfigSchema.openapi('LintConfig') } },
+      },
+    },
+    responses: {
+      200: json(Space, 'Updated'),
+      400: problemResponse('Invalid config'),
+      404: problemResponse('Not found'),
+    },
+  }),
+  async (c) =>
+    c.json(await setLintConfig(c.env.DB, c.req.valid('param').key, c.req.valid('json')), 200),
 );
 
 spaces.openapi(
