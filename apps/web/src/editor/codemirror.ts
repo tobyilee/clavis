@@ -19,6 +19,7 @@ import {
   keymap,
   lineNumbers,
   placeholder,
+  tooltips,
 } from '@codemirror/view';
 import { tags } from '@lezer/highlight';
 import type { MarkdownConfig } from '@lezer/markdown';
@@ -161,6 +162,9 @@ export function editorExtensions(
     syntaxHighlighting(highlight),
     autocompletion({ override: [completionSource(cb.completions)], activateOnTyping: true }),
     lintGutter(),
+    // Completions and lint messages stay inside the editor, flipping above the cursor near its
+    // bottom, instead of covering the phone toolbar or hiding under the keyboard.
+    tooltips({ tooltipSpace: (view) => view.scrollDOM.getBoundingClientRect() }),
     placeholder(opts.placeholder),
     keymap.of([
       {

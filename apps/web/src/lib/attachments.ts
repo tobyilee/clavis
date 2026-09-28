@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { EditorAttachments } from '@/editor/page-editor';
 import { ApiError, apiGet } from './api';
+import { shrinkPhoto } from './images';
 
 export const attachmentsQuery = (pageId: string) => ({
   queryKey: ['attachments', pageId],
@@ -70,7 +71,7 @@ export function useAttachments(pageId: string | null): EditorAttachments & { lis
                   if (at >= 0) editor.replaceRange(at, at + token.length + (text ? 0 : 1), text);
                 };
                 try {
-                  const a = await uploadFile(pageId, file);
+                  const a = await uploadFile(pageId, await shrinkPhoto(file));
                   // Refresh the list before the reference lands, so lint sees the file.
                   await queryClient.invalidateQueries({ queryKey: ['attachments', pageId] });
                   replace(attachmentMarkdown(a));

@@ -146,13 +146,25 @@
     "loadedLatest": "최신본을 불러왔습니다.",
     "loadedLatestCopied": "최신본을 불러왔습니다. 내 내용은 클립보드에 있습니다.",
     "readOnly": "편집 권한이 없습니다.",
-    "showProps": "속성 보기",
-    "hideProps": "속성 접기",
     "attach": "파일 첨부",
     "uploading": "파일 {{count}}개 업로드 중…",
     "uploaded": "파일 {{count}}개를 첨부했습니다.",
     "uploadFailed": "업로드 실패:",
-    "linksUpdated": "이 페이지를 링크하던 문서 {{count}}개의 링크를 새 제목으로 바꿨습니다."
+    "linksUpdated": "이 페이지를 링크하던 문서 {{count}}개의 링크를 새 제목으로 바꿨습니다.",
+    "props": "속성",
+    "problemsCount": "문제 {{count}}개",
+    "noProblems": "문제가 없습니다.",
+    "format": {
+      "toolbar": "서식",
+      "heading": "헤딩",
+      "bold": "굵게",
+      "bulletList": "목록",
+      "taskList": "체크박스",
+      "link": "링크",
+      "wikiLink": "위키 링크",
+      "code": "코드",
+      "photo": "사진 첨부"
+    }
   },
   "lint": {
     "frontmatter-missing": "문서는 YAML frontmatter(---)로 시작해야 합니다.",

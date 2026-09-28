@@ -78,7 +78,7 @@ test('paste an image: uploaded, referenced, rendered', async ({ page, request })
   await page.locator('.cm-content').click();
   await page.keyboard.press('ControlOrMeta+End');
   await page
-    .locator('input[type=file]')
+    .getByLabel('파일 첨부')
     .setInputFiles({ name: '구조도.png', mimeType: 'image/png', buffer: png });
   await expect(page.locator('.cm-content')).toContainText('](attachments/구조도.png)');
   await expect(page.locator('.prose-clavis img')).toHaveJSProperty('naturalWidth', 1);

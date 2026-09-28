@@ -1,8 +1,10 @@
 import type { Violation } from '@clavis/shared/schema';
+import { startCompletion } from '@codemirror/autocomplete';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { type Completions, editorExtensions, showViolations } from './codemirror';
+import { type FormatKind, formatSpec } from './format';
 
 export interface MarkdownEditorHandle {
   /** Moves the cursor to a 1-based line and focuses the editor. */
@@ -17,6 +19,8 @@ export interface MarkdownEditorHandle {
   insert(text: string): { from: number; to: number };
   /** Replaces a range, e.g. an upload placeholder. */
   replaceRange(from: number, to: number, text: string): void;
+  /** Applies a toolbar format to the selection as one undo step. */
+  format(kind: FormatKind): void;
   getDoc(): string;
 }
 
@@ -115,6 +119,14 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, Props>(
       },
       replaceRange(from, to, text) {
         view.current?.dispatch({ changes: { from, to, insert: text } });
+      },
+      format(kind) {
+        const v = view.current;
+        if (!v) return;
+        v.dispatch({ ...formatSpec(v.state, kind), scrollIntoView: true, userEvent: 'input' });
+        v.focus();
+        // An empty [[]] offers page titles, as typing [[ does.
+        if (kind === 'wikiLink' && v.state.selection.main.empty) startCompletion(v);
       },
       getDoc: () => view.current?.state.doc.toString() ?? '',
     }));

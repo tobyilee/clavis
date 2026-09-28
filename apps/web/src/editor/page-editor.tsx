@@ -5,7 +5,7 @@ import { DOC_TYPES, type DocType } from '@clavis/shared/schema';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useBlocker, useNavigate } from '@tanstack/react-router';
 import { cn } from 'cn';
-import { Eye, Loader2, Paperclip, Save } from 'lucide-react';
+import { CircleCheck, Eye, Loader2, Paperclip, Save, SlidersHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -18,18 +18,21 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { apiGet, apiSend, isApiError } from '@/lib/api';
 import { indexTree, pageQuery, spaceQuery, treeQuery } from '@/lib/queries';
 import { relativeTime } from '@/lib/time';
 import { pageParams } from '@/lib/urls';
+import { useVisualViewportVars } from '@/lib/viewport';
 import { renderMarkdown } from '@/markdown/render';
 import { useRenderContext } from '@/markdown/use-render-context';
 import type { Completions } from './codemirror';
 import { type Draft, drafts } from './drafts';
+import { FormatToolbar } from './format-toolbar';
 import { readFrontmatter, updateFrontmatter } from './frontmatter';
 import { FrontmatterForm } from './frontmatter-form';
 import { MarkdownEditor, type MarkdownEditorHandle } from './markdown-editor';
-import { ProblemsPanel } from './problems-panel';
+import { ProblemList, ProblemsPanel, SEVERITY_ICON } from './problems-panel';
 import { useScrollSync } from './scroll-sync';
 import { useLint, useViolationMessage } from './use-lint';
 
@@ -82,8 +85,14 @@ export function PageEditor({
     return d && (d.content !== page.content || d.title !== page.title) ? d : null;
   });
   const [tab, setTab] = useState<'edit' | 'preview'>('edit');
-  // Phones: the properties form folds away to leave room for writing (D-06).
-  const [showProps, setShowProps] = useState(false);
+  // Phones: properties and problems open in a bottom sheet, leaving the screen for writing (K3).
+  const [sheet, setSheet] = useState<'props' | 'problems'>('props');
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const openSheet = (kind: typeof sheet) => {
+    setSheet(kind);
+    setSheetOpen(true);
+  };
+  useVisualViewportVars();
 
   // Once, after CodeMirror has mounted (child effects run first): open at the requested line,
   // or ready to type at the start of the body. Not on touch screens, where focusing would pop
@@ -119,6 +128,9 @@ export function PageEditor({
     return [...saveProblems.filter((v) => !seen.has(`${v.ruleId}:${v.line}`)), ...violations];
   }, [violations, saveProblems]);
   const hasErrors = shown.some((v) => v.severity === 'error');
+  const worst = (['error', 'warning', 'info'] as const).find((s) =>
+    shown.some((v) => v.severity === s),
+  );
 
   const ctx = useRenderContext(page.spaceKey, attachments.resolve);
   const previewSource = useDebounced(content, 150);
@@ -276,7 +288,9 @@ export function PageEditor({
 
   // ── Layout ───────────────────────────────────────────────────────────────
   return (
-    <div className="-mx-4 -my-6 flex h-[calc(100dvh-3.5rem)] flex-col md:-mx-8">
+    // Phones: the editor covers the app and fits the part of the screen above the keyboard, so
+    // the Save button stays at the top and the toolbar right on the keyboard (K1, K3).
+    <div className="flex flex-col bg-background max-md:fixed max-md:inset-x-0 max-md:top-(--vv-top) max-md:z-40 max-md:h-(--vv-height) md:-mx-8 md:-my-6 md:h-[calc(100dvh-3.5rem)]">
       <div className="flex flex-col gap-2 border-b px-4 py-3">
         <div className="flex items-center gap-2">
           <Input
@@ -317,15 +331,7 @@ export function PageEditor({
             <span className="hidden sm:inline">{t('editor.save')}</span>
           </Button>
         </div>
-        <button
-          type="button"
-          className="self-start text-xs text-muted-foreground underline md:hidden"
-          onClick={() => setShowProps((v) => !v)}
-          aria-expanded={showProps}
-        >
-          {showProps ? t('editor.hideProps') : t('editor.showProps')}
-        </button>
-        <div className={cn(!showProps && 'hidden md:block')}>
+        <div className="hidden md:block">
           <FrontmatterForm fields={fm.fields} valid={fm.valid} onChange={setFrontmatter} />
         </div>
         {missingSections.length > 0 && (
@@ -370,29 +376,51 @@ export function PageEditor({
         )}
       </div>
 
-      <div className="flex border-b md:hidden" role="tablist">
-        {(['edit', 'preview'] as const).map((key) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={tab === key}
-            onClick={() => setTab(key)}
-            className={cn(
-              'flex-1 py-2 text-sm',
-              tab === key && 'border-b-2 border-foreground font-medium',
-            )}
-          >
-            {key === 'edit' ? (
-              t('editor.tabEdit')
-            ) : (
-              <>
-                <Eye className="mr-1 inline size-4" />
-                {t('editor.tabPreview')}
-              </>
-            )}
-          </button>
-        ))}
+      <div className="flex border-b md:hidden">
+        <div className="flex flex-1" role="tablist">
+          {(['edit', 'preview'] as const).map((key) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+              className={cn(
+                'flex-1 py-2 text-sm',
+                tab === key && 'border-b-2 border-foreground font-medium',
+              )}
+            >
+              {key === 'edit' ? (
+                t('editor.tabEdit')
+              ) : (
+                <>
+                  <Eye className="mr-1 inline size-4" />
+                  {t('editor.tabPreview')}
+                </>
+              )}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="flex items-center gap-1 px-3 text-sm text-muted-foreground"
+          onClick={() => openSheet('props')}
+        >
+          <SlidersHorizontal className="size-4" />
+          {t('editor.props')}
+        </button>
+        <button
+          type="button"
+          className={cn(
+            'flex items-center gap-1 px-3 text-sm',
+            worst === 'error' && 'font-semibold text-destructive',
+          )}
+          onClick={() => openSheet('problems')}
+          aria-label={t('editor.problemsCount', { count: shown.length })}
+        >
+          {worst ? SEVERITY_ICON[worst] : <CircleCheck className="size-4 text-muted-foreground" />}
+          {shown.length}
+        </button>
       </div>
 
       <div className="flex min-h-0 flex-1">
@@ -428,14 +456,67 @@ export function PageEditor({
         </div>
       </div>
 
-      <ProblemsPanel
-        violations={shown}
-        messageFor={messageFor}
-        onSelect={(line) => {
-          setTab('edit');
-          editor.current?.gotoLine(line);
-        }}
-      />
+      {tab === 'edit' && (
+        <FormatToolbar
+          className="md:hidden"
+          onFormat={(kind) => editor.current?.format(kind)}
+          onPhotos={attachments.upload ? uploadFiles : undefined}
+        />
+      )}
+
+      <div className="hidden md:block">
+        <ProblemsPanel
+          violations={shown}
+          messageFor={messageFor}
+          onSelect={(line) => {
+            setTab('edit');
+            editor.current?.gotoLine(line);
+          }}
+        />
+      </div>
+
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent
+          side="bottom"
+          className="gap-0 overflow-y-auto rounded-t-lg"
+          // Rises with the keyboard, like the editor.
+          style={{
+            bottom: 'calc(100% - var(--vv-top) - var(--vv-height))',
+            maxHeight: 'calc(var(--vv-height) * 0.8)',
+          }}
+          // Focus the sheet, not its first field: a text field would pop up the keyboard.
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            (e.currentTarget as HTMLElement).focus();
+          }}
+          // Leave focus where a picked problem put it (the editor), not on the badge.
+          onCloseAutoFocus={(e) => e.preventDefault()}
+          aria-describedby={undefined}
+        >
+          <SheetHeader>
+            <SheetTitle>{t(sheet === 'props' ? 'editor.props' : 'editor.problems')}</SheetTitle>
+          </SheetHeader>
+          {sheet === 'props' ? (
+            <div className="px-4 pb-6">
+              <FrontmatterForm fields={fm.fields} valid={fm.valid} onChange={setFrontmatter} />
+            </div>
+          ) : shown.length > 0 ? (
+            <ProblemList
+              violations={shown}
+              messageFor={messageFor}
+              className="pb-6"
+              onSelect={(line) => {
+                setSheetOpen(false);
+                setTab('edit');
+                // After the sheet lets go of focus.
+                setTimeout(() => editor.current?.gotoLine(line));
+              }}
+            />
+          ) : (
+            <p className="px-4 pb-6 text-sm text-muted-foreground">{t('editor.noProblems')}</p>
+          )}
+        </SheetContent>
+      </Sheet>
 
       <Dialog
         open={conflictRevision !== null}

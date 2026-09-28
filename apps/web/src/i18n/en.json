@@ -146,13 +146,25 @@
     "loadedLatest": "Loaded the latest version.",
     "loadedLatestCopied": "Loaded the latest version. Your text is on the clipboard.",
     "readOnly": "You do not have permission to edit.",
-    "showProps": "Show properties",
-    "hideProps": "Hide properties",
     "attach": "Attach files",
     "uploading": "Uploading {{count}} file(s)…",
     "uploaded": "Attached {{count}} file(s).",
     "uploadFailed": "Upload failed:",
-    "linksUpdated": "Updated links to the new title in {{count}} page(s)."
+    "linksUpdated": "Updated links to the new title in {{count}} page(s).",
+    "props": "Properties",
+    "problemsCount": "{{count}} problem(s)",
+    "noProblems": "No problems.",
+    "format": {
+      "toolbar": "Formatting",
+      "heading": "Heading",
+      "bold": "Bold",
+      "bulletList": "Bulleted list",
+      "taskList": "Checklist",
+      "link": "Link",
+      "wikiLink": "Wiki link",
+      "code": "Code",
+      "photo": "Attach a photo"
+    }
   },
   "lint": {
     "frontmatter-missing": "The page must start with YAML frontmatter (---).",
