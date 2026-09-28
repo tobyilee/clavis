@@ -1,5 +1,6 @@
 import type { Comment, CreateCommentInput, Thread } from '@clavis/shared/schema';
 import { ulid } from 'ulid';
+import type { WriteOptions } from '../events';
 import type { Actor } from './actors';
 import { notFound, ServiceError } from './errors';
 import { actorRef, locatorWhere, parsePageRef } from './page-read';
@@ -103,7 +104,7 @@ export async function addComment(
   actor: Actor,
   ref: string,
   input: CreateCommentInput,
-  now = Date.now(),
+  { now = Date.now(), emit }: WriteOptions = {},
 ): Promise<Comment & { threadId: string }> {
   const w = locatorWhere(parsePageRef(ref));
   const [pageRes, parentRes] = await DB.batch([
@@ -141,6 +142,14 @@ export async function addComment(
       now,
     )
     .run();
+  emit?.({
+    type: 'comment.created',
+    commentId: id,
+    threadId,
+    pageId: page.id,
+    actorId: actor.id,
+    at: now,
+  });
   return {
     id,
     threadId,
@@ -153,6 +162,7 @@ export async function addComment(
 
 interface Owned {
   id: string;
+  page_id: string;
   thread_id: string;
   author_id: string;
   replies: number;
@@ -162,7 +172,7 @@ interface Owned {
 /** A comment on a live page, with what the permission checks need. */
 async function owned(DB: D1Database, id: string): Promise<Owned> {
   const row = await DB.prepare(
-    `SELECT c.id, c.thread_id, c.author_id, s.archived_at,
+    `SELECT c.id, c.page_id, c.thread_id, c.author_id, s.archived_at,
             (SELECT COUNT(*) FROM comments x WHERE x.thread_id = c.id AND x.id != c.id) AS replies
      FROM comments c JOIN pages p ON p.id = c.page_id JOIN spaces s ON s.id = p.space_id
      WHERE c.id = ? AND p.deleted_at IS NULL`,
@@ -209,12 +219,19 @@ export async function setResolved(
   actor: Actor,
   id: string,
   resolved: boolean,
-  now = Date.now(),
+  { now = Date.now(), emit }: WriteOptions = {},
 ): Promise<{ threadId: string; resolvedAt: number | null }> {
   const c = await owned(DB, id);
   const resolvedAt = resolved ? now : null;
   await DB.prepare('UPDATE comments SET resolved_at = ?, resolved_by = ? WHERE id = ?')
     .bind(resolvedAt, resolved ? actor.id : null, c.thread_id)
     .run();
+  emit?.({
+    type: resolved ? 'comment.resolved' : 'comment.reopened',
+    threadId: c.thread_id,
+    pageId: c.page_id,
+    actorId: actor.id,
+    at: now,
+  });
   return { threadId: c.thread_id, resolvedAt };
 }

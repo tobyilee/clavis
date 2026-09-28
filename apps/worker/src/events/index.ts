@@ -31,6 +31,21 @@ export type PageEvent =
       at: number;
     }
   | {
+      type: 'comment.created';
+      commentId: string;
+      threadId: string;
+      pageId: string;
+      actorId: string;
+      at: number;
+    }
+  | {
+      type: 'comment.resolved' | 'comment.reopened';
+      threadId: string;
+      pageId: string;
+      actorId: string;
+      at: number;
+    }
+  | {
       /** A page's text from before history began (D-54): stored, not announced. */
       type: 'revision.baseline';
       pageId: string;
@@ -41,7 +56,7 @@ export type PageEvent =
 /** An event as it travels on the queue: no page text (messages are billed per 64KB). */
 export type QueuedEvent =
   | Omit<Extract<PageEvent, { type: 'page.saved' }>, 'content'>
-  | Extract<PageEvent, { type: 'page.trashed' | 'page.restored' }>;
+  | Exclude<PageEvent, { type: 'page.saved' | 'revision.baseline' }>;
 
 export type Emit = (event: PageEvent) => void;
 
@@ -82,9 +97,8 @@ export function eventSink(env: Env, ctx: Pick<ExecutionContext, 'waitUntil'>): E
   };
 }
 
-/** Work run by the queue consumer for each event. Later steps register theirs here. */
+/** Work run by the queue consumer for each event (listed in events/handlers.ts). */
 export type EventHandler = (env: Env, event: QueuedEvent) => Promise<void>;
-export const EVENT_HANDLERS: EventHandler[] = [];
 
 /**
  * The queue consumer. Each message is handled on its own: one that fails is retried (up to
@@ -93,7 +107,7 @@ export const EVENT_HANDLERS: EventHandler[] = [];
 export async function consumeEvents(
   batch: MessageBatch<QueuedEvent>,
   env: Env,
-  handlers: readonly EventHandler[] = EVENT_HANDLERS,
+  handlers: readonly EventHandler[],
 ): Promise<void> {
   for (const message of batch.messages) {
     try {

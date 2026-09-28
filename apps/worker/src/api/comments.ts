@@ -6,6 +6,7 @@ import {
 } from '@clavis/shared/schema';
 import { createRoute, z } from '@hono/zod-openapi';
 import { requireRole } from '../auth/middleware';
+import { emitFor } from '../events';
 import {
   addComment,
   deleteComment,
@@ -76,7 +77,9 @@ comments.openapi(
   }),
   async (c) =>
     c.json(
-      await addComment(c.env.DB, c.get('actor'), c.req.valid('param').ref, c.req.valid('json')),
+      await addComment(c.env.DB, c.get('actor'), c.req.valid('param').ref, c.req.valid('json'), {
+        emit: emitFor(c),
+      }),
       201,
     ),
 );
@@ -148,6 +151,11 @@ for (const [action, resolved] of [
       responses: { 200: json(Resolution, 'Thread state'), 404: problemResponse('Not found') },
     }),
     async (c) =>
-      c.json(await setResolved(c.env.DB, c.get('actor'), c.req.valid('param').id, resolved), 200),
+      c.json(
+        await setResolved(c.env.DB, c.get('actor'), c.req.valid('param').id, resolved, {
+          emit: emitFor(c),
+        }),
+        200,
+      ),
   );
 }

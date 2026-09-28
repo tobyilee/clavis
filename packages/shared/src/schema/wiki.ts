@@ -443,3 +443,50 @@ export const HomeSchema = z.object({
   openComments: z.array(PageListItemSchema),
 });
 export type Home = z.infer<typeof HomeSchema>;
+
+/** An in-app notification (D-57). While unread, repeats on one page are counted here. */
+export const NotificationSchema = z.object({
+  id: z.string(),
+  kind: z.enum(['page.changed', 'comment', 'mention']),
+  page: PageRefSchema.extend({ spaceKey: z.string() }),
+  /** The latest person or agent. */
+  actor: ActorRefSchema,
+  count: z.number().int(),
+  firstAt: z.number(),
+  lastAt: z.number(),
+  readAt: z.number().nullable(),
+  /** comment, mention: the latest comment. */
+  commentId: z.string().nullable(),
+  /** page.changed: compare fromRevision with toRevision to see what changed. */
+  fromRevision: z.number().int().nullable(),
+  toRevision: z.number().int().nullable(),
+});
+export type Notification = z.infer<typeof NotificationSchema>;
+
+export const NotificationListSchema = z.object({
+  unread: z.number().int(),
+  /** No "page changed" notifications for edits by agents. */
+  muteAgentEdits: z.boolean(),
+  notifications: z.array(NotificationSchema),
+});
+export type NotificationList = z.infer<typeof NotificationListSchema>;
+
+export const MarkReadSchema = z.object({
+  /** Omit to mark everything read. */
+  ids: z.array(z.string()).max(200).optional(),
+});
+
+export const NotificationSettingsSchema = z.object({ muteAgentEdits: z.boolean() });
+
+/** Whether you hear about a page, and why (N2). A mute wins over every reason. */
+export const WatchStateSchema = z.object({
+  watching: z.boolean(),
+  muted: z.boolean(),
+  reason: z.enum(['watch', 'creator', 'owner', 'commenter']).nullable(),
+});
+export type WatchState = z.infer<typeof WatchStateSchema>;
+
+export const SetWatchSchema = z.object({
+  /** watch: always notify · mute: never · null: back to the automatic reasons. */
+  mode: z.enum(['watch', 'mute']).nullable(),
+});

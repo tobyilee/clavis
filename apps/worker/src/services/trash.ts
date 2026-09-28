@@ -201,6 +201,8 @@ export async function purgeTrash(
     DB.prepare(`DELETE FROM comments WHERE page_id ${inIds}`).bind(idsJson),
     DB.prepare(`DELETE FROM favorites WHERE page_id ${inIds}`).bind(idsJson),
     DB.prepare(`DELETE FROM page_views WHERE page_id ${inIds}`).bind(idsJson),
+    DB.prepare(`DELETE FROM notifications WHERE page_id ${inIds}`).bind(idsJson),
+    DB.prepare(`DELETE FROM watches WHERE page_id ${inIds}`).bind(idsJson),
     DB.prepare(`DELETE FROM page_links WHERE from_page_id ${inIds}`).bind(idsJson),
     DB.prepare(`UPDATE page_links SET to_page_id = NULL WHERE to_page_id ${inIds}`).bind(idsJson),
     DB.prepare(`UPDATE spaces SET home_page_id = NULL WHERE home_page_id ${inIds}`).bind(idsJson),

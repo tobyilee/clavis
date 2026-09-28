@@ -22,6 +22,8 @@ export const actors = sqliteTable('actors', {
   locale: text('locale').notNull().default('ko'),
   createdAt: createdAt(),
   disabledAt: integer('disabled_at'),
+  /** 1 = no "page changed" notifications for edits by agents (N5). */
+  muteAgentEdits: integer('mute_agent_edits').notNull().default(0),
 });
 
 export const apiTokens = sqliteTable('api_tokens', {
@@ -266,6 +268,64 @@ export const pageViews = sqliteTable(
   (t) => [
     primaryKey({ columns: [t.actorId, t.pageId] }),
     index('page_views_recent').on(t.actorId, t.viewedAt),
+  ],
+);
+
+/**
+ * A person's explicit choice for one page (N2): `watch` adds it to their notifications,
+ * `mute` silences it even when they would be notified anyway (creator, owner, commenter).
+ */
+export const watches = sqliteTable(
+  'watches',
+  {
+    actorId: text('actor_id')
+      .notNull()
+      .references(() => actors.id),
+    pageId: text('page_id')
+      .notNull()
+      .references(() => pages.id),
+    mode: text('mode', { enum: ['watch', 'mute'] }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.actorId, t.pageId] }), index('watches_page').on(t.pageId)],
+);
+
+/**
+ * In-app notifications (D-57). Written by the event queue consumer. While unread, one row
+ * per recipient, kind and page absorbs repeats (N5: "Adam edited this 5 times"): the unique
+ * index covers unread rows only, so a read row lets the next one start fresh.
+ */
+export const notifications = sqliteTable(
+  'notifications',
+  {
+    id: text('id').primaryKey(),
+    recipientId: text('recipient_id')
+      .notNull()
+      .references(() => actors.id),
+    /** page.changed | comment | mention */
+    kind: text('kind').notNull(),
+    pageId: text('page_id')
+      .notNull()
+      .references(() => pages.id),
+    /** The latest actor. */
+    actorId: text('actor_id')
+      .notNull()
+      .references(() => actors.id),
+    /** comment, mention: the latest comment. */
+    commentId: text('comment_id'),
+    /** page.changed: the revision before the first unread change, and the latest one. */
+    fromRevision: integer('from_revision'),
+    toRevision: integer('to_revision'),
+    count: integer('count').notNull().default(1),
+    firstAt: integer('first_at').notNull(),
+    lastAt: integer('last_at').notNull(),
+    readAt: integer('read_at'),
+  },
+  (t) => [
+    uniqueIndex('notifications_unread')
+      .on(t.recipientId, t.kind, t.pageId)
+      .where(sql`${t.readAt} IS NULL`),
+    index('notifications_recent').on(t.recipientId, t.lastAt),
   ],
 );
 

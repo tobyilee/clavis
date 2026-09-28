@@ -17,6 +17,7 @@ import type { Actor } from '../services/actors';
 import { addComment, listThreads, openThreadCount, setResolved } from '../services/comments';
 import { ServiceError } from '../services/errors';
 import { lintContent } from '../services/links';
+import { listNotifications, markRead } from '../services/notifications';
 import {
   createPage,
   deletePage,
@@ -59,6 +60,9 @@ Comments
 - read_page shows open_comments=N. list_comments shows review threads from people and
   agents. When you address one in the page, reply with add_comment (replyTo) saying what
   you changed, then resolve_comment. Ask questions with add_comment instead of guessing.
+- People call you with @mentions in comments. list_notifications shows the unread ones
+  (page, comment id): read the page's comments, do what was asked, reply, then
+  mark_notifications_read. Mention a person as @name.
 - Link pages with [[Page title]] or [[SPACEKEY:Page title]]; attachments with
   ![alt](attachments/file.png).
 - Warnings do not block a save, but fix them when you can; lint_markdown checks a draft.
@@ -248,6 +252,16 @@ const INPUT = {
     }),
   ),
   read_revision: cached(z.object({ page: pageArg, revision: z.number().int().positive() })),
+  list_notifications: cached(
+    z.object({
+      all: z.boolean().optional().describe('Include ones already read (default: unread only)'),
+    }),
+  ),
+  mark_notifications_read: cached(
+    z.object({
+      ids: z.array(z.string()).optional().describe('Notification ids; omit to mark all read'),
+    }),
+  ),
   restore_revision: cached(
     z.object({
       page: pageArg,
@@ -502,6 +516,42 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '', emit?: Emit)
   );
 
   server.registerTool(
+    'list_notifications',
+    {
+      title: 'List my notifications',
+      description:
+        'Where you were @mentioned (and, for people, page changes and comments), newest first.',
+      inputSchema: INPUT.list_notifications,
+      annotations: { readOnlyHint: true },
+    },
+    async ({ all }) =>
+      guard(async () => {
+        const r = await listNotifications(DB, actor, { unreadOnly: !all });
+        if (r.notifications.length === 0)
+          return text(all ? 'No notifications.' : 'No unread notifications.');
+        const lines = r.notifications.map(
+          (n) =>
+            `- [${n.id}] ${n.kind}${n.count > 1 ? ` x${n.count}` : ''} by ${n.actor.name} on ` +
+            `${n.page.spaceKey}/${n.page.shortId} "${n.page.title}"` +
+            `${n.commentId ? ` comment=${n.commentId}` : ''}` +
+            `${n.toRevision ? ` r${n.fromRevision}->r${n.toRevision}` : ''}${n.readAt ? ' (read)' : ''}`,
+        );
+        return text([`${r.unread} unread`, ...lines].join('\n'));
+      }),
+  );
+
+  server.registerTool(
+    'mark_notifications_read',
+    {
+      title: 'Mark notifications read',
+      description: 'After handling them. Omit ids to mark all read.',
+      inputSchema: INPUT.mark_notifications_read,
+      annotations: { idempotentHint: true },
+    },
+    async ({ ids }) => guard(async () => text(`Marked ${await markRead(DB, actor, ids)} read.`)),
+  );
+
+  server.registerTool(
     'search_pages',
     {
       title: 'Search pages',
@@ -603,7 +653,13 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '', emit?: Emit)
     },
     async ({ page, body, replyTo, section }) =>
       guard(async () => {
-        const c = await addComment(DB, actor, page, { body, replyTo, sectionId: section });
+        const c = await addComment(
+          DB,
+          actor,
+          page,
+          { body, replyTo, sectionId: section },
+          { emit },
+        );
         return text(`Added comment ${c.id}${replyTo ? ` in thread ${c.threadId}` : ''}.`);
       }),
   );
@@ -620,7 +676,7 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '', emit?: Emit)
     },
     async ({ comment, reopen }) =>
       guard(async () => {
-        const r = await setResolved(DB, actor, comment, !reopen);
+        const r = await setResolved(DB, actor, comment, !reopen, { emit });
         return text(`Thread ${r.threadId} ${reopen ? 'reopened' : 'resolved'}.`);
       }),
   );

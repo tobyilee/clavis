@@ -6,6 +6,7 @@ import { docs } from './docs';
 import { health } from './health';
 import { home } from './home';
 import { me } from './me';
+import { notifications } from './notifications';
 import { pages } from './pages';
 import { quality } from './quality';
 import { revisions } from './revisions';
@@ -32,6 +33,7 @@ export function buildApi() {
     health,
     me,
     home,
+    notifications,
     admin,
     spaces,
     pages,

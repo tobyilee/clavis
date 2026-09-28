@@ -1,6 +1,8 @@
 import { createApp } from './app';
 import { runBackupStep } from './backup/backup';
 import { consumeEvents, type QueuedEvent } from './events';
+import { EVENT_HANDLERS } from './events/handlers';
+import { pruneNotifications } from './services/notifications';
 import { purgeTrash } from './services/trash';
 
 const app = createApp();
@@ -15,6 +17,7 @@ export default {
       (async () => {
         const purged = await purgeTrash(env.DB, env.FILES, now);
         if (purged > 0) console.log(JSON.stringify({ event: 'trash-purge', purged }));
+        await pruneNotifications(env.DB, now);
         const { state, wrote, pruned } = await runBackupStep(env, new Date(now));
         if (wrote || pruned.length > 0) {
           console.log(JSON.stringify({ event: 'backup', wrote, pruned, ...state }));
@@ -23,6 +26,6 @@ export default {
     );
   },
   async queue(batch, env) {
-    await consumeEvents(batch as MessageBatch<QueuedEvent>, env);
+    await consumeEvents(batch as MessageBatch<QueuedEvent>, env, EVENT_HANDLERS);
   },
 } satisfies ExportedHandler<Env>;

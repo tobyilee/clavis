@@ -6,6 +6,8 @@ const app = createApp();
 export async function resetDb() {
   await env.DB.batch(
     [
+      'notifications',
+      'watches',
       'favorites',
       'page_views',
       'templates',
