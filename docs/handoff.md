@@ -1,6 +1,6 @@
 # Clavis — 작업 인수인계 (Handoff)
 
-> 마지막 갱신: 2026-09-28 · 기준 커밋: `02b01fd` (main, 운영 배포 완료)
+> 마지막 갱신: 2026-09-28 · 기준 커밋: `27323fa` (main, **push 전** — 운영은 `c8c470f`까지 배포)
 > 새 장비에서 Claude Code를 시작하면 **"docs/handoff.md 읽고 이어서 진행해"**라고 말하면 된다.
 > 이 문서는 이전 장비의 대화 기록·Claude 메모리 없이도 이어서 작업할 수 있도록, 거기에만 있던 규칙과 요령까지 담는다.
 
@@ -12,7 +12,7 @@
 |---|---|---|
 | Phase 0 — 기반·기술 검증 | ✅ 완료 | [`02-phase0-plan.md`](./02-phase0-plan.md) |
 | Phase 1 — MVP | ✅ 완료 | [`03-phase1-plan.md`](./03-phase1-plan.md) |
-| **Phase 2 — 팀 생산성 & AI 연동** | 🔶 **진행 중 (Step 0~5 완료)** | [`04-phase2-plan.md`](./04-phase2-plan.md) §9에 Step별 결과 |
+| **Phase 2 — 팀 생산성 & AI 연동** | 🔶 **진행 중 (Step 0~6 완료)** | [`04-phase2-plan.md`](./04-phase2-plan.md) §9에 Step별 결과 |
 
 Phase 2 진행 현황 (결정 D-44~D-53은 모두 추천안으로 확정, [`decisions.md`](./decisions.md)):
 
@@ -25,19 +25,20 @@ Phase 2 진행 현황 (결정 D-44~D-53은 모두 추천안으로 확정, [`deci
 | 4 | Space 규칙 설정 화면, 커스텀 템플릿, 사람용 호출 한도 600회/분 | `1e4d037` |
 | 5 | 홈(즐겨찾기·최근 본·최근 변경·내 문서 댓글), `.md` 원본, `llms.txt`, AI용 복사 | `2402d2e` |
 | – | 수정: 다크 모드에서 에디터 커서가 안 보임 + 편집 화면 진입 시 자동 포커스 | `02b01fd` |
+| – | 수정: 아이폰에서 입력칸을 누르면 화면이 확대돼 저장 버튼이 가려짐(터치 화면은 입력칸 16px) | `c8c470f` |
+| 6 | 모바일 편집: 키보드 위 서식 툴바, 사진 첨부(긴 변 2000px JPEG), 속성·문제 시트, 편집 화면을 키보드 위 영역에 고정 | `27323fa` |
 
-- 모든 커밋은 push·배포 완료, CI 통과. 운영 D1에 migration `0000`~`0007` 적용됨.
-- 테스트: shared 59 · web 12 · worker 109 · E2E 9개, 모두 통과.
+- `c8c470f`까지 push·배포 완료, CI 통과. **`27323fa`(Step 6)는 아직 push 전.** 운영 D1에 migration `0000`~`0007` 적용됨(Step 6은 migration 없음).
+- 테스트: shared 59 · web 23 · worker 109 · E2E 9개, 모두 통과.
 
 ## 2. 다음 할 일
 
-### 바로 다음: Phase 2 **Step 6 — 모바일 편집** (계획서 §5 Step 6)
-- **사용자에게 먼저 물을 것**: 휴대폰으로 편집할 때 불편했던 점 목록(계획의 U2). 따로 없으면 기본안으로 진행.
-- 기본안: K1 키보드 위 서식 툴바(헤딩·굵게·목록·체크박스·링크·`[[`·코드) · K2 카메라/사진 첨부(긴 변 2000px로 줄여 업로드) · K3 저장 버튼 고정, 속성(frontmatter)을 아래 시트로, lint 문제 수 배지.
-- 모바일에서는 에디터 자동 포커스를 하지 않는다(키보드가 가림) — `02b01fd`에서 `(pointer: coarse)`로 구분.
+### 바로 다음: Step 6 실기기 확인 (사용자)
+- push·배포 후 아이폰에서: 본문을 누르면 툴바가 키보드 바로 위에 붙고 제목·저장이 위에 남는지, 서식 버튼을 눌러도 키보드가 내려가지 않는지, 사진 버튼으로 카메라·보관함 둘 다 되는지.
+- 키보드 동작은 자동화로 확인할 수 없어 가짜 `visualViewport`로만 검증했다(Chromium·WebKit, 320·390px). 어긋나면 `lib/viewport.ts`(`--vv-top`·`--vv-height`)와 `page-editor.tsx` 최상위 `max-md:` 클래스부터 본다.
 
 ### 그다음: **Step 7 — 마무리**
-- Z1 E2E 추가(모바일 툴바 등, 전체 6~8개 수준 유지 — 현재 9개), Z2 **운영 CPU 실측**(섹션 저장 100KB가 가장 빠듯: getPage + 저장 파이프라인), Z3 `01-architecture.md` v0.4 + 가이드 갱신, Z4 Exit 점검(§2 체크리스트).
+- Z1 E2E 추가(모바일 툴바는 Step 6에서 모바일 테스트에 넣음, 전체 6~8개 수준 유지 — 현재 9개), Z2 **운영 CPU 실측**(섹션 저장 100KB가 가장 빠듯: getPage + 저장 파이프라인), Z3 `01-architecture.md` v0.4 + 가이드 갱신, Z4 Exit 점검(§2 체크리스트).
 
 ### 사용자 쪽 대기 항목
 - **U3**: Hermes로 섹션 추가(`update_section` append)·댓글 반영 흐름 실사용 확인 → 결과를 계획서 Step 2·3 행(“S5 대기”)에 기록.
@@ -98,6 +99,8 @@ gh auth status                    # CI 확인용
 - Cron 변경은 반영까지 30분 이상 걸릴 수 있다 → 기다리지 말고 같은 함수를 임시 엔드포인트로 호출해 검증 후 제거.
 - `run_worker_first`: `/api/*`, `/mcp`, `/files/*`, `/s/*.md`, `/s/*/llms.txt`, `/llms.txt`만 Worker, 나머지는 SPA.
 - 호출 한도: 에이전트·비인증 120회/분(`API_RATE_LIMITER`), 사람 600회/분(`HUMAN_RATE_LIMITER`).
+- E2E의 모바일 프로젝트(Pixel 7, Chromium 에뮬레이션)에서는 `keyboard.type`의 Enter가 가끔 줄바꿈을 잃는다(CodeMirror의 Android 입력 처리 — 실제 기기와 무관). 모바일 테스트에서는 여러 줄 입력에 기대지 말고 결과 텍스트만 확인한다.
+- Playwright를 올리면 캐시된 브라우저가 맞지 않을 수 있다 → `pnpm exec playwright install chromium webkit`(WebKit은 iPhone 확인용).
 - OpenAPI는 빌드 시 생성: 라우트를 바꾸면 `pnpm --filter @clavis/worker openapi` (안 하면 테스트가 실패).
 - 스키마 변경: `apps/worker/src/db/schema.ts` 수정 → `pnpm --filter @clavis/worker db:generate --name <이름>` → 테스트 `resetDb` 목록(`test/helpers.ts`)과 휴지통 영구 삭제(`services/trash.ts`)에 새 테이블 반영.
 
