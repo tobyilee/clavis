@@ -18,7 +18,7 @@
 
 - URL: `https://clavis.crawl-proxy.workers.dev/mcp`
 - 전송 방식: Streamable HTTP (Stateless)
-- 도구: §5 참고 (읽기 6개, 쓰기 4개)
+- 도구: §5 참고 (editor 에이전트는 19개, viewer는 쓰기 도구를 뺀 12개)
 
 ## 3. Hermes Agent 설정
 
@@ -152,3 +152,4 @@ curl -X POST "https://clavis.crawl-proxy.workers.dev/api/v1/pages/<shortId>/atta
 | 401 `invalid-token` | Clavis 토큰이 틀렸거나 폐기됨 |
 | 403 `approval-pending` / `forbidden` | 역할 부족 (에이전트는 editor/viewer) |
 | 429 | 호출 한도 초과, `Retry-After` 초 후 재시도 |
+| 읽기 도구만 보임 (`create_page`·`update_section` 등이 없음) | ① 에이전트 역할이 viewer — 관리 화면에서 확인 ② Hermes `config.yaml`의 `mcp_servers.clavis.tools.include`/`exclude`가 쓰기 도구를 거름 — 지우거나 `"*"`로 ③ 설정 변경 뒤 다시 읽지 않음 — `/reload-mcp` 또는 새 세션 |
