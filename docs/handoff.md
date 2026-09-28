@@ -44,7 +44,7 @@ Phase 2 진행 현황 (결정 D-44~D-53은 모두 추천안으로 확정, [`deci
 
 - Step별 결과는 계획서 §9에 적고, 이 문서 §1·§2를 갱신한다.
 - 설계의 핵심 제약(계획서 §7): `waitUntil`의 CPU도 요청의 10ms에 포함 → CPU가 드는 뒤처리는 Queues 소비자로. Vectorize 무료 저장량은 1024차원 벡터 약 4,880개.
-- CPU를 다시 잴 때: [`04-phase2-plan.md`](./04-phase2-plan.md) §9 "Z2 CPU 실측 상세"의 방법 그대로. 운영 D1에 임시 페이지를 만들고 지우므로 **시작 전 사용자 확인**.
+- CPU를 다시 잴 때: [`04-phase2-plan.md`](./04-phase2-plan.md) §9 "Z2 CPU 실측 상세"의 방법 그대로(단, 임시 페이지는 CLAVIS가 아니라 **SANDBOX** 아래에). 운영 D1에 임시 페이지를 만들고 지우므로 **시작 전 사용자 확인**.
 
 ## 3. 작업 규칙 (사용자 지시)
 
@@ -128,5 +128,6 @@ gh auth status                    # CI 확인용
 
 ## 9. 운영 데이터 현황
 
-- Space: CLAVIS("Clavis 사용 안내", "MCP 연결"), TEAM(홈 "팀", ADR1·ADR2 등 사용자 테스트 문서). 휴지통에 "주간 회의 2026-09-27"(hermes 작성), "아키텍처".
+- Space: CLAVIS("Clavis 사용 안내", "MCP 연결"), **SANDBOX**(샌드박스 — 테스트용), TEAM(보관됨 — 목록에 안 보임, 사용자 테스트 문서).
+- **운영에서 테스트·실측할 때는 SANDBOX Space를 쓴다**(사용자 지시, 2026-09-28). 임시 페이지·Slack 채널 연결 확인·CPU 실측 모두 SANDBOX에서. CLAVIS에는 만들지 않는다.
 - 사람 관리자 1명(최초 로그인 사용자), 에이전트 `Adam`(editor, Hermes Agent로 실행 — 2026-09-28에 표시 이름을 `hermes`에서 바꿈, 토큰은 그대로이고 `.agent.env`의 키 이름도 `CLAVIS_TOKEN_HERMES` 그대로). 관리 화면에는 이름 변경 기능이 없어 D1 `actors.name`을 직접 고쳤다.
