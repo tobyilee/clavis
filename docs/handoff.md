@@ -13,6 +13,7 @@
 | Phase 0 — 기반·기술 검증 | ✅ 완료 | [`02-phase0-plan.md`](./02-phase0-plan.md) |
 | Phase 1 — MVP | ✅ 완료 | [`03-phase1-plan.md`](./03-phase1-plan.md) |
 | Phase 2 — 팀 생산성 & AI 연동 | ✅ 완료 (2026-09-28) | [`04-phase2-plan.md`](./04-phase2-plan.md) §9에 Step별 결과 |
+| **Phase 3 — 안전한 편집·알림·의미 검색** | 🔶 **진행 중 (Step 0부터)** | [`05-phase3-plan.md`](./05-phase3-plan.md) |
 
 Phase 2 진행 현황 (결정 D-44~D-53은 모두 추천안으로 확정, [`decisions.md`](./decisions.md)):
 
@@ -37,13 +38,11 @@ Phase 2 진행 현황 (결정 D-44~D-53은 모두 추천안으로 확정, [`deci
 
 ## 2. 다음 할 일
 
-Phase 2가 끝났다. 다음은 **Phase 3 계획서**(`docs/05-phase3-plan.md`)를 쓰는 것부터다.
+**Phase 3 진행 중** — 계획서 [`05-phase3-plan.md`](./05-phase3-plan.md)(결정 D-54~D-63 확정). Step 0(정비)부터: A0 마이그레이션 계획, A1 에이전트 이름 변경, A2 저장 이벤트 훅·큐.
 
-- 범위 후보: [`00-concept.md`](./00-concept.md) §14 Phase 3 — 시맨틱 검색(Workers AI + Vectorize), Watch/알림·Webhook·Slack, (필요 시) 버전 히스토리·Space 단위 권한·Git 내보내기. Phase 2에서 제외한 것([`04-phase2-plan.md`](./04-phase2-plan.md) §3 "제외"): `@멘션` 알림, 인라인 댓글, 사용자 정의 문서 유형 등.
-- 진행 방식은 Phase 1·2와 같다(§3 "계획 먼저"): 범위·Step·결정 사항(추천안 포함)을 계획서로 쓰고 사용자 검토 → 확정 후 구현.
-- 무료 플랜 제약(§7)이 설계를 좌우한다. 특히 알림은 발송 수단(이메일·Slack Webhook)과 Cron 실행당 CPU 10ms, 시맨틱 검색은 Workers AI·Vectorize 무료 한도를 먼저 확인한다.
-- 관리 화면에 에이전트 **이름 변경** 기능이 없다(`PATCH /admin/actors`는 역할·비활성화만). 필요해지면 Phase 3에 넣는다.
-- CPU를 다시 잴 때(규칙·기능 추가 등): 계획서 §9 "Z2 CPU 실측 상세"의 방법 그대로. 운영 D1에 임시 페이지를 만들고 지우므로 **시작 전 사용자 확인**.
+- Step별 결과는 계획서 §9에 적고, 이 문서 §1·§2를 갱신한다.
+- 설계의 핵심 제약(계획서 §7): `waitUntil`의 CPU도 요청의 10ms에 포함 → CPU가 드는 뒤처리는 Queues 소비자로. Vectorize 무료 저장량은 1024차원 벡터 약 4,880개.
+- CPU를 다시 잴 때: [`04-phase2-plan.md`](./04-phase2-plan.md) §9 "Z2 CPU 실측 상세"의 방법 그대로. 운영 D1에 임시 페이지를 만들고 지우므로 **시작 전 사용자 확인**.
 
 ## 3. 작업 규칙 (사용자 지시)
 
