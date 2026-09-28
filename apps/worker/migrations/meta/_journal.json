@@ -71,6 +71,13 @@
       "when": 1790580691857,
       "tag": "0009_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1790581623049,
+      "tag": "0010_webhooks",
+      "breakpoints": true
     }
   ]
 }

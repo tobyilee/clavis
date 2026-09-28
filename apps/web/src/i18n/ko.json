@@ -318,7 +318,8 @@
       "info": "정보",
       "warning": "경고",
       "error": "오류"
-    }
+    },
+    "channels": "알림 채널"
   },
   "templates": {
     "help": "새 페이지를 만들 때 고를 수 있는 이 팀의 템플릿입니다. 기본 템플릿 7종은 항상 함께 나옵니다.",
@@ -390,5 +391,33 @@
       "commenter": "댓글을 달아 알림을 받는 중"
     },
     "muted": "이 문서 알림을 껐습니다"
+  },
+  "channels": {
+    "help": "이 Space의 문서·댓글 소식을 Slack 채널이나 다른 시스템(Webhook)으로 보냅니다. 에이전트가 같은 문서를 연달아 고치면 Slack에는 5분에 한 번만 알립니다.",
+    "add": "채널 추가",
+    "kind": "종류",
+    "json": "Webhook (JSON)",
+    "url": "URL",
+    "addButton": "추가",
+    "events": "보낼 소식",
+    "secretNote": "URL은 비밀번호처럼 다룹니다. 저장 후에는 일부만 보입니다.",
+    "enabled": "켜짐",
+    "test": "테스트 전송",
+    "delete": "채널 삭제",
+    "confirmDelete": "이 채널을 삭제할까요?",
+    "testOk": "보냈습니다. 채널에서 확인해 보세요.",
+    "testFailed": "보내지 못했습니다 ({{status}}) {{error}}",
+    "secret": "서명 키 (X-Clavis-Signature):",
+    "deliveries": "최근 전달",
+    "ping": "테스트",
+    "attempt": "{{n}}번째 시도",
+    "event": {
+      "page_created": "새 문서",
+      "page_updated": "문서 수정",
+      "page_deleted": "휴지통으로 이동",
+      "page_restored": "휴지통에서 복원",
+      "comment_created": "새 댓글",
+      "comment_resolved": "댓글 해결"
+    }
   }
 }

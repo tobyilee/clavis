@@ -45,6 +45,8 @@
   "triggers": { "crons": ["*/2 17-18 * * *"] },
   "vars": {
     "APP_VERSION": "0.0.0",
+    // Links in Slack and webhook messages, which are built away from any request.
+    "APP_ORIGIN": "https://clavis.crawl-proxy.workers.dev",
     // Cloudflare Access (D-05): public identifiers used to verify the Cf-Access-Jwt-Assertion JWT.
     "ACCESS_TEAM_DOMAIN": "https://red-voice-3160.cloudflareaccess.com",
     "ACCESS_AUD": "ad5290676f1e5594abd4f7e92d3e30582c0ae7f99f65b98a5781f89226f6b987"

@@ -21,17 +21,18 @@ import { useTranslation } from 'react-i18next';
 import { Notice } from '@/components/notice';
 import { Button } from '@/components/ui/button';
 import { Input, Select, Textarea } from '@/components/ui/input';
+import { WebhookSettings } from '@/components/webhook-settings';
 import { useViolationMessage } from '@/editor/use-lint';
 import { apiSend, isApiError } from '@/lib/api';
 import { useCanEdit, useMe } from '@/lib/me';
 import { spaceQuery } from '@/lib/queries';
 import { templatesQuery } from '@/lib/templates';
 
-type Tab = 'rules' | 'templates';
+type Tab = 'rules' | 'templates' | 'channels';
 
 export const Route = createFileRoute('/s/$key/settings')({
   validateSearch: (s: Record<string, unknown>): { tab?: Tab } =>
-    s.tab === 'templates' ? { tab: 'templates' } : {},
+    s.tab === 'templates' || s.tab === 'channels' ? { tab: s.tab } : {},
   component: Settings,
 });
 
@@ -40,6 +41,7 @@ function Settings() {
   const { key } = Route.useParams();
   const { tab = 'rules' } = Route.useSearch();
   const space = useQuery(spaceQuery(key));
+  const isAdmin = useMe().data?.role === 'admin';
   if (space.isError) return <Notice title={t('space.notFound')} />;
   if (!space.data) return null;
 
@@ -49,7 +51,10 @@ function Settings() {
         <Settings2 className="size-6" /> {t('settings.title', { name: space.data.name })}
       </h1>
       <nav className="mt-4 flex gap-1 border-b" aria-label={t('settings.title', { name: '' })}>
-        {(['rules', 'templates'] as const).map((id) => (
+        {(isAdmin
+          ? (['rules', 'templates', 'channels'] as const)
+          : (['rules', 'templates'] as const)
+        ).map((id) => (
           <Link
             key={id}
             to="/s/$key/settings"
@@ -66,7 +71,9 @@ function Settings() {
           </Link>
         ))}
       </nav>
-      {tab === 'rules' ? <RulesForm space={space.data} /> : <Templates spaceKey={space.data.key} />}
+      {tab === 'rules' && <RulesForm space={space.data} />}
+      {tab === 'templates' && <Templates spaceKey={space.data.key} />}
+      {tab === 'channels' && isAdmin && <WebhookSettings spaceKey={space.data.key} />}
     </div>
   );
 }

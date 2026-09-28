@@ -60,7 +60,9 @@ describe('write events (Phase 3 A2)', () => {
       ['page.trashed', '', 0],
       ['page.restored', '', 0],
     ]);
-    expect(sent.every((e) => e.actorId === actorId && !('content' in e))).toBe(true);
+    expect(sent.every((e) => 'actorId' in e && e.actorId === actorId && !('content' in e))).toBe(
+      true,
+    );
     expect(sent[4]).toMatchObject({ pageIds: [page.id], batchId: trashed.json.batchId });
   });
 

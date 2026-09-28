@@ -275,6 +275,60 @@ export const pageViews = sqliteTable(
  * A person's explicit choice for one page (N2): `watch` adds it to their notifications,
  * `mute` silences it even when they would be notified anyway (creator, owner, commenter).
  */
+/**
+ * A space's outbound channel (D-58, D-60): a Slack Incoming Webhook or any HTTPS endpoint
+ * taking signed JSON. The URL is a secret (Slack's carries its token), so the API masks it.
+ */
+export const webhooks = sqliteTable(
+  'webhooks',
+  {
+    id: text('id').primaryKey(),
+    spaceId: text('space_id')
+      .notNull()
+      .references(() => spaces.id),
+    kind: text('kind', { enum: ['slack', 'json'] }).notNull(),
+    url: text('url').notNull(),
+    /** HMAC-SHA256 key for X-Clavis-Signature (json). */
+    secret: text('secret').notNull(),
+    /** JSON array of event names. */
+    events: text('events').notNull(),
+    enabled: integer('enabled').notNull().default(1),
+    createdBy: text('created_by')
+      .notNull()
+      .references(() => actors.id),
+    createdAt: createdAt(),
+  },
+  (t) => [index('webhooks_space').on(t.spaceId)],
+);
+
+/**
+ * Recent delivery attempts per webhook (the newest 50 are kept). `event_key` identifies the
+ * event, so a retried queue message does not post twice.
+ */
+export const webhookDeliveries = sqliteTable(
+  'webhook_deliveries',
+  {
+    id: text('id').primaryKey(),
+    webhookId: text('webhook_id')
+      .notNull()
+      .references(() => webhooks.id),
+    eventKey: text('event_key').notNull(),
+    event: text('event').notNull(),
+    pageId: text('page_id'),
+    actorId: text('actor_id'),
+    attempt: integer('attempt').notNull(),
+    /** HTTP status, or null when the request itself failed. */
+    status: integer('status'),
+    ok: integer('ok').notNull(),
+    error: text('error'),
+    at: integer('at').notNull(),
+  },
+  (t) => [
+    index('webhook_deliveries_recent').on(t.webhookId, t.at),
+    index('webhook_deliveries_event').on(t.webhookId, t.eventKey),
+  ],
+);
+
 export const watches = sqliteTable(
   'watches',
   {

@@ -6,6 +6,8 @@ const app = createApp();
 export async function resetDb() {
   await env.DB.batch(
     [
+      'webhook_deliveries',
+      'webhooks',
       'notifications',
       'watches',
       'favorites',

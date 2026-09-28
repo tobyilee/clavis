@@ -1,3 +1,5 @@
+import { createServer, type IncomingHttpHeaders } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { expect, test } from '@playwright/test';
 import { createPage, createSpace, ensureSpace, typeAtEnd } from './helpers';
 
@@ -239,6 +241,41 @@ test('space settings: stricter rule and a custom template', async ({ page, reque
   // The space's rule applies in the editor: an H1 is now an error and blocks saving.
   await typeAtEnd(page, '\n# 제목\n');
   await expect(page.getByRole('button', { name: '저장', exact: true })).toBeDisabled();
+
+  // A channel for the space (Phase 3 Step 3): a local receiver gets a signed test message.
+  const received: { headers: IncomingHttpHeaders; body: string }[] = [];
+  const server = createServer((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk;
+    });
+    req.on('end', () => {
+      received.push({ headers: req.headers, body });
+      res.end('ok');
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = (server.address() as AddressInfo).port;
+  try {
+    await page.goto('/s/SET/settings?tab=channels');
+    await page.getByLabel('종류').selectOption('json');
+    await page.getByLabel('URL').fill(`http://127.0.0.1:${port}/hook`);
+    await page.getByRole('button', { name: '추가', exact: true }).click();
+    const channel = page.getByRole('region', { name: /127\.0\.0\.1/ });
+    await expect(channel.getByText(/서명 키/)).toBeVisible();
+    await channel.getByRole('button', { name: '테스트 전송' }).click();
+    await expect(channel.getByRole('status')).toHaveText('보냈습니다. 채널에서 확인해 보세요.');
+    expect(received).toHaveLength(1);
+    expect(received[0]?.headers['x-clavis-event']).toBe('ping');
+    expect(received[0]?.headers['x-clavis-signature']).toMatch(/^sha256=[0-9a-f]{64}$/);
+    expect(JSON.parse(received[0]?.body ?? '')).toMatchObject({
+      event: 'ping',
+      space: { key: 'SET' },
+    });
+    await expect(channel.getByRole('list', { name: '최근 전달' })).toContainText('테스트');
+  } finally {
+    server.close();
+  }
 });
 
 test('home: favorites, recently viewed; raw Markdown and llms.txt', async ({ page, request }) => {

@@ -490,3 +490,56 @@ export const SetWatchSchema = z.object({
   /** watch: always notify · mute: never · null: back to the automatic reasons. */
   mode: z.enum(['watch', 'mute']).nullable(),
 });
+
+/** Events a space's Slack channel or webhook can receive (D-58). */
+export const WEBHOOK_EVENTS = [
+  'page.created',
+  'page.updated',
+  'page.deleted',
+  'page.restored',
+  'comment.created',
+  'comment.resolved',
+] as const;
+export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
+
+export const WebhookDeliverySchema = z.object({
+  event: z.string(),
+  attempt: z.number().int(),
+  /** HTTP status, or null when the request failed (timeout, DNS). */
+  status: z.number().int().nullable(),
+  ok: z.boolean(),
+  error: z.string().nullable(),
+  at: z.number(),
+});
+
+export const WebhookSchema = z.object({
+  id: z.string(),
+  kind: z.enum(['slack', 'json']),
+  /** Masked: the full URL is a secret (Slack's path is its token). */
+  url: z.string(),
+  /** json: key for the X-Clavis-Signature HMAC-SHA256 header. */
+  secret: z.string().nullable(),
+  events: z.array(z.enum(WEBHOOK_EVENTS)),
+  enabled: z.boolean(),
+  createdAt: z.number(),
+  /** The newest delivery attempts. */
+  deliveries: z.array(WebhookDeliverySchema),
+});
+export type Webhook = z.infer<typeof WebhookSchema>;
+
+export const CreateWebhookSchema = z.object({
+  kind: z.enum(['slack', 'json']),
+  url: z.string().trim().url().max(500),
+  events: z.array(z.enum(WEBHOOK_EVENTS)).min(1),
+});
+
+export const UpdateWebhookSchema = z
+  .object({
+    url: z.string().trim().url().max(500).optional(),
+    events: z.array(z.enum(WEBHOOK_EVENTS)).min(1).optional(),
+    enabled: z.boolean().optional(),
+  })
+  .refine(
+    (u) => u.url !== undefined || u.events !== undefined || u.enabled !== undefined,
+    'Nothing to change',
+  );

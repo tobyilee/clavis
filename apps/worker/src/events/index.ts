@@ -56,7 +56,19 @@ export type PageEvent =
 /** An event as it travels on the queue: no page text (messages are billed per 64KB). */
 export type QueuedEvent =
   | Omit<Extract<PageEvent, { type: 'page.saved' }>, 'content'>
-  | Exclude<PageEvent, { type: 'page.saved' | 'revision.baseline' }>;
+  | Exclude<PageEvent, { type: 'page.saved' | 'revision.baseline' }>
+  | WebhookRetry;
+
+/**
+ * A failed webhook delivery, queued again with a delay (D-60). Only the webhook handler acts
+ * on it, so a retry never repeats other work (such as notifications) for the event.
+ */
+export interface WebhookRetry {
+  type: 'webhook.retry';
+  webhookId: string;
+  attempt: number;
+  event: Exclude<QueuedEvent, WebhookRetry>;
+}
 
 export type Emit = (event: PageEvent) => void;
 

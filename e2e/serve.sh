@@ -8,4 +8,4 @@ STATE=../../e2e/.state
 rm -rf "$STATE"
 ./node_modules/.bin/wrangler d1 migrations apply DB --local --persist-to "$STATE" >/dev/null
 exec ./node_modules/.bin/wrangler dev --port 8788 --persist-to "$STATE" \
-  --var DEV_ACCESS_EMAIL:e2e@gmail.com --show-interactive-dev-session=false
+  --var DEV_ACCESS_EMAIL:e2e@gmail.com --var APP_ORIGIN:http://localhost:8788 --show-interactive-dev-session=false

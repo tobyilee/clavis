@@ -15,6 +15,7 @@ import { search } from './search';
 import { sections } from './sections';
 import { spaces } from './spaces';
 import { trash } from './trash';
+import { webhooks } from './webhooks';
 
 export const OPENAPI_CONFIG = {
   openapi: '3.1.0',
@@ -42,6 +43,7 @@ export function buildApi() {
     comments,
     quality,
     trash,
+    webhooks,
     search,
     authoring,
     attachments,

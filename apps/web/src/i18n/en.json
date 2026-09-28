@@ -318,7 +318,8 @@
       "info": "info",
       "warning": "warning",
       "error": "error"
-    }
+    },
+    "channels": "Channels"
   },
   "templates": {
     "help": "Your team's templates to pick from when creating a page. The seven built-in ones are always listed too.",
@@ -393,5 +394,33 @@
       "commenter": "Notified: you commented"
     },
     "muted": "Notifications muted"
+  },
+  "channels": {
+    "help": "Send this space's page and comment news to a Slack channel or another system (webhook). When an agent edits a page several times in a row, Slack hears about it once per 5 minutes.",
+    "add": "Add a channel",
+    "kind": "Kind",
+    "json": "Webhook (JSON)",
+    "url": "URL",
+    "addButton": "Add",
+    "events": "What to send",
+    "secretNote": "Treat the URL like a password. Once saved, only part of it is shown.",
+    "enabled": "On",
+    "test": "Send a test",
+    "delete": "Delete channel",
+    "confirmDelete": "Delete this channel?",
+    "testOk": "Sent. Check the channel.",
+    "testFailed": "Could not send ({{status}}) {{error}}",
+    "secret": "Signing key (X-Clavis-Signature):",
+    "deliveries": "Recent deliveries",
+    "ping": "test",
+    "attempt": "attempt {{n}}",
+    "event": {
+      "page_created": "new page",
+      "page_updated": "page edited",
+      "page_deleted": "moved to trash",
+      "page_restored": "restored from trash",
+      "comment_created": "new comment",
+      "comment_resolved": "comment resolved"
+    }
   }
 }
