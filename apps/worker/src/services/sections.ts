@@ -1,15 +1,16 @@
 import {
   editSection,
-  findSection,
+  locateSection,
   parseSections,
   type Section,
   sectionText,
   updateFrontmatter,
 } from '@clavis/shared/markdown';
-import type { Page, PageMetaPatch, SaveResult, UpdateSectionInput } from '@clavis/shared/schema';
+import type { PageMetaPatch, SaveResult, UpdateSectionInput } from '@clavis/shared/schema';
 import type { Actor } from './actors';
-import { ServiceError } from './errors';
-import { getPage, updatePage } from './pages';
+import { notFound, ServiceError } from './errors';
+import { locatorWhere, parsePageRef } from './page-read';
+import { updatePage } from './pages';
 
 /**
  * Editing part of a page (D-48). The Worker reads the page, edits the Markdown and saves it
@@ -18,9 +19,27 @@ import { getPage, updatePage } from './pages';
  * applied once more to the newer text: the section hash still guards what the caller saw.
  */
 
-function locate(page: Page, ref: string): Section {
-  const sections = parseSections(page.content);
-  const found = findSection(sections, ref);
+/** What a section edit needs of the page. A full getPage also reads tags and ancestors. */
+interface PageText {
+  id: string;
+  revision: number;
+  content: string;
+}
+
+async function readText(DB: D1Database, ref: string): Promise<PageText> {
+  const w = locatorWhere(parsePageRef(ref));
+  const row = await DB.prepare(
+    `SELECT p.id, p.revision, p.content FROM pages p JOIN spaces s ON s.id = p.space_id
+     WHERE ${w.sql} LIMIT 1`,
+  )
+    .bind(...w.binds)
+    .first<PageText>();
+  if (!row) throw notFound('Page');
+  return row;
+}
+
+function locate(page: PageText, ref: string): Section {
+  const found = locateSection(page.content, ref);
   if ('section' in found) return found.section;
   const list = found.candidates.map((s) => `${'#'.repeat(s.level)} ${s.title} (id: ${s.id})`);
   throw found.error === 'ambiguous'
@@ -35,12 +54,12 @@ function locate(page: Page, ref: string): Section {
 }
 
 export async function listSections(DB: D1Database, ref: string) {
-  const page = await getPage(DB, ref);
+  const page = await readText(DB, ref);
   return { revision: page.revision, sections: parseSections(page.content) };
 }
 
 export async function readSection(DB: D1Database, ref: string, section: string) {
-  const page = await getPage(DB, ref);
+  const page = await readText(DB, ref);
   const s = locate(page, section);
   return { revision: page.revision, section: s, content: sectionText(page.content, s) };
 }
@@ -53,10 +72,10 @@ async function saveEdited(
   actor: Actor,
   ref: string,
   pinned: number | undefined,
-  edit: (page: Page) => string,
+  edit: (page: PageText) => string,
 ): Promise<SaveResult> {
   for (let attempt = 0; ; attempt++) {
-    const page = await getPage(DB, ref);
+    const page = await readText(DB, ref);
     if (pinned !== undefined && page.revision !== pinned) {
       throw new ServiceError(409, 'revision-conflict', 'The page was changed by someone else', {
         detail: `Current revision is ${page.revision}. Read the page again and reapply your change.`,

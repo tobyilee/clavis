@@ -115,14 +115,14 @@ describe('sections API (D-48)', () => {
 
   it('appends to a list, and retries once when another save lands in between', async () => {
     const actor = await env.DB.prepare("SELECT * FROM actors WHERE name = 'hermes'").first();
-    // getPage is batch 1, updatePage reads in batch 2 and writes in batch 3: someone else's
-    // save lands right before the first write.
+    // The page text is read with a single statement, then updatePage reads in batch 1 and
+    // writes in batch 2: someone else's save lands right before the first write.
     let batches = 0;
     const racing = new Proxy(env.DB, {
       get(db, prop) {
         if (prop !== 'batch') return Reflect.get(db, prop).bind?.(db) ?? Reflect.get(db, prop);
         return async (stmts: D1PreparedStatement[]) => {
-          if (++batches === 3) {
+          if (++batches === 2) {
             await db
               .prepare(
                 "UPDATE pages SET content = replace(content, '없음', '보류'), revision = revision + 1 WHERE id = ?",

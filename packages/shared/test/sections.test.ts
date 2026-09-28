@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   editSection,
   findSection,
+  locateSection,
   parseSections,
   type Section,
   sectionText,
@@ -58,6 +59,16 @@ describe('findSection', () => {
     // Ids are unique ("메모-초안", "메모-초안-1"); only the heading text can be ambiguous.
     const doc = `${FM}## A\n### 메모 (초안)\n## B\n### 메모 (초안)\n`;
     expect(findSection(parseSections(doc), '메모 (초안)')).toMatchObject({ error: 'ambiguous' });
+  });
+
+  it('locateSection finds the same section and hash without hashing the others', () => {
+    for (const ref of ['참석자', '논의 내용', 'api', '액션-아이템']) {
+      expect(locateSection(DOC, ref)).toEqual({ section: get(DOC, ref) });
+    }
+    expect(locateSection(DOC, '없음')).toMatchObject({
+      error: 'not-found',
+      candidates: [{ id: '참석자' }, { id: '논의-내용' }, { id: 'api' }, { id: '액션-아이템' }],
+    });
   });
 });
 

@@ -47,26 +47,38 @@ function fnv1a(s: string): string {
   return (h >>> 0).toString(16).padStart(8, '0');
 }
 
-export function parseSections(content: string): Section[] {
+/** A section before its hash is computed; hashing reads the whole section text. */
+export type SectionHead = Omit<Section, 'hash'>;
+
+function sectionHeads(content: string): { heads: SectionHead[]; lines: string[] } {
   const split = splitFrontmatter(content);
   const found = headings(scanLines(split.body, split.bodyStartLine));
   const lines = content.split('\n');
   const slugger = new GithubSlugger();
-  return found.map((h, i) => {
+  const heads = found.map((h, i) => {
     const next = found.slice(i + 1).find((n) => n.level <= h.level);
-    const endLine = next ? next.line - 1 : lines.length;
     return {
       id: slugger.slug(renderedText(h.text)),
       level: h.level,
       title: h.text,
       line: h.line,
-      endLine,
-      hash: fnv1a(lines.slice(h.line - 1, endLine).join('\n')),
+      endLine: next ? next.line - 1 : lines.length,
     };
   });
+  return { heads, lines };
 }
 
-export function sectionText(content: string, s: Section): string {
+const withHash = (lines: string[], h: SectionHead): Section => ({
+  ...h,
+  hash: fnv1a(lines.slice(h.line - 1, h.endLine).join('\n')),
+});
+
+export function parseSections(content: string): Section[] {
+  const { heads, lines } = sectionHeads(content);
+  return heads.map((h) => withHash(lines, h));
+}
+
+export function sectionText(content: string, s: SectionHead): string {
   return content
     .split('\n')
     .slice(s.line - 1, s.endLine)
@@ -79,12 +91,12 @@ const normTitle = (t: string) =>
     .trim()
     .toLowerCase();
 
-export type SectionLookup =
-  | { section: Section }
-  | { error: 'not-found' | 'ambiguous'; candidates: Section[] };
+export type SectionLookup<T extends SectionHead = Section> =
+  | { section: T }
+  | { error: 'not-found' | 'ambiguous'; candidates: T[] };
 
 /** Finds a section by id, else by heading text ("액션 아이템" or "## 액션 아이템"). */
-export function findSection(sections: Section[], ref: string): SectionLookup {
+export function findSection<T extends SectionHead>(sections: T[], ref: string): SectionLookup<T> {
   const byId = sections.find((s) => s.id === ref);
   if (byId) return { section: byId };
   const want = normTitle(ref);
@@ -93,6 +105,19 @@ export function findSection(sections: Section[], ref: string): SectionLookup {
   return byTitle.length > 1
     ? { error: 'ambiguous', candidates: byTitle }
     : { error: 'not-found', candidates: sections };
+}
+
+/**
+ * findSection on the page's content, hashing only the section found: an edit needs one hash,
+ * and hashing every section would read the whole page once more (CPU on the Worker).
+ */
+export function locateSection(
+  content: string,
+  ref: string,
+): { section: Section } | Exclude<SectionLookup<SectionHead>, { section: SectionHead }> {
+  const { heads, lines } = sectionHeads(content);
+  const found = findSection(heads, ref);
+  return 'section' in found ? { section: withHash(lines, found.section) } : found;
 }
 
 const HEADING_RE = /^ {0,3}(#{1,6})[ \t]/;
@@ -107,7 +132,7 @@ const LIST_OR_TABLE_RE = /^\s*([-*+][ \t]|\d+[.)][ \t]|\|)/;
  */
 export function editSection(
   content: string,
-  s: Section,
+  s: SectionHead,
   mode: 'replace' | 'append',
   text: string,
 ): string {
