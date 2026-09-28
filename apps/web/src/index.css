@@ -1,32 +1,45 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-/* Colors follow the OS setting (see :root below), so the dark variant does too. */
-@custom-variant dark (@media (prefers-color-scheme: dark));
+/* GitHub's light theme only: the OS dark setting is not followed. `dark:` utilities stay
+   inert (they would need a .dark class nobody sets). */
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --radius: 0.5rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-border: oklch(0.922 0 0);
+  color-scheme: light;
+  --radius: 0.375rem;
+  /* GitHub light (Primer primitives) */
+  --background: #ffffff;
+  --foreground: #1f2328;
+  --card: #ffffff;
+  --card-foreground: #1f2328;
+  --popover: #ffffff;
+  --popover-foreground: #1f2328;
+  --primary: #1f2328;
+  --primary-foreground: #ffffff;
+  --secondary: #f6f8fa;
+  --secondary-foreground: #1f2328;
+  --muted: #f6f8fa;
+  --muted-foreground: #59636e;
+  --accent: #eff2f5;
+  --accent-foreground: #1f2328;
+  --destructive: #d1242f;
+  --border: #d1d9e0;
+  --input: #d1d9e0;
+  --ring: #0969da;
+  --sidebar: #f6f8fa;
+  --sidebar-foreground: #1f2328;
+  --sidebar-border: #d1d9e0;
+  --link: #0969da;
+  /* Editor syntax colors: GitHub's light code colors. */
+  --cm-link: #0969da;
+  --cm-code: #0550ae;
+  --cm-keyword: #cf222e;
+  --cm-string: #0a3069;
+  --cm-number: #0550ae;
+  --font-github:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
   --editor-font-size: 14px;
   /* The on-screen part of the page above a phone keyboard; kept current by useVisualViewportVars. */
   --vv-top: 0px;
@@ -38,32 +51,6 @@
 @media (pointer: coarse) {
   :root {
     --editor-font-size: 16px;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
   }
 }
 
@@ -100,116 +87,77 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: var(--font-github);
   }
 }
 
 /* ── Rendered Markdown ───────────────────────────────────────────── */
 
+/* The page body is GitHub's own Markdown stylesheet (github-markdown-css, light):
+   `.markdown-body` gives GitHub's sizes, spacing, tables, code, alerts and task lists.
+   `.prose-clavis` only adds what Clavis renders on top. */
 .prose-clavis {
-  @apply prose prose-neutral max-w-none dark:prose-invert;
-  --tw-prose-body: var(--foreground);
-  --tw-prose-headings: var(--foreground);
   overflow-wrap: anywhere;
 }
-.prose-clavis :where(h2, h3, h4) {
+.prose-clavis :where(h1, h2, h3, h4) {
   scroll-margin-top: 4.5rem;
 }
-.prose-clavis :where(code):not(:where(pre *)) {
-  @apply rounded bg-muted px-1 py-0.5 font-normal;
+/* Tailwind's reset removes list markers, and GitHub's stylesheet relies on the browser's. */
+.markdown-body ul {
+  list-style: disc;
 }
-.prose-clavis :where(code):not(:where(pre *))::before,
-.prose-clavis :where(code):not(:where(pre *))::after {
-  content: none;
+.markdown-body ol {
+  list-style: decimal;
 }
+.markdown-body ul ul,
+.markdown-body ol ul {
+  list-style: circle;
+}
+.markdown-body ul ul ul,
+.markdown-body ul ol ul,
+.markdown-body ol ul ul {
+  list-style: square;
+}
+.markdown-body ul.contains-task-list {
+  list-style: none;
+}
+/* Tables sit in a scrolling wrapper, which takes over the table's bottom margin. */
 .prose-clavis .table-wrap {
-  @apply my-6 overflow-x-auto;
+  margin-bottom: 16px;
+  overflow-x: auto;
 }
 .prose-clavis .table-wrap table {
-  @apply my-0;
-}
-.prose-clavis img {
-  @apply rounded-md;
+  margin-bottom: 0;
 }
 
-/* Comments reuse the renderer at a compact size: no big vertical rhythm around a line. */
-.prose-comment {
-  @apply prose-sm;
+/* Comments: GitHub's comment size (14px). The stylesheet already drops the first block's
+   top margin and the last one's bottom margin. */
+.markdown-body.prose-comment {
+  font-size: 14px;
+  background: transparent;
 }
-.prose-comment > :first-child {
-  @apply mt-0;
-}
-.prose-comment > :last-child {
-  @apply mb-0;
-}
-/* @mentions (N3): stored as @[name](actor:id), shown as a chip. */
+/* @mentions (N3): stored as @[name](actor:id), shown like GitHub's mention chip. */
 .prose-comment a[href^="#mention-"] {
-  @apply rounded bg-primary/10 px-1 font-medium text-primary no-underline;
+  @apply rounded px-1 font-semibold no-underline;
+  color: var(--link);
+  background: #ddf4ff;
 }
 
 /* Wiki links (D-14): broken ones are dashed red so they stand out while reading. */
 .prose-clavis a.wikilink {
-  @apply decoration-dotted underline-offset-4;
+  @apply underline decoration-dotted underline-offset-4;
 }
 .prose-clavis a.wikilink-broken {
-  @apply text-destructive decoration-dashed;
+  @apply decoration-dashed;
+  color: var(--destructive);
 }
 
-/* Callouts: GitHub alert syntax > [!NOTE] */
-.prose-clavis blockquote.callout {
-  @apply not-italic rounded-md border-l-4 px-4 py-1 font-normal;
-  --callout: oklch(0.6 0.15 250);
-  border-left-color: var(--callout);
-  background: color-mix(in oklch, var(--callout) 8%, transparent);
+/* Code blocks: Shiki's github-light colors on GitHub's code background. */
+.prose-clavis .code-block pre.shiki {
+  background-color: #f6f8fa;
 }
-.prose-clavis blockquote.callout p::before,
-.prose-clavis blockquote.callout p::after {
-  content: none;
-}
-.prose-clavis blockquote.callout-tip {
-  --callout: oklch(0.62 0.15 150);
-}
-.prose-clavis blockquote.callout-important {
-  --callout: oklch(0.58 0.2 300);
-}
-.prose-clavis blockquote.callout-warning {
-  --callout: oklch(0.72 0.16 75);
-}
-.prose-clavis blockquote.callout-caution {
-  --callout: oklch(0.6 0.22 25);
-}
-.prose-clavis .callout-title {
-  @apply font-semibold;
-  color: var(--callout);
-}
-.prose-clavis blockquote.callout > p {
-  @apply my-2;
-}
-/* GFM task lists: the checkbox replaces the bullet. */
-.prose-clavis li.task-list-item {
-  @apply list-none;
-}
-.prose-clavis ul.contains-task-list {
-  @apply pl-1;
-}
-.prose-clavis li.task-list-item input {
-  @apply my-0 mr-2 align-middle;
-}
-
-/* Shiki dual themes (defaultColor: false): pick the variables by color scheme. */
-.prose-clavis .code-block pre {
-  @apply my-6 overflow-x-auto rounded-md border text-sm;
-}
-.shiki,
 .shiki span {
   color: var(--shiki-light);
-  background-color: var(--shiki-light-bg);
-}
-@media (prefers-color-scheme: dark) {
-  .shiki,
-  .shiki span {
-    color: var(--shiki-dark);
-    background-color: var(--shiki-dark-bg);
-  }
 }
 
 .prose-clavis .mermaid {

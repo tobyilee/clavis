@@ -63,8 +63,10 @@ function PageView() {
   }
 
   return (
-    <div className="mx-auto flex max-w-6xl gap-10">
-      <article className="min-w-0 flex-1">
+    // GitHub's Markdown width: the article is at most 1012px (container-lg); the outline sits
+    // beside it only when there is room for both.
+    <div className="mx-auto flex max-w-[1276px] justify-center gap-10">
+      <article className="min-w-0 max-w-[1012px] flex-1">
         <nav
           aria-label="Breadcrumb"
           className="mb-3 flex flex-wrap items-center gap-1 text-sm text-muted-foreground"
@@ -99,13 +101,13 @@ function PageView() {
         </header>
         <TocInline items={rendered.toc} />
         <SectionCommentsContext.Provider value={sectionComments}>
-          <div className="prose-clavis">{rendered.element}</div>
+          <div className="markdown-body prose-clavis">{rendered.element}</div>
         </SectionCommentsContext.Provider>
         <AttachmentList attachments={attachments.list} />
         <Backlinks pageId={p.id} spaceKey={p.spaceKey} />
         <Comments pageId={p.id} toc={rendered.toc} ctx={ctx} />
       </article>
-      <aside className="hidden w-56 shrink-0 xl:block">
+      <aside className="hidden w-56 shrink-0 2xl:block">
         <TocAside items={rendered.toc} />
       </aside>
     </div>

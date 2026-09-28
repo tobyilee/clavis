@@ -111,6 +111,13 @@ gh auth status                    # CI 확인용
 - E2E 모바일 프로젝트(Pixel 7, Chromium 에뮬레이션)에서는 `keyboard.type`의 Enter가 가끔 줄바꿈을 잃는다(CodeMirror의 Android 입력 처리 — 실제 기기와 무관, Step 6 이전 코드에서도 같음). 모바일 테스트는 여러 줄 입력에 기대지 말고 결과 텍스트만 확인한다.
 - 편집 화면에는 파일 입력이 두 개(첨부 버튼, 모바일 툴바의 사진 버튼)라 E2E에서 `input[type=file]`로 찾으면 strict 위반 → `getByLabel('파일 첨부')`·`getByLabel('사진 첨부')`.
 
+## 7-1. 화면 스타일 (2026-09-28, 사용자 요청)
+
+- **GitHub light 테마만** 쓴다. OS 다크 모드를 따르지 않는다(`@custom-variant dark`는 아무도 붙이지 않는 `.dark` 클래스 기준이라 `dark:` 유틸리티는 동작하지 않음). 색은 `index.css` `:root`의 GitHub Primer 값(#1f2328 글자, #59636e 보조, #d1d9e0 테두리, #f6f8fa 배경, #0969da 링크), 글꼴은 GitHub 시스템 글꼴.
+- 문서 본문은 **`github-markdown-css`(light)** 의 `.markdown-body` — 16px, 줄 높이 1.5, H1·H2 밑줄, GitHub 표·코드·알림(`markdown-alert`)·작업 목록. `.prose-clavis`는 그 위에 위키 링크·Mermaid·표 스크롤만 더한다(E2E 선택자도 이 클래스). Tailwind 초기화가 목록 기호를 지우므로 `ul`/`ol` 기호는 직접 지정.
+- 본문 폭은 GitHub `container-lg`와 같은 **최대 1012px**. 오른쪽 목차는 둘 다 들어가는 2xl(1536px) 이상에서만, 그 아래는 본문 위 접이식 목차.
+- 댓글은 같은 스타일에 14px. 에디터 문법 색(`--cm-*`)도 GitHub 코드 색으로 정의(전에는 정의되지 않아 색이 없었다).
+
 ## 8. 모바일 UI 규칙과 검증 방법 (Step 6에서 정함)
 
 - **터치 화면의 입력칸은 16px 이상.** iOS Safari는 16px 미만 입력칸(`contenteditable` 포함)을 누르면 페이지를 확대하고 되돌리지 않는다 — 그러면 화면 오른쪽(저장 버튼)이 밀려난다.

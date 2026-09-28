@@ -4,13 +4,8 @@ let loader: Promise<typeof import('mermaid')['default']> | null = null;
 
 function loadMermaid() {
   loader ??= import('mermaid').then(({ default: mermaid }) => {
-    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    // strict: no clicks or scripts in diagrams, labels are sanitized.
-    mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: 'strict',
-      theme: dark ? 'dark' : 'default',
-    });
+    // strict: no clicks or scripts in diagrams, labels are sanitized. Light only, like the app.
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default' });
     return mermaid;
   });
   return loader;

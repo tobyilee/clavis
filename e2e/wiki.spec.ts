@@ -321,7 +321,7 @@ test('home: favorites, recently viewed; raw Markdown and llms.txt', async ({ pag
   expect(await (await request.get('/llms.txt')).text()).toContain('- [홈 (HOME)]');
 });
 
-test('editor: focused on open, cursor visible in dark mode', async ({ page, request }) => {
+test('editor: focused on open, light like GitHub even on a dark OS', async ({ page, request }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await ensureSpace(request, 'QA', '품질');
   const fm = '---\ntype: note\nstatus: draft\nowner: dev@example.com\n---\n';
@@ -339,7 +339,10 @@ test('editor: focused on open, cursor visible in dark mode', async ({ page, requ
     return {
       cursor: cursor ? getComputedStyle(cursor).borderLeftColor : null,
       text: getComputedStyle(document.body).color,
+      background: getComputedStyle(document.body).backgroundColor,
     };
   });
   expect(colors.cursor).toBe(colors.text);
+  // GitHub light: #1f2328 on white, whatever the OS prefers.
+  expect(colors).toMatchObject({ text: 'rgb(31, 35, 40)', background: 'rgb(255, 255, 255)' });
 });

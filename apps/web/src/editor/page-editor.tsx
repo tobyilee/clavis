@@ -452,7 +452,7 @@ export function PageEditor({
             tab !== 'preview' && 'hidden',
           )}
         >
-          <div className="prose-clavis">{preview}</div>
+          <div className="markdown-body prose-clavis">{preview}</div>
         </div>
       </div>
 

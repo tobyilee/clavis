@@ -70,7 +70,7 @@ export function TocInline({ items }: { items: TocItem[] }) {
   const { t } = useTranslation();
   if (items.length < 2) return null;
   return (
-    <details className="mb-6 rounded-md border px-3 py-2 xl:hidden">
+    <details className="mb-6 rounded-md border px-3 py-2 2xl:hidden">
       <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium">
         <List className="size-4" /> {t('app.toc')}
       </summary>

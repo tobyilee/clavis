@@ -295,7 +295,7 @@ function CommentView({
           </div>
         </form>
       ) : (
-        <div className="prose-clavis prose-comment mt-1 text-sm">{body}</div>
+        <div className="markdown-body prose-clavis prose-comment mt-1">{body}</div>
       )}
     </div>
   );

@@ -29,8 +29,8 @@ describe('markdown rendering', () => {
 
   it('turns GitHub alerts into callouts', () => {
     const out = html('> [!WARNING]\n> 조심하세요\n');
-    expect(out).toContain('<blockquote class="callout callout-warning"');
-    expect(out).toContain('<p class="callout-title">주의</p>');
+    expect(out).toContain('<blockquote class="markdown-alert markdown-alert-warning"');
+    expect(out).toContain('<p class="markdown-alert-title">주의</p>');
     expect(out).toContain('조심하세요');
     expect(out).not.toContain('[!WARNING]');
   });

@@ -3,6 +3,7 @@ import { createRouter, RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './i18n';
+import 'github-markdown-css/github-markdown-light.css';
 import './index.css';
 import { routeTree } from './routeTree.gen';
 

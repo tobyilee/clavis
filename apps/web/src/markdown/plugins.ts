@@ -57,7 +57,7 @@ export const CALLOUT_KINDS = ['note', 'tip', 'important', 'warning', 'caution'] 
 export type CalloutKind = (typeof CALLOUT_KINDS)[number];
 const CALLOUT_RE = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*(?:\n|$)/i;
 
-/** GitHub alerts: a blockquote starting with [!NOTE] etc. becomes a styled callout. */
+/** GitHub alerts: a blockquote starting with [!NOTE] etc. gets GitHub's alert markup. */
 export function remarkCallouts(labels: Record<CalloutKind, string>) {
   return (tree: MdastRoot) => {
     visit(tree, 'blockquote', (node: Blockquote) => {
@@ -74,10 +74,10 @@ export function remarkCallouts(labels: Record<CalloutKind, string>) {
       const title: Paragraph = {
         type: 'paragraph',
         children: [{ type: 'text', value: labels[kind] }],
-        data: { hProperties: { className: ['callout-title'] } },
+        data: { hProperties: { className: ['markdown-alert-title'] } },
       };
       node.children.unshift(title);
-      node.data = { hProperties: { className: ['callout', `callout-${kind}`] } };
+      node.data = { hProperties: { className: ['markdown-alert', `markdown-alert-${kind}`] } };
     });
   };
 }

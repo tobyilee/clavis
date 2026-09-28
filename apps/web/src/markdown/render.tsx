@@ -46,14 +46,14 @@ const schema: SanitizeSchema = {
     '*': [...(defaultSchema.attributes?.['*'] ?? []), 'dataLine'],
     a: withClasses('a', ['wikilink', 'wikilink-broken']),
     blockquote: withClasses('blockquote', [
-      'callout',
-      'callout-note',
-      'callout-tip',
-      'callout-important',
-      'callout-warning',
-      'callout-caution',
+      'markdown-alert',
+      'markdown-alert-note',
+      'markdown-alert-tip',
+      'markdown-alert-important',
+      'markdown-alert-warning',
+      'markdown-alert-caution',
     ]),
-    p: withClasses('p', ['callout-title']),
+    p: withClasses('p', ['markdown-alert-title']),
   },
 };
 
