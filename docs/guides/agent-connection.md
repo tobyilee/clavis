@@ -18,7 +18,7 @@
 
 - URL: `https://clavis.crawl-proxy.workers.dev/mcp`
 - 전송 방식: Streamable HTTP (Stateless)
-- 도구: §5 참고 (editor 에이전트는 19개, viewer는 쓰기 도구를 뺀 12개)
+- 도구: §5 참고 (editor 에이전트는 25개, viewer는 쓰기 도구를 뺀 17개)
 
 ## 3. Hermes Agent 설정
 
@@ -68,6 +68,7 @@ claude mcp add --transport http clavis https://clavis.crawl-proxy.workers.dev/mc
 |---|---|---|
 | `list_spaces` · `get_space_tree` | viewer | Space와 페이지 트리 탐색 |
 | `search_pages` | viewer | 제목·본문 전문 검색 (3글자 이상은 색인, 짧으면 부분 일치) |
+| `semantic_search` | viewer | 뜻으로 찾기: 질문처럼 써도 되고, 결과마다 가장 가까운 섹션 id(`section=`)와 앞부분 → `read_section`으로 이어 읽기 |
 | `read_page` | viewer | frontmatter 포함 원문 + `revision` |
 | `list_templates` · `lint_markdown` | viewer | 템플릿과 필수 섹션 확인(`space`를 주면 그 Space의 커스텀 템플릿과 규칙 반영), 저장 전 검사 |
 | `get_backlinks` | viewer | 이 페이지를 링크하는 문서 (이름 변경·삭제 전 확인) |
@@ -80,6 +81,9 @@ claude mcp add --transport http clavis https://clavis.crawl-proxy.workers.dev/mc
 | `list_comments` · `add_comment` | viewer | 페이지 댓글 스레드 읽기, 댓글·답글 달기 (`read_page`에 `open_comments=N` 표시) |
 | `resolve_comment` | editor | 스레드 해결 / 다시 열기 |
 | `move_page` · `delete_page` | editor | 이동, 휴지통으로 이동 (30일 내 복원 가능) |
+| `list_revisions` · `read_revision` | viewer | 누가 언제 바꿨는지(버전 목록), 옛 버전 원문 |
+| `restore_revision` | editor | 옛 버전 본문을 새 버전으로 저장 (잘못 고친 것 되돌리기) |
+| `list_notifications` · `mark_notifications_read` | viewer | 나를 `@멘션`한 댓글 등 알림, 처리 후 읽음 |
 
 viewer 역할 에이전트에게는 쓰기 도구가 목록에 나타나지 않습니다.
 
@@ -119,6 +123,28 @@ add_comment     page=k3x9q1 replyTo=01J… body="환불을 범위에 추가했�
 resolve_comment comment=01J…
 ```
 
+### 멘션 처리 흐름 (사람이 댓글로 일을 맡길 때)
+
+```
+list_notifications                             → "- [01K…] mention by toby on TEAM/k3x9q1 "주간 회의" comment=01J…"
+list_comments   page=k3x9q1                    → 그 댓글: "@Adam 액션 아이템 정리해 줘"
+update_section  page=k3x9q1 section=액션-아이템 …  → 문서 수정
+add_comment     page=k3x9q1 replyTo=01J… body="정리했습니다."
+mark_notifications_read ids=["01K…"]
+```
+
+- 에이전트는 `@멘션`만 알림으로 받습니다(문서 변경·새 댓글 알림은 사람에게만).
+- 잘못 고쳤다면 `list_revisions`로 버전을 보고 `restore_revision page=k3x9q1 revision=<되돌릴 번호>`.
+
+### 관련 내용 찾기
+
+```
+semantic_search query="환불은 언제까지 가능한가"  → "- PAY/a1b2c3 "결제 설계" section=환불-정책 "환불 정책" [spec, draft] score=0.71"
+read_section    page=a1b2c3 section=환불-정책    → 그 섹션만 읽기 (문서 전체 대신)
+```
+
+- 단어가 정확히 들어간 문서는 `search_pages`, 표현이 다를 수 있으면 `semantic_search`. 의미 검색을 쓸 수 없을 때는 `search_pages`를 쓰라는 오류가 옵니다.
+
 - **충돌**: 그사이 다른 사람이 저장했다면 `update_page`가 "Current revision is N"과 함께 실패합니다. `read_page`로 다시 읽고 변경을 다시 적용하세요.
 - **검사 오류**: frontmatter 누락, 없는 첨부 참조 같은 오류는 저장을 막고 `- L2 error clavis/frontmatter-required: …` 형식으로 알려 줍니다. 경고는 저장된 뒤 함께 표시됩니다.
 - **제목**: 페이지 제목은 `title` 인자로 정합니다. 본문에 `# 제목`(H1)을 쓰지 않습니다.
@@ -143,7 +169,44 @@ curl -X POST "https://clavis.crawl-proxy.workers.dev/api/v1/pages/<shortId>/atta
   --data-binary @arch.png
 ```
 
-## 8. 문제 해결
+## 8. Webhook 받기 (다른 시스템에 Clavis 소식 보내기)
+
+Space 설정 → **알림 채널**(관리자)에서 종류 **Webhook (JSON)**으로 https 주소를 추가하면, 고른 이벤트가 생길 때마다 그 주소로 `POST`합니다. Slack은 같은 화면에서 Incoming Webhook URL로 추가합니다.
+
+```http
+POST <등록한 URL>
+Content-Type: application/json
+User-Agent: Clavis-Webhook/1
+X-Clavis-Event: page.updated
+X-Clavis-Delivery: 01K…                     # 전송마다 다른 id
+X-Clavis-Signature: sha256=<hex>             # HMAC-SHA256(서명 키, 본문 바이트)
+
+{
+  "event": "page.updated",                   # page.created · page.updated · page.deleted · page.restored
+                                             # comment.created · comment.resolved · ping(테스트 전송)
+  "deliveryId": "01K…",
+  "at": 1790000000000,
+  "space":   { "key": "PAY", "name": "결제" },
+  "page":    { "id": "…", "shortId": "a1b2c3", "title": "결제 API 설계", "url": "https://…" },
+  "actor":   { "id": "…", "name": "Adam", "kind": "agent" },
+  "revision": 5,
+  "changesUrl": "https://…/history?r=5&base=4",   # 수정: 바로 이전 버전과의 차이 화면
+  "comment": { "id": "…", "threadId": "…", "body": "…(1,000자까지)", "url": "…#comments" },   # 댓글 이벤트
+  "pageCount": 3                              # 휴지통 이동·복원: 하위 문서 포함 개수
+}
+```
+
+- **서명 확인**: 카드에 보이는 서명 키로 **받은 본문 그대로**의 HMAC-SHA256을 계산해 `X-Clavis-Signature`와 비교합니다(JSON을 다시 직렬화하지 말 것).
+
+  ```js
+  const expected = 'sha256=' + crypto.createHmac('sha256', SECRET).update(rawBody).digest('hex');
+  const ok = crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(req.headers['x-clavis-signature']));
+  ```
+
+- **응답**: 5초 안에 2xx를 돌려주세요. 5xx·429·시간 초과·연결 실패는 30초·2분·10분 뒤에 다시 보냅니다(최대 3번). 같은 이벤트가 두 번 올 수 있다면 `X-Clavis-Delivery`가 아니라 이벤트 내용(페이지·revision·시각)으로 거르세요. 재시도는 새 delivery id를 씁니다.
+- 결과는 카드의 **최근 전달**(✓/✗, 상태 코드, 오류)에서 봅니다.
+
+## 9. 문제 해결
 
 | 증상 | 원인 |
 |---|---|

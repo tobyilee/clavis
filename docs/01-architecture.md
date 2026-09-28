@@ -1,6 +1,6 @@
-# Clavis — 기술 아키텍처 (v0.4)
+# Clavis — 기술 아키텍처 (v0.5)
 
-> 상태: **Active** · 작성일: 2026-09-27 · v0.2: Phase 0 결과 반영 (인증 구조, 서버 lint 범위, 백업) · v0.3: Phase 1 구현 반영 · v0.4: Phase 2 구현 반영 (lint 요약·설정, 섹션 편집, 댓글, 템플릿, 홈, `.md`·`llms.txt`, 모바일 편집)
+> 상태: **Active** · 작성일: 2026-09-27 · v0.2: Phase 0 결과 반영 (인증 구조, 서버 lint 범위, 백업) · v0.3: Phase 1 구현 반영 · v0.4: Phase 2 구현 반영 (lint 요약·설정, 섹션 편집, 댓글, 템플릿, 홈, `.md`·`llms.txt`, 모바일 편집) · v0.5: Phase 3 구현 반영 (저장 이벤트·Queues, 버전 기록, 알림, Slack·Webhook, 의미 검색)
 > 선행 문서: [`00-concept.md`](./00-concept.md) · 결정 로그: [`decisions.md`](./decisions.md)
 > Cloudflare 한도 수치는 2026-09 기준 공식 문서에서 확인한 값이다 (§11 참고).
 
@@ -20,11 +20,16 @@
                          │ │ /files/*      : 첨부파일 프록시                        │ │
                          │ │ *.md, llms.txt: 원본 Markdown, 페이지 목록 (AI용)       │ │
                          │ │ scheduled()   : 야간 백업 (Cron Trigger)             │ │
+                         │ │ queue()       : 저장 뒤 작업 (알림·Webhook·색인)      │ │
                          │ │        │ Service Layer (REST·MCP 공용)              │ │
                          │ └────────┼──────────────┬────────────────────────────┘ │
                          │          ▼              ▼                              │
-                         │   D1 (SQLite + FTS5)   R2 (첨부파일, 백업)                │
+                         │   D1 (SQLite + FTS5)   R2 (첨부파일, 백업, 버전 본문)     │
+                         │   Queues clavis-events (요청 → queue() 소비자)          │
+                         │   Workers AI (bge-m3 임베딩)   Vectorize clavis-chunks   │
                          └──────────────────────────────────────────────────────┘
+                                   │ Slack Incoming Webhook · 서명된 JSON Webhook
+                                   ▼
 ```
 
 **원칙**
@@ -32,6 +37,7 @@
 2. REST와 MCP는 **같은 Service Layer**를 호출한다. MCP가 REST를 HTTP로 다시 부르지 않는다.
 3. **렌더링은 브라우저에서만** 한다. 서버는 Markdown을 저장·검증·색인만 한다 (CPU 10ms 제약, D-27).
 4. Markdown 파서·Lint 규칙·스키마는 `shared` 패키지 하나로 브라우저와 Worker가 공유한다.
+5. **저장 요청은 저장만** 한다 (Phase 3). 알림·Webhook·색인처럼 CPU가 드는 뒤처리는 이벤트를 Queue에 넣고, 같은 Worker의 `queue()` 소비자가 별도 실행(각자 10ms)으로 처리한다. `waitUntil`의 CPU도 요청의 10ms에 들어가기 때문이다 (§6.2).
 
 ## 2. 저장소 구조 (pnpm 모노레포)
 
@@ -47,8 +53,9 @@ clavis/
 │   │   ├── src/components/  #   shadcn/ui 기반 컴포넌트, 트리, 팔레트, 관리 화면 부품
 │   │   └── src/i18n/        #   ko.json, en.json (lint 메시지는 ruleId로 번역, D-41)
 │   └── worker/              # Cloudflare Worker
-│       ├── src/index.ts     #   fetch / scheduled 진입점 (백업 + 휴지통 정리)
+│       ├── src/index.ts     #   fetch / scheduled(백업·휴지통·알림 정리·색인 따라잡기) / queue 진입점
 │       ├── src/api/         #   Hono 라우트 (zod-openapi), /files, /docs, .md·llms.txt
+│       ├── src/events/      #   저장 이벤트, 큐 메시지 형식, 소비자와 처리기 목록 (Phase 3)
 │       ├── src/mcp/         #   MCP 서버 & 도구 정의
 │       ├── src/services/    #   도메인 로직 (REST·MCP 공용), ServiceError
 │       ├── src/auth/        #   Access JWT / API Token 검증
@@ -58,7 +65,8 @@ clavis/
 │       └── wrangler.jsonc
 ├── packages/
 │   └── shared/              # 브라우저·Worker 공용 (AST 없는 코드만 — Worker CPU 10ms)
-│       ├── markdown/        #   frontmatter 분리·수정, 줄 스캐너(코드 펜스 인식), 위키 링크·첨부 추출, 섹션
+│       ├── markdown/        #   frontmatter 분리·수정, 줄 스캐너(코드 펜스 인식), 위키 링크·첨부 추출, 섹션,
+│       │                    #   @멘션, 의미 검색 청크(chunks.ts)
 │       ├── lint/            #   Clavis 규칙 엔진 (줄 단위, Space 설정 적용)
 │       ├── schema/          #   zod 스키마 (frontmatter, API DTO, problem, lint 설정), URL 헬퍼
 │       └── templates/       #   문서 유형별 템플릿과 필수 섹션 (코드로 내장)
@@ -95,7 +103,13 @@ clavis/
   },
   "d1_databases": [{ "binding": "DB", "database_name": "clavis" }],
   "r2_buckets":   [{ "binding": "FILES", "bucket_name": "clavis-files" }],
-  "triggers":     { "crons": ["*/2 17-18 * * *"] }   // 02:00~03:58 KST 분할 백업
+  "queues": {                                          // Phase 3: 저장 뒤 작업 (D-60, D-62)
+    "producers": [{ "binding": "EVENTS", "queue": "clavis-events" }],
+    "consumers": [{ "queue": "clavis-events", "max_batch_size": 10, "max_retries": 3 }]
+  },
+  "ai":        { "binding": "AI" },                                              // bge-m3 (D-61)
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "clavis-chunks" }],      // 1024차원, cosine
+  "triggers":  { "crons": ["*/2 17-18 * * *"] }   // 02:00~03:58 KST 분할 백업
 }
 ```
 
@@ -269,6 +283,48 @@ favorites  (actor_id, page_id, created_at, PRIMARY KEY (actor_id, page_id))     
 page_views (actor_id, page_id, viewed_at,  PRIMARY KEY (actor_id, page_id))          -- 사람만, 최신 50개 (D-50)
 CREATE INDEX page_views_recent ON page_views(actor_id, viewed_at);
 CREATE INDEX pages_updated ON pages(updated_at) WHERE deleted_at IS NULL;              -- 홈의 최근 변경
+
+-- ── Phase 3 ──
+page_revisions (                           -- 버전 기록 (D-54, 0008). 본문은 R2 rev/{pageId}/{revision}.md
+  page_id, revision  PRIMARY KEY,
+  actor_id      TEXT NOT NULL REFERENCES actors(id),
+  created_at    INTEGER NOT NULL,
+  title         TEXT NOT NULL,
+  bytes         INTEGER NOT NULL,
+  kind          TEXT NOT NULL,             -- create | update | link-rewrite | restore | baseline
+  restored_from INTEGER                    -- restore: 되살린 revision
+)
+
+notifications (                            -- 앱 안 알림 (D-57, 0009). 큐 소비자가 만든다
+  id, recipient_id, kind,                  -- kind: page.changed | comment | mention
+  page_id, actor_id, comment_id,           -- actor·comment는 가장 최근 것
+  from_revision, to_revision,              -- page.changed: 안 읽은 첫 변경 전 revision ~ 최신
+  count, first_at, last_at, read_at
+)
+CREATE UNIQUE INDEX notifications_unread ON notifications(recipient_id, kind, page_id) WHERE read_at IS NULL;
+watches  (actor_id, page_id, mode, created_at, PRIMARY KEY (actor_id, page_id))      -- mode: watch | mute (명시적 선택만)
+actors.mute_agent_edits INTEGER            -- 1 = 에이전트 수정 알림 끄기
+
+webhooks (                                 -- Space의 Slack·JSON Webhook (D-58, 0010)
+  id, space_id, kind,                      -- kind: slack | json
+  url,                                     -- 비밀 (Slack은 경로가 토큰) → API는 가려서 보여 줌
+  secret,                                  -- HMAC-SHA256 키 (json)
+  events,                                  -- 보낼 이벤트 이름 JSON 배열
+  enabled, created_by, created_at
+)
+webhook_deliveries (id, webhook_id, event_key, event, page_id, actor_id, attempt, status, ok, error, at)
+                                           -- Webhook마다 최신 50건, event_key로 같은 이벤트 중복 전송 방지
+
+page_chunks (                              -- 의미 검색 청크, Vectorize 벡터마다 한 행 (D-63, 0011)
+  id            TEXT PRIMARY KEY,          -- '{pageId}:{임베딩한 텍스트의 해시}' = 벡터 id
+  page_id       TEXT NOT NULL REFERENCES pages(id),
+  ord           INTEGER NOT NULL,
+  section_id    TEXT,                      -- H2 앵커 id (read_section), 첫 H2 앞 본문은 NULL
+  heading       TEXT,
+  excerpt       TEXT NOT NULL,             -- 결과에 보여 줄 앞부분 (본문 자체는 저장하지 않음)
+  chars         INTEGER NOT NULL
+)
+page_index (page_id PRIMARY KEY, revision, indexed_at)   -- 색인된 revision (다르면 색인 대기)
 ```
 
 ### 5.2 설계 포인트
@@ -280,7 +336,7 @@ CREATE INDEX pages_updated ON pages(updated_at) WHERE deleted_at IS NULL;       
 - **제목 중복**: 부분 유니크 인덱스로 "삭제되지 않은 페이지끼리만" 유일성을 보장한다.
 - **lint 요약은 저장 시점의 스냅숏**: 위키 링크 규칙은 다른 페이지가 생기거나 지워지면 결과가 바뀌므로 `page_lint`에 넣지 않고, 대시보드는 링크 문제를 `page_links`(`to_page_id IS NULL`)의 **현재 상태**로 보여 준다.
 - **댓글 삭제**: 답글이 있는 루트는 지울 수 없고(409 `has-replies`) 해결로 닫는다. 그래서 soft delete 없이 행만 지운다. 페이지가 휴지통에 가면 함께 숨고, 영구 삭제 때 함께 지운다.
-- **새 테이블과 휴지통**: 페이지를 참조하는 테이블(`page_lint`, `comments`, `favorites`, `page_views`)은 영구 삭제(`services/trash.ts`)에서 함께 지운다. 테이블을 추가하면 여기와 테스트의 `resetDb`에 반영한다.
+- **새 테이블과 휴지통**: 페이지를 참조하는 테이블(`page_lint`, `comments`, `favorites`, `page_views`, `page_revisions`(+R2 본문), `notifications`, `watches`, `page_chunks`, `page_index`)은 영구 삭제(`services/trash.ts`)에서 함께 지운다. 테이블을 추가하면 여기와 테스트의 `resetDb`에 반영한다. Vectorize 벡터는 영구 삭제가 아니라 휴지통으로 갈 때 지운다(§5.4).
 - **제목 변경 시 링크** (D-42 개정): `page_links.to_page_id`로 이 페이지를 링크하는 문서의 `[[옛 제목]]`을 같은 저장 요청 안에서 `[[새 제목]]`으로 고친다 (코드 블록 제외, 별칭·`KEY:` 유지). CPU를 위해 한 번에 50페이지·200KB까지만 고치고, 나머지는 깨진 링크로 남아 lint warning이 뜬다.
 
 ### 5.3 전문 검색 (FTS5, D-11)
@@ -298,6 +354,33 @@ CREATE VIRTUAL TABLE pages_fts USING fts5(
 - **FTS 테이블은 재생성 가능한 파생 데이터**다. `wrangler d1 export`는 FTS5 가상 테이블이 있으면 실패하는 알려진 문제가 있으므로([workers-sdk#9519](https://github.com/cloudflare/workers-sdk/issues/9519)), 백업에서 제외하고 복구 시 `rebuild` 한다 (§10).
 - ✅ S1 검증 완료 (로컬·원격): trigram, external content + 트리거, `snippet`, `bm25`, `rebuild` 동작.
 
+### 5.4 의미 검색 (Phase 3, D-61~D-63)
+
+```
+색인 (큐 소비자, services/semantic.ts)
+  page.saved / page.restored / index.page
+    → 페이지 읽기 (D1 batch 1회: 본문·Space·색인된 revision + 기존 청크 id)
+    → chunkPage(): H2(와 그보다 높은 헤딩)에서 자름, H3 이하는 H2에 포함, 첫 H2 앞 본문은 따로,
+       2,000자 넘으면 빈 줄 → 줄 → 글자 순으로 나눔, 앞에 "페이지 › 섹션"
+    → 청크 id = '{pageId}:' + FNV-1a(docType + 텍스트)
+    → 새 id만 임베딩 (Workers AI bge-m3, 1024차원) → Vectorize upsert (메타데이터 space·docType)
+    → D1 batch: page_chunks 교체 + page_index — "읽은 revision 그대로일 때만" 조건부
+    → 사라진 id는 Vectorize deleteByIds
+  page.trashed → 벡터·행 삭제 (그사이 복원된 페이지는 건너뜀)
+
+검색 GET /search?mode=semantic|hybrid
+  질의 임베딩 1 → Vectorize query 1 (topK 50, 필터 space·docType, 값·메타데이터 안 받음)
+  → 유사도 0.4 미만 버림 → D1 1회로 청크 → 페이지·섹션 (휴지통·보관 Space·status 필터)
+  → 페이지마다 가장 가까운 섹션 하나 (`section`, `score`)
+  hybrid = 전문 검색 결과와 RRF(k=60)로 합침 — 재순위 모델 없음(한국어 reranker가 없다)
+```
+
+- **청크 id가 내용 해시**라, 섹션을 중간에 끼워 넣어도 나머지 청크 id는 그대로다. 바뀐 청크만 임베딩한다는 규칙(D-62)이 "새 id − 기존 id" 집합 차이 하나로 끝난다. `docType`을 해시에 넣어 유형만 바뀌어도 메타데이터(필터)가 갱신된다.
+- **청크 예산은 소비자 실행(배치) 단위**: 메시지 최대 10개가 한 실행의 CPU 10ms를 나눠 쓰므로, 한 실행에서 임베딩하는 청크는 8개(`CHUNKS_PER_RUN`)까지. 남은 청크는 `index.page` 메시지로 이어서 처리한다.
+- **실패는 조용히 재시도**: AI 하루 무료량 초과 등으로 실패해도 예외를 던지지 않는다(메시지 전체가 재시도되면 알림이 두 번 생긴다). 대신 `index.page`를 60·600·3600초 뒤로 다시 넣고(최대 3회), 그래도 남은 페이지는 매일 밤 Cron 첫 실행(17:00 UTC, AI 한도 초기화 뒤)이 다시 큐에 넣는다. 관리 → **의미 검색**의 **색인 만들기**(`POST /admin/search-index`)도 색인이 낡은 페이지만 넣는다.
+- **대체**: AI·Vectorize가 없거나(로컬, 테스트) 실패하면 검색은 전문 검색으로 대체하고 응답 `mode`로 알린다. 화면은 "글자로 찾은 결과" 안내, MCP `semantic_search`는 `search_pages`를 쓰라는 오류를 낸다.
+- Vectorize는 쓰기가 비동기라 저장 뒤 몇 초 지나야 검색에 반영된다. 메타데이터 인덱스(`space`·`docType`)는 벡터를 넣기 **전에** 만들어야 필터가 먹는다(2026-09-28 생성).
+
 ## 6. 저장(Save) 파이프라인
 
 ```
@@ -314,8 +397,10 @@ PUT /api/v1/pages/{ref}  { title?, content, baseRevision }
        제목 변경 시 참조 문서의 [[옛 제목]] 수정(50페이지·200KB까지, 문장 3개)·나머지 링크 끊기·새 제목을 기다리던 링크 연결,
        트리가 바뀌면 tree_version 증가,
        page_lint 요약 upsert (문장 1개, D-46),
+       page_revisions 행 추가 (문장 1개, D-54 — 기록이 없던 페이지는 옛 본문을 baseline으로),
        저장된 페이지를 다시 SELECT (같은 batch 안에서)
   7. 200 { page(본문 제외), violations(warning/info), linksUpdated?, linksToOldTitle? }
+  8. 응답 뒤(waitUntil): 본문을 R2 rev/{pageId}/{revision}.md에 쓰고, 이벤트 page.saved를 Queue로 (§6.2)
 ```
 
 - **D1 호출 2회**: 읽기 batch + 쓰기 batch. 서브리퀘스트 한도(50)와 무관한 수준이다. 생성·이동·삭제도 2~3회.
@@ -340,6 +425,40 @@ PUT /api/v1/pages/{ref}/sections/{section}  { mode: replace|append, content, bas
 - 그래서 에이전트가 `## 액션 아이템`을 고치는 동안 사람이 다른 섹션을 저장해도 둘 다 남는다. `baseRevision`을 주면 기존처럼 엄격하게 판정한다.
 - `PATCH /pages/{ref}/meta`는 status·owner·tags만 받아 서버가 frontmatter YAML을 고친다(`yaml` Document API — 주석·키 순서 유지, 웹 속성 폼과 같은 `updateFrontmatter`). 본문은 그대로이고 저장 경로는 같다.
 - 섹션 저장은 "읽기 + 섹션 교체 + 일반 저장"이라 저장 중 가장 빠듯하다. 그래서 섹션 편집은 페이지 전체(`getPage`: 태그·조상 포함)가 아니라 `id·revision·content` 한 문장만 읽고, 찾은 섹션 하나만 해시한다(`locateSection`). 운영 실측(Z2, 100KB): 섹션 저장 중앙값 6ms·p95 9ms, 섹션 읽기 3ms·5ms. 상세: [`04-phase2-plan.md`](./04-phase2-plan.md) §9.
+
+### 6.2 저장 이벤트와 Queue (Phase 3, D-60)
+
+```
+서비스 (pages·sections·revisions·trash·comments)
+  └─ emit(PageEvent)          page.saved {kind: create|update|link-rewrite|restore, content}
+                              page.trashed · page.restored {pageIds}
+                              comment.created · comment.resolved · comment.reopened
+                              revision.baseline {content}   (R2 저장만, 알리지 않음)
+요청의 eventSink (waitUntil)
+  ├─ page.saved·baseline → R2 rev/{pageId}/{revision}.md (이미 메모리에 있는 문자열)
+  └─ baseline 외 → EVENTS.send(본문을 뺀 이벤트)   (메시지는 64KB 단위로 과금)
+queue() 소비자 consumeEvents — 메시지마다 EVENT_HANDLERS를 차례로 실행
+  notifyOnEvent   알림 행 upsert (§6.3)
+  deliverOnEvent  Slack·JSON Webhook 전송 (§6.4)
+  indexOnEvent    의미 검색 색인 (§5.4)
+  성공 → ack, 예외 → 그 메시지만 retry (최대 3회)
+```
+
+- 쓰기 서비스의 마지막 인자는 `{ now?, emit? }`(`WriteOptions`). REST는 `emitFor(c)`, MCP는 요청의 sink를 넘긴다. 실패한 쓰기는 이벤트를 내지 않고, 큐 전송 실패는 로그만 남긴다(쓰기는 이미 성공).
+- **처리기끼리 서로 반복시키지 않는다**: 메시지 전체가 재시도되면 앞선 처리기(알림)가 다시 돈다. 그래서 Webhook·색인은 실패해도 예외를 던지지 않고 **자기 전용 메시지**(`webhook.retry`, `index.page`)를 지연(`delaySeconds`)을 두고 다시 넣는다. 다른 처리기는 그 메시지를 무시한다.
+- 한 배치(메시지 최대 10개)가 한 실행의 CPU 10ms를 나눠 쓴다. 비싼 일(임베딩)은 메시지가 아니라 실행 단위 예산(`RunBudget`)으로 제한한다.
+
+### 6.3 버전 기록과 알림
+
+- **버전 기록** (D-54~D-56): 모든 저장(섹션 편집·속성 변경·제목 변경 링크 수정·복원 포함)이 `page_revisions` 행 + R2 본문 하나. 행은 저장 쓰기 batch의 문장 하나라 D1 호출은 그대로 2회다. 현재 버전 본문은 페이지 행에서 읽으므로 R2 쓰기 전에도 읽힌다. **복원 = 옛 본문을 새 revision으로 저장**(lint·링크·409 가드를 그대로 거침, 지금 규칙에 걸리면 422). diff는 브라우저가 계산한다(`diff` 패키지). 영구 삭제 때 행과 R2 본문을 함께 지운다.
+- **알림** (D-57~D-59): 큐 소비자가 SQL 한 문장으로 받는 사람 전원을 계산해 upsert한다. 지켜보는 사람 = 만든 사람 + frontmatter `owner`(이메일·이름) + 댓글 단 사람 + 명시적 watch − mute. 안 읽은 알림은 부분 유니크 인덱스 + `ON CONFLICT DO UPDATE`로 (받는 사람, 종류, 페이지)당 한 행에 묶여 개수·최신 actor·`to_revision`만 오른다(에이전트가 5번 고쳐도 1건). `@멘션`은 `@[이름](actor:ID)`(이름이 바뀌어도 유지)와 손으로 쓴 `@이름`. 에이전트는 멘션만 받고 MCP `list_notifications`로 읽는다. 읽은 알림은 30일 뒤 야간 Cron이 지운다.
+
+### 6.4 Slack·Webhook (D-58, D-60)
+
+- Space마다 여러 개(admin). Slack은 `hooks.slack.com/services/…`만, JSON은 https(로컬은 `http://localhost`). URL은 비밀이라 API가 `https://hooks.slack.com/…1234`처럼 가린다.
+- 보낼 이벤트: `page.created`·`page.updated`(복원 포함, 제목 변경의 링크 수정 제외)·`page.deleted`·`page.restored`·`comment.created`·`comment.resolved`. 전송 제한 5초.
+- JSON: `X-Clavis-Event`, `X-Clavis-Delivery`, `X-Clavis-Signature: sha256=<HMAC-SHA256(secret, body)>`. Slack: 한국어 한 줄(`🤖 *Adam* · 문서 수정 · [PAY] <링크|제목> r5 · <diff|변경 보기>`), 같은 사람·페이지의 수정은 5분에 한 번. 링크는 `APP_ORIGIN` 변수로 만든다.
+- 실패(5xx·429·네트워크)는 `webhook.retry`를 30·120·600초 뒤로(최대 3회). `webhook_deliveries.event_key`로 같은 이벤트를 두 번 보내지 않는다. 설정 화면의 테스트 전송은 큐를 거치지 않고 바로 보낸다.
 
 ## 7. Lint 엔진 (`packages/shared/lint`)
 
@@ -455,6 +574,25 @@ LintConfig = {
 - `GET /pages/{ref}`는 사람이 읽으면 응답 뒤(`ctx.waitUntil`)에 `page_views`를 upsert하고 50개를 넘는 옛 기록을 지운다. 에이전트 조회는 기록하지 않는다.
 - `POST /spaces/{key}/pages`의 `template`은 문서 유형 또는 커스텀 템플릿 id다(다른 Space의 템플릿은 400).
 
+### 8.4 엔드포인트 (P3)
+
+| Method | Path | 설명 | 권한 |
+|---|---|---|---|
+| GET | `/pages/{ref}/revisions?before=&limit=` | 버전 목록 (최신부터, `historyStart` = 기록 시작 revision) | viewer |
+| GET | `/pages/{ref}/revisions/{n}` | 그 버전의 본문 | viewer |
+| POST | `/pages/{ref}/revisions/{n}/restore` | 옛 본문을 새 revision으로 저장 (`baseRevision?`, 현재 버전이면 400) | editor |
+| GET | `/me/notifications?unread=&kind=&limit=` | 알림 목록과 안 읽은 수 | viewer |
+| POST | `/me/notifications/read` | 읽음 처리 (`ids?`, 생략하면 전부) | viewer |
+| PUT | `/me/notifications/settings` | 에이전트 수정 알림 끄기 | viewer |
+| GET / PUT | `/pages/{ref}/watch` | 지켜보는 이유 / 지켜보기·끄기·되돌리기 | viewer |
+| GET | `/actors` | `@멘션` 자동완성용 사람·에이전트 목록 | viewer |
+| GET / POST | `/spaces/{key}/webhooks` | Slack·Webhook 목록(최근 전달 기록 포함) / 추가 | admin |
+| PATCH / DELETE | `/webhooks/{id}` | 이벤트·켜기 변경 / 삭제 | admin |
+| POST | `/webhooks/{id}/test` | 테스트 전송 (바로 보내고 결과 반환) | admin |
+| GET | `/search?…&mode=text\|semantic\|hybrid` | `mode` 추가 (§5.4). 응답 `mode` = 실제로 실행된 방식, semantic·hybrid는 커서 없음 | viewer |
+| GET / POST | `/admin/search-index` | 색인 현황(문서·벡터 수, 한도) / 색인이 낡은 페이지 큐에 넣기 (202) | admin |
+| PATCH | `/admin/actors/{id}` | `name` 추가 (에이전트 이름 변경, 사람은 400) | admin |
+
 ## 9. MCP 서버 (D-12)
 
 - **Stateless** `createMcpHandler` + Streamable HTTP, 엔드포인트 `/mcp`. Durable Objects 불필요(무료 플랜 OK). 요청마다 McpServer를 만들고 인증된 actor를 닫아 둔다.
@@ -482,10 +620,16 @@ LintConfig = {
 | `list_comments` | `page`, `includeResolved?` | viewer |
 | `add_comment` | `page`, `body`, `replyTo?`, `section?` | viewer (D-45) |
 | `resolve_comment` | `comment`, `reopen?` | editor |
+| `list_revisions` | `page`, `before?` | viewer |
+| `read_revision` | `page`, `revision` | viewer |
+| `restore_revision` | `page`, `revision`, `baseRevision?` | editor |
+| `list_notifications` · `mark_notifications_read` | `all?` / `ids?` | viewer |
+| `semantic_search` | `query`, `space?`, `type?`, `limit?` (결과의 `section=` id → `read_section`) | viewer |
 
 - Phase 2에서 추가: `read_page` 헤더 주석에 `open_comments=N`(백링크는 `get_backlinks`로 따로), `list_templates`·`lint_markdown`에 `space`(커스텀 템플릿·Space 규칙), `create_page`의 `template`에 커스텀 템플릿 id.
 - instructions는 큰 문서에서 **섹션 도구 우선**, 그리고 "사람이 남긴 미해결 댓글을 반영하면 답글을 달고 해결" 흐름(D-53)을 안내한다.
 
+- Phase 3에서 추가: instructions에 "되돌리기는 `restore_revision`", "`@멘션` → `list_notifications` → 처리 → 답글 → 읽음" 흐름(D-59), "단어는 `search_pages`, 뜻은 `semantic_search` → `read_section`".
 - 서버 `instructions`에 작성 규칙(frontmatter 필드, 제목은 인자, 템플릿 사용, 수정 전 `read_page`, 링크·첨부 문법)을 담는다.
 - 첨부 업로드는 MCP 도구가 없고 REST로 한다 ([연결 가이드](./guides/agent-connection.md) §6).
 
@@ -506,7 +650,7 @@ LintConfig = {
 | 야간 분할 Markdown 백업 (Cron) | 2분마다 다음 ~150KB 분량 페이지를 `backup/{date}/part-NNN.tar`(내부 `{SPACE}/{부모--id}/{제목--id}.md`)로 저장, 마지막에 `meta.json`, 14일 보관 (S6) | 모든 part를 한 디렉터리에 풀면 전체 트리, 스크립트로 재적재 후 FTS `rebuild` |
 
 - 야간 덤프는 FTS5 export 문제를 피하는 동시에, 사람이 읽을 수 있는 **Git 내보내기의 전 단계**가 된다.
-- 버전 관리 기능이 아니므로 UI에 노출하지 않는다 (D-21 유지). 단, 운영자가 단일 문서를 수동 복구할 수는 있다.
+- 백업은 재해 복구용이라 UI에 노출하지 않는다. 문서 하나를 되돌리는 일은 Phase 3의 버전 기록(§6.3, D-54가 D-21을 개정)이 맡는다.
 
 ## 11. 무료 플랜 한도 분석 (D-17, D-19)
 
@@ -526,6 +670,10 @@ LintConfig = {
 | | Class A / B | 100만 / 1,000만 per 월 |
 | | Egress | 무료 |
 | Access | 사용자 | 50명까지 무료 (Zero Trust Free) — ⚠ 미확인, 가입 시 확인 |
+| Queues (P3) | 작업 | 10,000 / 일 (메시지 1개 ≈ 3작업), 보관 24시간 |
+| Workers AI (P3) | neurons | 10,000 / 일 (넘으면 오류) — bge-m3는 100만 토큰당 1,075 → 하루 약 900만 토큰 |
+| Vectorize (P3) | 저장 | 500만 차원 = 1024차원 벡터 **4,882개** (관리 화면에서 80% 넘으면 경고) |
+| | 조회 | 3,000만 차원 / 월 ≈ 29,000회 |
 
 ### 11.2 사용량 추정 (10명, 문서 500건, 에이전트 3개)
 | 항목 | 가정 | 일 사용량 | 한도 대비 |
@@ -558,10 +706,13 @@ LintConfig = {
 | `/s/:key/new?parent=&template=` | 새 페이지 (템플릿 선택) |
 | `/s/:key/w/:title` | 위키 링크 해석 → 페이지로 이동 |
 | `/s/:key/health` | 문서 상태 대시보드 (열면 재검사 자동 반복, 위반 클릭 → `edit?line=N`) |
-| `/s/:key/settings?tab=rules\|templates` | 문서 규칙·템플릿 (규칙은 admin만 편집) |
+| `/s/:key/p/:slugId/history?r=&base=` | 변경 기록: 버전 목록(🧑/🤖), 선택한 두 버전의 줄 diff, 복원 |
+| `/s/:key/settings?tab=rules\|templates\|channels` | 문서 규칙·템플릿·알림 채널(Slack·Webhook, admin만) |
 | `/s/:key/trash` | 휴지통 |
-| `/search?q=&space=&type=&status=` | 검색 결과 (헤더의 ⌘K 팔레트에서도 진입) |
-| `/admin` | 사람·에이전트·토큰·Space 관리 |
+| `/search?q=&space=&type=&status=&mode=hybrid` | 검색 결과 (⌘K 팔레트에서도 진입). **뜻으로 찾기** 체크 = `mode=hybrid`, 결과에 "› 섹션" |
+| `/admin` | 사람·에이전트(이름 변경)·토큰·Space 관리, **의미 검색** 탭(색인 현황·색인 만들기) |
+
+- 헤더의 **알림 벨**: 안 읽은 수(60초마다 갱신), 문서 수정 알림은 변경 기록 diff로, 댓글·멘션은 페이지 댓글로 이동. 페이지 메뉴에 지켜보기·알림 끄기와 지켜보는 이유.
 
 ### 12.2 편집기
 - **CodeMirror 6**: Markdown 모드(frontmatter 블록 인식, 코드 블록 언어별 하이라이트), `@codemirror/lint`로 밑줄·거터, 하단 Problems 패널(클릭 시 해당 줄), ⌘S 저장.
@@ -599,7 +750,8 @@ LintConfig = {
 | 환경 | 구성 |
 |---|---|
 | 로컬 | `pnpm dev` = `wrangler dev`(로컬 D1/R2) + Vite dev server 프록시. Access 대신 `apps/worker/.dev.vars`의 `DEV_ACCESS_EMAIL`로 사용자 주입 — localhost 요청에만 적용 |
-| E2E | `pnpm build && pnpm e2e` — Playwright가 `e2e/serve.sh`로 빈 로컬 D1의 `wrangler dev`(:8788)를 띄워 데스크톱·모바일 스모크 테스트 (CI check 잡에도 포함) |
+| E2E | `pnpm build && pnpm e2e` — Playwright가 `e2e/serve.sh`로 빈 로컬 D1의 `wrangler dev --local`(:8788, 원격 바인딩 없음 → Cloudflare 로그인 불필요, 의미 검색은 전문 검색으로 대체)을 띄워 데스크톱·모바일 스모크 테스트 (CI check 잡에도 포함). 로컬 큐 소비자는 몇 초 늦게 돌아 알림은 `expect.toPass`로 기다린다 |
+| 테스트 | Worker 테스트는 `remoteBindings: false` — Workers AI·Vectorize가 없고, `test/semantic.test.ts`가 메모리 가짜를 넣는다 |
 | Preview | 없음 (D-38) — 로컬 + 테스트 + `main` 자동 배포 |
 | Production | `main` 머지 시 GitHub Actions → `wrangler deploy` + `d1 migrations apply` |
 

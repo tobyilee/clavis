@@ -33,6 +33,12 @@ test('write a spec: template, preview, lint, save, search', async ({ page }) => 
   await page.goto(`/search?q=${encodeURIComponent('비동기')}`);
   await expect(page.getByRole('link', { name: /결제 API 설계/ })).toBeVisible();
   await expect(page.locator('mark')).toHaveText('비동기');
+
+  // Search by meaning: no Workers AI under wrangler dev --local, so it says it fell back.
+  await page.getByLabel('뜻으로 찾기').check();
+  await expect(page).toHaveURL(/mode=hybrid/);
+  await expect(page.getByText('뜻으로 찾기를 지금 쓸 수 없어')).toBeVisible();
+  await expect(page.getByRole('link', { name: /결제 API 설계/ })).toBeVisible();
 });
 
 test('an error blocks the save; a conflict keeps my text', async ({ page, request }) => {
