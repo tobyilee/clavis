@@ -8,6 +8,7 @@ import { problem } from './api/problem';
 import { rateLimit } from './api/rate-limit';
 import { raw } from './api/raw';
 import { authenticate, requireRole } from './auth/middleware';
+import { type Emit, emitFor } from './events';
 import { buildMcpServer } from './mcp/server';
 import type { Actor } from './services/actors';
 import { ServiceError } from './services/errors';
@@ -45,7 +46,10 @@ export function createApp() {
   app.route('/', raw);
   // One MCP handler per hostname for the isolate's lifetime; each request still gets its own
   // McpServer (stateless transport). The factory finds the request's actor by the Request.
-  const mcpRequests = new WeakMap<Request, { env: Env; actor: Actor; origin: string }>();
+  const mcpRequests = new WeakMap<
+    Request,
+    { env: Env; actor: Actor; origin: string; emit: Emit }
+  >();
   const mcpHandlers = new Map<string, ReturnType<typeof createMcpHandler>>();
   app.all('/mcp', requireRole('viewer'), (c) => {
     const url = new URL(c.req.url);
@@ -55,7 +59,7 @@ export function createApp() {
         ({ requestInfo }) => {
           const ctx = requestInfo && mcpRequests.get(requestInfo);
           if (!ctx) throw new Error('MCP request without an authenticated actor');
-          return buildMcpServer(ctx.env, ctx.actor, ctx.origin);
+          return buildMcpServer(ctx.env, ctx.actor, ctx.origin, ctx.emit);
         },
         {
           route: '/mcp',
@@ -66,7 +70,12 @@ export function createApp() {
       );
       mcpHandlers.set(url.hostname, handler);
     }
-    mcpRequests.set(c.req.raw, { env: c.env, actor: c.get('actor'), origin: url.origin });
+    mcpRequests.set(c.req.raw, {
+      env: c.env,
+      actor: c.get('actor'),
+      origin: url.origin,
+      emit: emitFor(c),
+    });
     return handler(c.req.raw, c.env, c.executionCtx as unknown as ExecutionContext);
   });
 

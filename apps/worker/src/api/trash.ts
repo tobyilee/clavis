@@ -1,5 +1,6 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { requireRole } from '../auth/middleware';
+import { emitFor } from '../events';
 import { listTrash, restoreBatch } from '../services/trash';
 import { problemResponse } from './problem';
 import { router } from './router';
@@ -46,5 +47,10 @@ trash.openapi(
     },
   }),
   async (c) =>
-    c.json(await restoreBatch(c.env.DB, c.get('actor'), c.req.valid('param').batchId), 200),
+    c.json(
+      await restoreBatch(c.env.DB, c.get('actor'), c.req.valid('param').batchId, {
+        emit: emitFor(c),
+      }),
+      200,
+    ),
 );

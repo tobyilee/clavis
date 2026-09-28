@@ -1,5 +1,6 @@
 import type { TrashEntry } from '@clavis/shared/schema';
 import { generateKeyBetween } from 'fractional-indexing';
+import type { WriteOptions } from '../events';
 import type { Actor } from './actors';
 import { notFound, ServiceError } from './errors';
 import { toPageRef } from './page-read';
@@ -60,7 +61,7 @@ export async function restoreBatch(
   DB: D1Database,
   actor: Actor,
   batchId: string,
-  now = Date.now(),
+  { now = Date.now(), emit }: WriteOptions = {},
 ): Promise<{ restored: number; renamed: { id: string; title: string }[] }> {
   const [pagesRes, takenRes, rootsRes] = await DB.batch([
     DB.prepare(
@@ -154,6 +155,7 @@ export async function restoreBatch(
       first.space_id,
     ),
   ]);
+  emit?.({ type: 'page.restored', pageIds: [...ids], batchId, actorId: actor.id, at: now });
   return { restored: rows.length, renamed };
 }
 

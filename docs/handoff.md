@@ -13,7 +13,7 @@
 | Phase 0 — 기반·기술 검증 | ✅ 완료 | [`02-phase0-plan.md`](./02-phase0-plan.md) |
 | Phase 1 — MVP | ✅ 완료 | [`03-phase1-plan.md`](./03-phase1-plan.md) |
 | Phase 2 — 팀 생산성 & AI 연동 | ✅ 완료 (2026-09-28) | [`04-phase2-plan.md`](./04-phase2-plan.md) §9에 Step별 결과 |
-| **Phase 3 — 안전한 편집·알림·의미 검색** | 🔶 **진행 중 (Step 0부터)** | [`05-phase3-plan.md`](./05-phase3-plan.md) |
+| **Phase 3 — 안전한 편집·알림·의미 검색** | 🔶 **진행 중 (Step 0 ✅, 다음 Step 1 버전 히스토리)** | [`05-phase3-plan.md`](./05-phase3-plan.md) |
 
 Phase 2 진행 현황 (결정 D-44~D-53은 모두 추천안으로 확정, [`decisions.md`](./decisions.md)):
 
@@ -34,11 +34,13 @@ Phase 2 진행 현황 (결정 D-44~D-53은 모두 추천안으로 확정, [`deci
 | 7 | Z4 완료: 사용자가 Adam(Hermes) 실사용·아이폰 실기기·U4 확인 → Phase 2 완료 | 이 문서와 같은 커밋 |
 
 - 모든 커밋 push·배포 완료, CI 통과. 운영 D1에 migration `0000`~`0007` 적용됨(Step 6은 migration 없음).
-- 테스트: shared 60 · web 23 · worker 110 · E2E 9개(모바일은 375px), 모두 통과.
+- 테스트: shared 60 · web 23 · worker 115 · E2E 9개(모바일은 375px), 모두 통과.
 
 ## 2. 다음 할 일
 
-**Phase 3 진행 중** — 계획서 [`05-phase3-plan.md`](./05-phase3-plan.md)(결정 D-54~D-63 확정). Step 0(정비)부터: A0 마이그레이션 계획, A1 에이전트 이름 변경, A2 저장 이벤트 훅·큐.
+**Phase 3 진행 중** — 계획서 [`05-phase3-plan.md`](./05-phase3-plan.md)(결정 D-54~D-63 확정). Step 0 ✅(에이전트 이름 변경, 저장 이벤트·큐 `src/events`). 다음은 **Step 1 버전 히스토리**: 처리기는 `EVENT_HANDLERS`에 등록하고, R2 버전 본문 쓰기는 `eventSink`에서(본문이 요청 안에만 있음).
+
+- **운영 큐**: Cloudflare 계정에 Queue `clavis-events`가 있어야 배포된다(`wrangler queues create clavis-events`, 한 번만). 없으면 CI deploy가 실패한다.
 
 - Step별 결과는 계획서 §9에 적고, 이 문서 §1·§2를 갱신한다.
 - 설계의 핵심 제약(계획서 §7): `waitUntil`의 CPU도 요청의 10ms에 포함 → CPU가 드는 뒤처리는 Queues 소비자로. Vectorize 무료 저장량은 1024차원 벡터 약 4,880개.

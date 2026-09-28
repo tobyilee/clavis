@@ -6,6 +6,7 @@ import {
 } from '@clavis/shared/schema';
 import { createRoute, z } from '@hono/zod-openapi';
 import { requireRole } from '../auth/middleware';
+import { emitFor } from '../events';
 import { listSections, patchPageMeta, readSection, updateSection } from '../services/sections';
 import { problemResponse } from './problem';
 import { router } from './router';
@@ -84,7 +85,7 @@ sections.openapi(
   async (c) => {
     const { ref, section } = c.req.valid('param');
     return c.json(
-      await updateSection(c.env.DB, c.get('actor'), ref, section, c.req.valid('json')),
+      await updateSection(c.env.DB, c.get('actor'), ref, section, c.req.valid('json'), emitFor(c)),
       200,
     );
   },
@@ -108,7 +109,13 @@ sections.openapi(
   }),
   async (c) =>
     c.json(
-      await patchPageMeta(c.env.DB, c.get('actor'), c.req.valid('param').ref, c.req.valid('json')),
+      await patchPageMeta(
+        c.env.DB,
+        c.get('actor'),
+        c.req.valid('param').ref,
+        c.req.valid('json'),
+        emitFor(c),
+      ),
       200,
     ),
 );

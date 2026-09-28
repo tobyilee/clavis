@@ -1,6 +1,7 @@
 import { CreatePageSchema, MovePageSchema, UpdatePageSchema } from '@clavis/shared/schema';
 import { createRoute, z } from '@hono/zod-openapi';
 import { requireRole } from '../auth/middleware';
+import { emitFor } from '../events';
 import { recordView } from '../services/home';
 import {
   createPage,
@@ -47,6 +48,7 @@ pages.openapi(
       c.get('actor'),
       c.req.valid('param').key,
       c.req.valid('json'),
+      { emit: emitFor(c) },
     );
     return c.json(result, 201);
   },
@@ -147,6 +149,7 @@ pages.openapi(
       c.get('actor'),
       c.req.valid('param').ref,
       c.req.valid('json'),
+      { emit: emitFor(c) },
     );
     return c.json(result, 200);
   },
@@ -197,5 +200,9 @@ pages.openapi(
       409: problemResponse('Space home page, or space archived'),
     },
   }),
-  async (c) => c.json(await deletePage(c.env.DB, c.get('actor'), c.req.valid('param').ref), 200),
+  async (c) =>
+    c.json(
+      await deletePage(c.env.DB, c.get('actor'), c.req.valid('param').ref, { emit: emitFor(c) }),
+      200,
+    ),
 );

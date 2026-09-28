@@ -1,5 +1,6 @@
 import { createApp } from './app';
 import { runBackupStep } from './backup/backup';
+import { consumeEvents, type QueuedEvent } from './events';
 import { purgeTrash } from './services/trash';
 
 const app = createApp();
@@ -20,5 +21,8 @@ export default {
         }
       })(),
     );
+  },
+  async queue(batch, env) {
+    await consumeEvents(batch as MessageBatch<QueuedEvent>, env);
   },
 } satisfies ExportedHandler<Env>;

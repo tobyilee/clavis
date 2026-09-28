@@ -12,6 +12,7 @@ import {
 } from '@clavis/shared/schema';
 import { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
+import type { Emit } from '../events';
 import type { Actor } from '../services/actors';
 import { addComment, listThreads, openThreadCount, setResolved } from '../services/comments';
 import { ServiceError } from '../services/errors';
@@ -267,7 +268,7 @@ const INPUT = {
  * One MCP server per request (stateless transport). The authenticated actor is closed over,
  * so every tool runs with the caller's identity and role. `origin` makes page links absolute.
  */
-export function buildMcpServer(env: Env, actor: Actor, origin = '') {
+export function buildMcpServer(env: Env, actor: Actor, origin = '', emit?: Emit) {
   const DB = env.DB;
   const server = new McpServer(
     { name: 'clavis', version: env.APP_VERSION },
@@ -573,7 +574,7 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
     },
     async ({ space, ...input }) =>
       guard(async () => {
-        const result = await createPage(DB, actor, space, input);
+        const result = await createPage(DB, actor, space, input, { emit });
         return saved('Created', result.page, result.violations);
       }),
   );
@@ -589,7 +590,7 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
     },
     async ({ page, ...input }) =>
       guard(async () => {
-        const result = await updatePage(DB, actor, page, input);
+        const result = await updatePage(DB, actor, page, input, { emit });
         const extra: string[] = [];
         if (result.linksUpdated) {
           extra.push(`Rewrote [[links]] to the new title in ${result.linksUpdated} other page(s).`);
@@ -614,7 +615,7 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
     },
     async ({ page, section, ...input }) =>
       guard(async () => {
-        const result = await updateSection(DB, actor, page, section, input);
+        const result = await updateSection(DB, actor, page, section, input, emit);
         return saved(`Updated section "${section}" of`, result.page, result.violations);
       }),
   );
@@ -629,7 +630,7 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
     },
     async ({ page, ...patch }) =>
       guard(async () => {
-        const result = await patchPageMeta(DB, actor, page, patch);
+        const result = await patchPageMeta(DB, actor, page, patch, emit);
         return saved('Updated', result.page, result.violations);
       }),
   );
@@ -660,7 +661,7 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '') {
     },
     async ({ page }) =>
       guard(async () => {
-        const { pageCount } = await deletePage(DB, actor, page);
+        const { pageCount } = await deletePage(DB, actor, page, { emit });
         return text(`Moved ${pageCount} page(s) to the trash.`);
       }),
   );

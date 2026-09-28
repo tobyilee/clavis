@@ -12,6 +12,7 @@ import {
   type UpdatePageInput,
 } from '@clavis/shared/schema';
 import { ulid } from 'ulid';
+import type { WriteOptions } from '../events';
 import type { Actor } from './actors';
 import { notFound, ServiceError } from './errors';
 import {
@@ -262,7 +263,7 @@ export async function createPage(
   actor: Actor,
   spaceKey: string,
   input: CreatePageInput,
-  now = Date.now(),
+  { now = Date.now(), emit }: WriteOptions = {},
 ): Promise<SaveResult> {
   const key = spaceKey.toUpperCase();
   let content = input.content;
@@ -355,6 +356,15 @@ export async function createPage(
       ]);
       const page = pageFromResults(results.slice(-3));
       if (!page) throw new Error('created page not found');
+      emit?.({
+        type: 'page.saved',
+        kind: 'create',
+        pageId: id,
+        revision: 1,
+        actorId: actor.id,
+        at: now,
+        content,
+      });
       return { page: savedPage(page), violations };
     } catch (e) {
       if (isConstraint(e, 'short_id') && attempt < 3) continue;
@@ -371,7 +381,7 @@ export async function updatePage(
   actor: Actor,
   ref: string,
   input: UpdatePageInput,
-  now = Date.now(),
+  { now = Date.now(), emit }: WriteOptions = {},
 ): Promise<SaveResult> {
   assertSize(input.content);
   const loc = parsePageRef(ref);
@@ -504,11 +514,31 @@ export async function updatePage(
     if (!page) throw new Error('updated page not found');
     const incoming = (incomingRes?.results[0] as { n: number } | undefined)?.n ?? 0;
     // Rewrites that lost a race with another save were skipped by their revision check.
-    const updated = renamed ? await countRewritten(DB, rewrites, actor, now) : 0;
+    const updated = renamed ? await rewrittenIds(DB, rewrites, actor, now) : new Set<string>();
+    const saved = { actorId: actor.id, at: now };
+    emit?.({
+      type: 'page.saved',
+      kind: 'update',
+      pageId: row.id,
+      revision: row.revision + 1,
+      content: input.content,
+      ...saved,
+    });
+    for (const r of rewrites) {
+      if (!updated.has(r.id)) continue;
+      emit?.({
+        type: 'page.saved',
+        kind: 'link-rewrite',
+        pageId: r.id,
+        revision: r.rev + 1,
+        content: r.content,
+        ...saved,
+      });
+    }
     return {
       page: savedPage(page),
       violations,
-      ...(renamed ? { linksUpdated: updated, linksToOldTitle: incoming - updated } : {}),
+      ...(renamed ? { linksUpdated: updated.size, linksToOldTitle: incoming - updated.size } : {}),
     };
   } catch (e) {
     if (e instanceof Error && e.message.includes('malformed JSON')) {
@@ -571,20 +601,21 @@ function renameStatements(
   ];
 }
 
-async function countRewritten(
+/** The pages this rename's batch actually rewrote (same actor and time). */
+async function rewrittenIds(
   DB: D1Database,
   rewrites: { id: string }[],
   actor: Actor,
   now: number,
-): Promise<number> {
-  if (rewrites.length === 0) return 0;
-  const row = await DB.prepare(
-    `SELECT COUNT(*) AS n FROM pages WHERE updated_by = ? AND updated_at = ?
+): Promise<Set<string>> {
+  if (rewrites.length === 0) return new Set();
+  const { results } = await DB.prepare(
+    `SELECT id FROM pages WHERE updated_by = ? AND updated_at = ?
        AND id IN (SELECT json_extract(value, '$.id') FROM json_each(?))`,
   )
     .bind(actor.id, now, JSON.stringify(rewrites))
-    .first<{ n: number }>();
-  return row?.n ?? 0;
+    .all<{ id: string }>();
+  return new Set(results.map((r) => r.id));
 }
 
 function conflict(revision: number) {
@@ -676,7 +707,7 @@ export async function deletePage(
   DB: D1Database,
   actor: Actor,
   ref: string,
-  now = Date.now(),
+  { now = Date.now(), emit }: WriteOptions = {},
 ): Promise<{ batchId: string; pageCount: number }> {
   const w = locatorWhere(parsePageRef(ref));
   const [pageRes, subtreeRes] = await DB.batch([
@@ -716,5 +747,6 @@ export async function deletePage(
     ).bind(idsJson),
     bumpTree(DB, page.space_id),
   ]);
+  emit?.({ type: 'page.trashed', pageIds: ids, batchId, actorId: actor.id, at: now });
   return { batchId, pageCount: ids.length };
 }

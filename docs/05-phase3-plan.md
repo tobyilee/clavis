@@ -184,7 +184,7 @@ A2 저장 이벤트    V4 보관·정리           N4 알림 UI(벨)          W4
 
 | 항목 | 상태 | 결과 | 날짜 |
 |---|---|---|---|
-| Step 0 | – | | |
+| Step 0 | ✅ 완료 (큐 생성·배포 대기) | **A0** 마이그레이션은 Step별로 추가(Step 0은 스키마 변경 없음). **A1** `PATCH /admin/actors/{id}`에 `name`(에이전트만 — 사람은 400 `invalid-name`), 관리 화면 에이전트 행의 연필 버튼으로 이름 변경. **A2** `src/events`: 서비스가 `PageEvent`(`page.saved` — `create`·`update`·`link-rewrite`, `page.trashed`, `page.restored`)를 내고, 요청은 `eventSink`로 받아 응답 뒤 Queue `clavis-events`에 본문 없는 메시지를 보낸다. 쓰기 서비스의 마지막 인자는 `{ now, emit }`(섹션 편집·속성 변경은 `emit`을 `updatePage`로 넘김). 제목 변경으로 실제 고쳐진 문서마다 `link-rewrite` 이벤트(`countRewritten` → `rewrittenIds`). 실패한 쓰기는 이벤트 없음, 큐 전송 실패는 로그만(쓰기는 성공). 소비자 `consumeEvents`는 등록된 처리기(`EVENT_HANDLERS`, 지금은 비어 있음)를 메시지마다 실행하고 실패한 메시지만 재시도(최대 3회). REST·MCP 모든 쓰기 경로 연결(이동은 이벤트 없음). Worker 테스트 115개(이벤트 4개 추가), E2E 9개(`wrangler dev`에서 큐 바인딩 동작) | 2026-09-28 |
 | Step 1 | – | | |
 | Step 2 | – | | |
 | Step 3 | – | | |

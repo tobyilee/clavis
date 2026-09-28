@@ -20,6 +20,12 @@
     }
   ],
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "clavis-files" }],
+  // Work after a write (Phase 3 A2, D-60, D-62): the request sends an event, this Worker's
+  // queue() handler does the CPU-heavy part in its own invocation. Free plan: 10k ops/day.
+  "queues": {
+    "producers": [{ "binding": "EVENTS", "queue": "clavis-events" }],
+    "consumers": [{ "queue": "clavis-events", "max_batch_size": 10, "max_retries": 3 }]
+  },
   // Per-key API limit (S7). Permissive and per-location by design: it stops runaway
   // agents, it is not an accounting system. People get more: one page view makes about
   // seven requests (page, tree, backlinks, comments, ...), and Access already gates them.
