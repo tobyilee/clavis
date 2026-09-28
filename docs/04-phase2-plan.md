@@ -16,16 +16,16 @@ Phase 1로 "읽고 쓸 수 있는 위키"가 됐다. Phase 2는 **여러 사람�
 
 ## 2. 완료 조건 (Exit Criteria)
 
-- [ ] 페이지 보기에서 **백링크**(이 페이지를 링크하는 문서)를 보고, Space **대시보드**에서 깨진 링크와 lint 위반 페이지 목록을 보고 해당 줄로 이동할 수 있다
-- [ ] Space별 **lint 설정**(규칙 심각도, 필수 섹션, 문서 길이)을 바꾸면 편집기, 저장 API, MCP 결과에 똑같이 반영되고, 대시보드에서 재검사할 수 있다
-- [ ] **커스텀 템플릿**을 만들어 UI의 새 페이지 화면과 MCP `create_page(template)`에서 쓸 수 있다
+- [x] 페이지 보기에서 **백링크**(이 페이지를 링크하는 문서)를 보고, Space **대시보드**에서 깨진 링크와 lint 위반 페이지 목록을 보고 해당 줄로 이동할 수 있다
+- [x] Space별 **lint 설정**(규칙 심각도, 필수 섹션, 문서 길이)을 바꾸면 편집기, 저장 API, MCP 결과에 똑같이 반영되고, 대시보드에서 재검사할 수 있다
+- [x] **커스텀 템플릿**을 만들어 UI의 새 페이지 화면과 MCP `create_page(template)`에서 쓸 수 있다
 - [ ] Hermes가 MCP만으로 **섹션 하나를 읽고 교체하거나 끝에 추가**한다. 그사이 사람이 다른 섹션을 저장해도 충돌 없이 둘 다 남는다
 - [ ] 사람과 에이전트가 **댓글과 답글을 달고 해결 처리**하며, 에이전트가 미해결 댓글을 읽고 문서에 반영할 수 있다
-- [ ] 홈 화면에 즐겨찾기, 최근 본 문서, 최근 변경, 내 문서의 새 댓글이 나온다
-- [ ] 페이지를 원본 Markdown으로 열거나(`.md` URL) "AI용 복사"로 붙여넣을 수 있다
+- [x] 홈 화면에 즐겨찾기, 최근 본 문서, 최근 변경, 내 문서의 새 댓글이 나온다
+- [x] 페이지를 원본 Markdown으로 열거나(`.md` URL) "AI용 복사"로 붙여넣을 수 있다
 - [ ] 모바일 폭(375px)에서 서식 툴바로 헤딩, 목록, 체크박스, 링크를 넣고, 사진을 찍어 첨부하고 저장할 수 있다
-- [ ] 운영 환경 실측: 새로 추가된 요청(섹션 저장 100KB, 재검사 1회, 대시보드, 댓글, 홈)의 CPU가 모두 **10ms 미만**이다
-- [ ] `01-architecture.md`와 가이드 문서가 구현과 일치한다
+- [x] 운영 환경 실측: 새로 추가된 요청(섹션 저장 100KB, 재검사 1회, 대시보드, 댓글, 홈)의 CPU가 모두 **10ms 미만**이다
+- [x] `01-architecture.md`와 가이드 문서가 구현과 일치한다
 
 ## 3. 범위
 
@@ -76,7 +76,7 @@ A1 lint 설정   L2 깨진 링크 리포트     S2 섹션 REST       C2 댓글 M
 
 | ID | 작업 | 완료 기준 |
 |---|---|---|
-| L1 | 백링크 | `GET /pages/{id}/backlinks` (다른 Space 포함, 휴지통 제외, `page_links_to` 인덱스로 쿼리 1개). 페이지 보기 하단에 목록, MCP `read_page` 결과에 백링크 수 |
+| L1 | 백링크 | `GET /pages/{id}/backlinks` (다른 Space 포함, 휴지통 제외, `page_links_to` 인덱스로 쿼리 1개). 페이지 보기 하단에 목록, MCP `get_backlinks` (Z4에서 확정: `read_page`에 백링크 수는 넣지 않음) |
 | L2 | 깨진 링크 리포트 | `GET /spaces/{key}/broken-links`: `to_page_id IS NULL`인 링크를 페이지별로 묶어 반환. 이 링크 목록은 저장 시점이 아니라 **지금** 상태라 항상 정확하다 |
 | L3 | lint 요약 저장 | 저장 쓰기 batch에 `page_lint`(페이지당 1행: error·warning·info 수, 위반 `ruleId`와 줄 목록, 설정 버전, 검사 시각) upsert 추가. 저장 파이프라인의 D1 호출 수는 그대로 2회 |
 | L4 | 재검사(청크) | `POST /spaces/{key}/lint/recheck?cursor=`: 요약이 없거나 설정 버전이 옛날인 페이지를 **본문 합계 150KB까지** 검사해 저장하고 다음 cursor를 반환. 대시보드가 끝날 때까지 반복 호출(백업 D-30과 같은 방식). 기존 페이지 초기 채우기에도 사용 |
@@ -200,7 +200,7 @@ A1 lint 설정   L2 깨진 링크 리포트     S2 섹션 REST       C2 댓글 M
 | Step 4 | ✅ 완료 | Space 응답에 `lintConfig`·`lintConfigVersion`, `PUT /spaces/{key}/lint-config`(admin, 저장하면 버전이 올라 대시보드가 재검사). 에디터도 같은 설정으로 검사하고 '필수 섹션 추가'도 Space 목록을 씀. `0006_templates` + `GET/POST/PUT/DELETE /templates`: 커스텀 템플릿이 먼저, 기본 7종은 Space의 필수 섹션으로 렌더링. 커스텀 템플릿은 `{{title}}`·`{{owner}}`·`{{date}}`를 채운 샘플로 그 Space 규칙 lint(error면 422) — 그래서 frontmatter에 `owner: {{owner}}`를 그대로 쓸 수 있음. 전역 템플릿은 admin, Space 템플릿은 editor. `create_page`의 `template`은 문서 유형 또는 템플릿 id(다른 Space 템플릿은 400). MCP `list_templates(space)`. 웹: `/s/$key/settings`(문서 규칙·템플릿 탭, viewer·editor는 규칙 읽기 전용), 새 페이지 화면이 서버 템플릿 목록 사용. **추가 수정**: E2E가 늘자 사람 계정이 분당 120회 한도에 걸려 화면이 비는 문제를 발견 — 사람은 별도 한도 600회/분(`HUMAN_RATE_LIMITER`), 에이전트는 120회 유지, 429면 안내와 '다시 시도'. Worker 테스트 103개, E2E 7개(3회 연속 통과) | 2026-09-28 |
 | Step 5 | ✅ 완료 | `0007_home`(`favorites`, `page_views`, `pages_updated` 부분 인덱스). 즐겨찾기 `PUT/DELETE /pages/{ref}/favorite`, `GET /me/favorites`. 사람이 페이지를 읽으면 응답 뒤(`waitUntil`) 조회 기록, 사람별 최신 50개만 유지 — 에이전트는 기록하지 않음(D-50). `GET /me/home`(D1 1회): 즐겨찾기, 최근 본 문서, 최근 변경(🧑/🤖 필터), 내가 담당·작성한 문서의 열린 댓글(D-52). `.md` 원본(`/s/{KEY}/p/{slugId}.md`, `X-Clavis-Revision`), `/s/{KEY}/llms.txt`(트리 캐시로 생성, 링크는 `.md`), `/llms.txt`(Space 목록) — `run_worker_first`에 `/s/*.md`·`/s/*/llms.txt`·`/llms.txt`를 추가하고 `wrangler dev` E2E로 실제 라우팅 확인. 웹: 홈 대시보드, 페이지 별표(viewer도), 사이드바 즐겨찾기, 페이지 메뉴의 'AI용 복사'(제목·URL·원문)와 '원본 Markdown 열기' — 페이지 메뉴는 이제 viewer에게도 보이고 편집 항목만 editor 전용. Worker 테스트 109개, E2E 8개 | 2026-09-28 |
 | Step 6 | ✅ 완료 (실기기 확인 대기) | U2로 받은 불편: 아이폰에서 편집 화면이 폰보다 넓어져 저장 버튼이 안 보임 → 원인은 레이아웃이 아니라 iOS Safari가 16px 미만 입력칸을 누르면 확대하고 되돌리지 않는 동작(에디터 14px, 태그 입력 12px). 터치 화면에서는 에디터·입력칸을 16px로(`pointer-coarse`, 데스크톱은 14px 유지), 먼저 `c8c470f`로 배포. **K3**: 폰(768px 미만)에서 편집 화면이 앱을 덮고 `visualViewport`(키보드 위 보이는 영역)에 맞춰 고정 — iOS는 키보드가 떠도 `100dvh`·fixed 요소가 줄지 않고 캐럿을 보이려고 페이지를 스크롤하므로, `--vv-top`·`--vv-height`를 `<html>`에 두고 따라간다. 제목·저장은 항상 위, 툴바는 키보드 바로 위. 속성 폼과 lint 문제 목록은 탭 줄의 '속성'·문제 수 배지 → 아래 시트(시트도 키보드 위로 올라옴, 문제를 누르면 그 줄로 이동). CodeMirror 툴팁(자동완성·lint)은 에디터 영역 안에서만 열려 툴바를 가리거나 키보드 뒤로 가지 않는다. **K1**: 헤딩(##→###→해제, 목록 줄은 헤딩으로 바뀜)·굵게·목록·체크박스·링크·`[[`(자동완성 열림)·코드(여러 줄이면 펜스). 선택 영역을 감싸고 다시 누르면 풀림, 누를 때 에디터 포커스(키보드)를 유지. **K2**: 사진 버튼은 `accept="image/*"`만 — 계획의 `capture`는 카메라만 열어 사진 보관함을 고를 수 없으므로 뺐다. 업로드 전에 JPEG·HEIC의 긴 변을 2000px로 줄여 JPEG(품질 0.85, EXIF 회전 반영)로 올리고, HEIC는 작아도 JPEG로 바꾼다(Safari만 표시 가능). PNG 등은 그대로. 붙여넣기·첨부 버튼에도 같이 적용. 검증: 가짜 `visualViewport`로 키보드를 흉내 내 Chromium·WebKit 320·390px에서 저장·툴바·시트 위치 확인(실제 iOS 키보드는 자동화 불가 → 사용자 확인). web 테스트 23개(서식 명령, 사진 크기), E2E 9개(모바일에 툴바·사진·시트 추가) | 2026-09-28 |
-| Step 7 | 🔶 진행 중 (Z1·Z2·Z3 ✅, Z4 남음) | **Z1 ✅** 남은 후보였던 섹션 추가(REST)를 댓글 E2E에 합침 — 스레드를 해결한 뒤 에이전트처럼 `PUT /pages/{ref}/sections/일정`(`append`)으로 목록 항목을 붙이고, 섹션 원문(문단 뒤라 빈 줄로 새 블록)과 새로 고친 페이지를 확인. 대시보드·댓글·모바일 툴바는 앞 Step에서 넣어 E2E는 9개 유지. **Z3 ✅** `01-architecture.md` v0.4(새 테이블 5개와 `spaces` 컬럼, 저장 파이프라인의 lint 설정·요약 upsert, §6.1 섹션 편집, §7.1 Space 설정·재검사, §8.3 P2 엔드포인트, MCP 도구 8개 추가, `.md`·`llms.txt` 라우팅, 홈·대시보드·설정 화면, 폰 편집 화면), `guides/writing.md`(폰 편집, 댓글, 문서 상태, Space 설정·템플릿, 홈·즐겨찾기·AI용 복사). `agent-connection.md`는 Step 2~5에서 이미 반영됨. 문서화하며 확인한 계획과의 차이: recheck는 100KB, `lint-config`는 PUT만(조회는 Space 응답), `read_page`에 백링크 수 없음(`get_backlinks`로 대신). **Z2 ✅** 아래 "Z2 CPU 실측" 참고 — 섹션 저장이 목표(9ms)를 넘어 섹션 읽기를 가볍게 고친 뒤 다시 측정 | 2026-09-28 |
+| Step 7 | 🔶 진행 중 (Z1·Z2·Z3 ✅, Z4는 사용자 확인 3건 남음) | **Z1 ✅** 남은 후보였던 섹션 추가(REST)를 댓글 E2E에 합침 — 스레드를 해결한 뒤 에이전트처럼 `PUT /pages/{ref}/sections/일정`(`append`)으로 목록 항목을 붙이고, 섹션 원문(문단 뒤라 빈 줄로 새 블록)과 새로 고친 페이지를 확인. 대시보드·댓글·모바일 툴바는 앞 Step에서 넣어 E2E는 9개 유지. **Z3 ✅** `01-architecture.md` v0.4(새 테이블 5개와 `spaces` 컬럼, 저장 파이프라인의 lint 설정·요약 upsert, §6.1 섹션 편집, §7.1 Space 설정·재검사, §8.3 P2 엔드포인트, MCP 도구 8개 추가, `.md`·`llms.txt` 라우팅, 홈·대시보드·설정 화면, 폰 편집 화면), `guides/writing.md`(폰 편집, 댓글, 문서 상태, Space 설정·템플릿, 홈·즐겨찾기·AI용 복사). `agent-connection.md`는 Step 2~5에서 이미 반영됨. 문서화하며 확인한 계획과의 차이: recheck는 100KB, `lint-config`는 PUT만(조회는 Space 응답), `read_page`에 백링크 수 없음(`get_backlinks`로 대신). **Z2 ✅** 아래 "Z2 CPU 실측" 참고 — 섹션 저장이 목표(9ms)를 넘어 섹션 읽기를 가볍게 고친 뒤 다시 측정 | 2026-09-28 |
 
 ### Z2 CPU 실측 상세 (ms, 중앙값 / p95 / 최대)
 
@@ -220,3 +220,21 @@ A1 lint 설정   L2 깨진 링크 리포트     S2 섹션 REST       C2 댓글 M
 - **개선** (`18d8231`): 섹션 읽기·목록·편집이 `getPage`(본문·태그·조상 3문장 + Page 조립) 대신 `id·revision·content` 한 문장만 읽고, 편집·읽기는 `locateSection`으로 **찾은 섹션 하나만** 해시한다(전 섹션 해시는 문서를 한 번 더 읽는 셈 — 로컬에서 `parseSections` 비용의 절반). 목록(`list_sections`)은 그대로 모든 해시를 준다.
 - **튀는 값**: 댓글 목록 18, 홈 15, 재검사 18·12는 각각 한 번씩이고, 같은 요청의 나머지는 2~9ms였다. 재검사의 18은 남은 페이지가 가장 적은 마지막 호출이라 작업량과 무관 — GC·isolate 잡음으로 보인다. 모든 요청의 outcome은 `ok`(CPU 초과로 실패한 요청 없음).
 - 결론: 새 요청 모두 중앙값이 목표 안이고, 튀는 값을 뺀 최대도 10ms 미만. 가장 빠듯한 것은 재검사(중앙값 7)와 섹션 저장(6)이다. 규칙을 추가하면 이 둘을 다시 잰다. 재검사가 빠듯해지면 예산을 100KB에서 더 줄인다.
+- **판정** (Z4, 사용자 확인): 튀는 값은 잡음으로 보고 CPU 조건은 통과.
+
+### Z4 Exit 점검 (2026-09-28)
+
+| §2 조건 | 판정 | 근거 |
+|---|---|---|
+| 백링크·대시보드·해당 줄 이동 | ✅ | E2E `dashboard`, worker `quality`·MCP `get_backlinks`·`get_space_health` |
+| lint 설정이 편집기·저장 API·MCP에 반영, 재검사 | ✅ | E2E `space settings`(편집기), worker `templates`(저장·`/lint`·stale), MCP 테스트 추가(`lint_markdown`·`create_page`가 Space 규칙으로 차단), E2E·worker 재검사 |
+| 커스텀 템플릿 — UI와 MCP `create_page(template)` | ✅ | E2E `space settings`, worker `templates`, MCP 테스트 추가(`list_templates(space)`·커스텀 id로 생성) |
+| Hermes가 MCP만으로 섹션 읽기·교체·추가, 다른 섹션과 충돌 없음 | ⏳ U3 | worker `sections`(다른 섹션 동시 저장·경합 재시도)·MCP 섹션 테스트는 통과. **Hermes 실사용은 사용자 확인** |
+| 댓글·답글·해결, 에이전트가 미해결 댓글 반영 | ⏳ U3 | E2E `comments`(+섹션 append), worker `comments`·MCP D-53 흐름. **Hermes 실사용은 사용자 확인** |
+| 홈: 즐겨찾기·최근 본·최근 변경·내 문서 댓글 | ✅ | E2E `home`, worker `home` |
+| `.md` URL·AI용 복사 | ✅ | E2E `home`(`.md`·`llms.txt`, AI용 복사 클립보드 내용 — 이번에 추가) |
+| 모바일 375px: 툴바·사진·저장 | ⏳ 실기기 | E2E 모바일 프로젝트를 375px로 변경(툴바·사진·시트·가로 넘침 0). **아이폰 실기기 확인은 사용자**(handoff §2) |
+| CPU 10ms 미만 | ✅ | 위 Z2 — 판정은 사용자 확인 |
+| 문서가 구현과 일치 | ✅ | Z3 |
+
+- 남은 3건(U3 두 건, 실기기 한 건)이 확인되면 Phase 2를 완료로 바꾼다. 사용자와 실제 문서로 한 번 써 보기도 이때 함께 한다.
