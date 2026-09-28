@@ -78,7 +78,7 @@ export function FrontmatterForm({
           </span>
         ))}
         <Input
-          className="h-7 w-28 text-xs"
+          className="h-7 w-28 text-xs pointer-coarse:h-9"
           placeholder={t('editor.addTag')}
           value={tagDraft}
           onChange={(e) => setTagDraft(e.target.value)}

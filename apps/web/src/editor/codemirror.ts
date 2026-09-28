@@ -68,7 +68,7 @@ const theme = EditorView.theme({
   '&.cm-focused': { outline: 'none' },
   '.cm-scroller': {
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, "D2Coding", monospace',
-    fontSize: '14px',
+    fontSize: 'var(--editor-font-size)',
     lineHeight: '1.65',
   },
   '.cm-content': { padding: '12px 0', caretColor: 'var(--foreground)' },

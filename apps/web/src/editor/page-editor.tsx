@@ -281,7 +281,7 @@ export function PageEditor({
         <div className="flex items-center gap-2">
           <Input
             aria-label={t('editor.title')}
-            className="h-10 flex-1 text-lg font-semibold md:text-lg"
+            className="h-10 flex-1 text-lg font-semibold pointer-coarse:text-lg"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />

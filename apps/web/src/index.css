@@ -27,6 +27,15 @@
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-border: oklch(0.922 0 0);
+  --editor-font-size: 14px;
+}
+
+/* iOS Safari zooms the page in when a field under 16px gets focus and stays zoomed, which
+   pushes the right edge (the Save button) off screen. Touch screens get 16px fields. */
+@media (pointer: coarse) {
+  :root {
+    --editor-font-size: 16px;
+  }
 }
 
 @media (prefers-color-scheme: dark) {
