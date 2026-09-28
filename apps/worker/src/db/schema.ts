@@ -210,6 +210,37 @@ export const comments = sqliteTable(
 );
 
 /**
+ * Semantic search chunks (D-63): one row per vector in Vectorize. The id is
+ * "{pageId}:{hash of the embedded text}", so an unchanged chunk keeps its vector and only new
+ * text is embedded (D-62). Rows hold what a search result shows; the text itself is not kept.
+ */
+export const pageChunks = sqliteTable(
+  'page_chunks',
+  {
+    id: text('id').primaryKey(),
+    pageId: text('page_id')
+      .notNull()
+      .references(() => pages.id),
+    ord: integer('ord').notNull(),
+    /** The H2's anchor id; NULL for the text before the first H2. */
+    sectionId: text('section_id'),
+    heading: text('heading'),
+    excerpt: text('excerpt').notNull(),
+    chars: integer('chars').notNull(),
+  },
+  (t) => [index('page_chunks_page').on(t.pageId)],
+);
+
+/** The revision each page's chunks reflect; a page whose revision differs awaits indexing. */
+export const pageIndex = sqliteTable('page_index', {
+  pageId: text('page_id')
+    .primaryKey()
+    .references(() => pages.id),
+  revision: integer('revision').notNull(),
+  indexedAt: integer('indexed_at').notNull(),
+});
+
+/**
  * Custom page templates (D-49): per space, or for every space when space_id is NULL. The
  * seven built-in templates live in code (@clavis/shared/templates) and are not stored.
  */

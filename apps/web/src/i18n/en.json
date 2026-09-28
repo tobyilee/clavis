@@ -190,7 +190,10 @@
     "shortQuery": "Terms under 3 characters use plain substring matching (no index).",
     "none": "No pages match \"{{q}}\".",
     "more": "Load more",
-    "all": "Search everything for \"{{q}}\""
+    "all": "Search everything for \"{{q}}\"",
+    "meaning": "Search by meaning",
+    "meaningHelp": "Also finds text that uses other words (one page of results).",
+    "meaningFallback": "Search by meaning is unavailable right now; these are plain text results."
   },
   "trash": {
     "help": "Deleted pages are kept for {{days}} days, then removed for good. Child pages are restored together.",
@@ -225,7 +228,16 @@
     "rename": "Rename",
     "renameSave": "Save",
     "renameCancel": "Cancel",
-    "renameHint": "Past edits by this agent show the new name too."
+    "renameHint": "Past edits by this agent show the new name too.",
+    "search": "Semantic search",
+    "searchHelp": "Pages are indexed by H2 section for semantic search. Each save re-indexes only the sections that changed.",
+    "searchUnavailable": "Workers AI and Vectorize are not connected here.",
+    "searchIndexed": "Pages indexed",
+    "searchVectors": "Vectors (free plan limit)",
+    "searchNearLimit": "Over 80% of the free limit. Consider the paid plan.",
+    "searchBuild": "Build index",
+    "searchUpToDate": "Every page is indexed.",
+    "searchQueued": "Indexing {{count}} pages…"
   },
   "role": {
     "pending": "Pending",

@@ -71,6 +71,7 @@ describe('MCP endpoint', () => {
       'resolve_comment',
       'restore_revision',
       'search_pages',
+      'semantic_search',
       'set_page_meta',
       'update_page',
       'update_section',

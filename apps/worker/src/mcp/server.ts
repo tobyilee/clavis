@@ -31,6 +31,7 @@ import { spaceHealth } from '../services/quality';
 import { listRevisions, readRevision, restoreRevision } from '../services/revisions';
 import { searchPages } from '../services/search';
 import { listSections, patchPageMeta, readSection, updateSection } from '../services/sections';
+import { searchInMode } from '../services/semantic';
 import { listSpaces } from '../services/spaces';
 import { listTemplates } from '../services/templates';
 
@@ -38,7 +39,8 @@ const INSTRUCTIONS = `Clavis is the team's Markdown wiki: specs, planning docs a
 Pages are referenced by short id (e.g. "a1b2c3") or "SPACEKEY:Page title".
 
 Reading
-- Find pages with search_pages, or list_spaces then get_space_tree.
+- Find pages with search_pages (exact words), semantic_search (by meaning, e.g. a question;
+  it names the closest section, to read with read_section), or list_spaces then get_space_tree.
 - read_page returns raw Markdown including YAML frontmatter, plus the page's revision.
 
 Writing (editor agents)
@@ -166,6 +168,14 @@ const INPUT = {
       type: z.enum(DOC_TYPES).optional(),
       status: z.enum(DOC_STATUSES).optional(),
       limit: z.number().int().min(1).max(50).optional(),
+    }),
+  ),
+  semantic_search: cached(
+    z.object({
+      query: z.string().min(1).max(200).describe('What you are looking for, in any words'),
+      space: z.string().optional().describe('Limit to a space key'),
+      type: z.enum(DOC_TYPES).optional(),
+      limit: z.number().int().min(1).max(20).optional(),
     }),
   ),
   list_templates: cached(
@@ -573,6 +583,35 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '', emit?: Emit)
           return `- ${h.spaceKey}/${h.shortId} "${h.title}" [${h.docType}, ${h.status}]\n  ${snippet}`;
         });
         if (more) lines.push('(more results: narrow the query or raise limit)');
+        return text(lines.join('\n'));
+      }),
+  );
+
+  server.registerTool(
+    'semantic_search',
+    {
+      title: 'Search by meaning',
+      description:
+        'Pages whose sections are closest in meaning to the query, best first, each with its closest section (id for read_section) and the start of that section. Finds text that uses other words than the query.',
+      inputSchema: INPUT.semantic_search,
+      annotations: { readOnlyHint: true },
+    },
+    async ({ query, space, type, limit = 10 }) =>
+      guard(async () => {
+        const r = await searchInMode(env, { q: query, space, type, limit }, 'semantic');
+        if (r.mode !== 'semantic') {
+          return {
+            ...text('Semantic search is unavailable right now. Use search_pages instead.'),
+            isError: true,
+          };
+        }
+        if (r.hits.length === 0) return text(`Nothing close to "${query}".`);
+        const lines = r.hits.map(
+          (h) =>
+            `- ${h.spaceKey}/${h.shortId} "${h.title}"` +
+            `${h.section ? ` section=${h.section.id} "${h.section.title}"` : ''}` +
+            ` [${h.docType}, ${h.status}] score=${h.score}\n  ${h.snippet}`,
+        );
         return text(lines.join('\n'));
       }),
   );

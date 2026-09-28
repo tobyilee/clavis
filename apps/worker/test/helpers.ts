@@ -14,6 +14,8 @@ export async function resetDb() {
       'page_views',
       'templates',
       'comments',
+      'page_chunks',
+      'page_index',
       'page_lint',
       'page_revisions',
       'attachments',

@@ -15,6 +15,8 @@ import { pageParams } from '@/lib/urls';
 
 interface SearchSearch {
   q?: string;
+  /** "뜻으로 찾기": full text and meaning together (Step 4, E4). */
+  mode?: 'hybrid';
   space?: string;
   type?: string;
   status?: string;
@@ -25,6 +27,7 @@ const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
 export const Route = createFileRoute('/search')({
   validateSearch: (s: Record<string, unknown>): SearchSearch => ({
     q: str(s.q),
+    mode: s.mode === 'hybrid' ? 'hybrid' : undefined,
     space: str(s.space),
     type: str(s.type),
     status: str(s.status),
@@ -46,6 +49,8 @@ function SearchPage() {
     enabled: !!search.q,
   });
   const hits = results.data?.pages.flatMap((p) => p.hits) ?? [];
+  const byMeaning = search.mode === 'hybrid';
+  const fellBack = byMeaning && results.data?.pages[0]?.mode === 'text';
   const set = (patch: Partial<SearchSearch>) =>
     void navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
 
@@ -105,9 +110,22 @@ function SearchPage() {
             </option>
           ))}
         </Select>
+        <label className="flex items-center gap-1.5" title={t('search.meaningHelp')}>
+          <input
+            type="checkbox"
+            checked={byMeaning}
+            onChange={(e) => set({ mode: e.target.checked ? 'hybrid' : undefined })}
+          />
+          {t('search.meaning')}
+        </label>
       </div>
 
-      {search.q && [...search.q.trim()].length < 3 && (
+      {fellBack && (
+        <p className="mt-3 text-xs text-muted-foreground" role="status">
+          {t('search.meaningFallback')}
+        </p>
+      )}
+      {!byMeaning && search.q && [...search.q.trim()].length < 3 && (
         <p className="mt-3 text-xs text-muted-foreground">{t('search.shortQuery')}</p>
       )}
       {results.isFetching && !results.isFetchingNextPage && (
@@ -119,14 +137,20 @@ function SearchPage() {
       <ul className="mt-6 flex flex-col gap-5">
         {hits.map((h) => (
           <li key={h.id}>
-            <Link to="/s/$key/p/$slugId" params={pageParams(h)} className="group block">
+            <Link
+              to="/s/$key/p/$slugId"
+              params={pageParams(h)}
+              hash={h.section?.id}
+              className="group block"
+            >
               <span className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold group-hover:underline">{h.title}</span>
                 <TypeBadge type={h.docType} />
                 <StatusDot status={h.status} />
               </span>
               <span className="mt-0.5 block text-xs text-muted-foreground">
-                {h.spaceKey} · {relativeTime(h.updatedAt, i18n.language)}
+                {h.spaceKey}
+                {h.section && ` › ${h.section.title}`} · {relativeTime(h.updatedAt, i18n.language)}
               </span>
               <span className="mt-1 line-clamp-2 block text-sm text-muted-foreground">
                 <Snippet text={h.snippet} />

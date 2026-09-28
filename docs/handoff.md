@@ -13,7 +13,7 @@
 | Phase 0 — 기반·기술 검증 | ✅ 완료 | [`02-phase0-plan.md`](./02-phase0-plan.md) |
 | Phase 1 — MVP | ✅ 완료 | [`03-phase1-plan.md`](./03-phase1-plan.md) |
 | Phase 2 — 팀 생산성 & AI 연동 | ✅ 완료 (2026-09-28) | [`04-phase2-plan.md`](./04-phase2-plan.md) §9에 Step별 결과 |
-| **Phase 3 — 안전한 편집·알림·의미 검색** | 🔶 **진행 중 (Step 0~3 ✅, 다음 Step 4 의미 검색)** | [`05-phase3-plan.md`](./05-phase3-plan.md) |
+| **Phase 3 — 안전한 편집·알림·의미 검색** | 🔶 **진행 중 (Step 0~3 ✅, Step 4 구현 완료 — Vectorize 인덱스 생성·품질 확인 남음)** | [`05-phase3-plan.md`](./05-phase3-plan.md) |
 
 Phase 2 진행 현황 (결정 D-44~D-53은 모두 추천안으로 확정, [`decisions.md`](./decisions.md)):
 
@@ -33,12 +33,21 @@ Phase 2 진행 현황 (결정 D-44~D-53은 모두 추천안으로 확정, [`deci
 | 7 (일부) | Z4 자동 검증 보강: MCP의 Space 규칙·커스텀 템플릿, E2E AI용 복사, 모바일 E2E 375px | `aa69947` |
 | 7 | Z4 완료: 사용자가 Adam(Hermes) 실사용·아이폰 실기기·U4 확인 → Phase 2 완료 | 이 문서와 같은 커밋 |
 
-- 모든 커밋 push·배포 완료, CI 통과. 운영 D1에 migration `0000`~`0007` 적용됨(Step 6은 migration 없음).
-- 테스트: shared 63 · web 27 · worker 131 · E2E 9개(모바일은 375px), 모두 통과. E2E는 로컬 큐 소비자가 몇 초 늦게 돌아서 알림은 `expect.toPass`로 기다린다.
+- 운영 D1에 migration `0000`~`0010` 적용됨. `0011_page_chunks`(Step 4)는 다음 배포 때 CI가 적용.
+- 테스트: shared 66 · web 27 · worker 139 · E2E 9개(모바일은 375px), 모두 통과. E2E는 로컬 큐 소비자가 몇 초 늦게 돌아서 알림은 `expect.toPass`로 기다린다.
 
 ## 2. 다음 할 일
 
-**Phase 3 진행 중** — 계획서 [`05-phase3-plan.md`](./05-phase3-plan.md)(결정 D-54~D-63 확정). Step 0 ✅(에이전트 이름 변경, 저장 이벤트·큐 `src/events`), Step 1 ✅(버전 히스토리: `services/revisions.ts`, 화면 `/history`), Step 2 ✅(알림: 큐 소비자 `services/notifications.ts`, 벨·지켜보기·`@멘션`), Step 3 ✅(Slack·Webhook: `services/webhooks.ts`, Space 설정 **알림 채널** 탭 — Slack URL은 사용자가 화면에 직접 입력). 다음은 **Step 4 의미 검색**(Workers AI `bge-m3` + Vectorize): Vectorize 인덱스를 계정에 만들어야 하고(메타데이터 인덱스 `space`·`docType`는 벡터를 넣기 전에), 색인은 큐 소비자에서 바뀐 청크만.
+**Phase 3 진행 중** — 계획서 [`05-phase3-plan.md`](./05-phase3-plan.md)(결정 D-54~D-63 확정). Step 0 ✅(에이전트 이름 변경, 저장 이벤트·큐 `src/events`), Step 1 ✅(버전 히스토리: `services/revisions.ts`, 화면 `/history`), Step 2 ✅(알림: 큐 소비자 `services/notifications.ts`, 벨·지켜보기·`@멘션`), Step 3 ✅(Slack·Webhook: `services/webhooks.ts`, Space 설정 **알림 채널** 탭 — Slack URL은 사용자가 화면에 직접 입력). Step 4 구현 완료(의미 검색: `services/semantic.ts`, 관리 → **의미 검색** 탭, 검색 화면 **뜻으로 찾기**). **배포 전에 사용자가 Vectorize 인덱스를 만들어야 한다**(공유 계정 리소스라 에이전트는 만들지 않음, 에이전트용 API 토큰에는 Vectorize 권한도 없음 — `wrangler` OAuth 로그인으로):
+
+  ```sh
+  cd apps/worker
+  env -u CLOUDFLARE_API_TOKEN ./node_modules/.bin/wrangler vectorize create clavis-chunks --dimensions=1024 --metric=cosine
+  env -u CLOUDFLARE_API_TOKEN ./node_modules/.bin/wrangler vectorize create-metadata-index clavis-chunks --propertyName=space --type=string
+  env -u CLOUDFLARE_API_TOKEN ./node_modules/.bin/wrangler vectorize create-metadata-index clavis-chunks --propertyName=docType --type=string
+  ```
+
+  인덱스가 없으면 CI deploy가 실패한다. CI의 `CLOUDFLARE_API_TOKEN`에 Vectorize·Workers AI 권한이 없어도 실패할 수 있다(그때는 토큰에 권한 추가). 배포 뒤: 관리 → 의미 검색 → **색인 만들기**, 그다음 **E5**(운영 문서로 한국어 질의 10개 정도를 사용자와 같이 보고 `MIN_SCORE`·청크 크기·hybrid 조정). 그 뒤 Step 5(마무리).
 
 - **운영 큐**: Cloudflare 계정에 Queue `clavis-events`가 있다(2026-09-28 생성, 생산자·소비자 모두 `worker:clavis`). 지우면 CI deploy가 실패한다.
 

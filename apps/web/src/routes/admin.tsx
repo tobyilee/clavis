@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { cn } from 'cn';
 import { Bot, Check, Copy, KeyRound, Pencil, User } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Notice } from '@/components/notice';
 import { SpaceForm } from '@/components/space-form';
@@ -42,7 +42,7 @@ interface ApiToken {
   revokedAt: number | null;
 }
 
-const TABS = ['people', 'agents', 'spaces'] as const;
+const TABS = ['people', 'agents', 'spaces', 'search'] as const;
 
 function Admin() {
   const { t } = useTranslation();
@@ -73,6 +73,7 @@ function Admin() {
         {tab === 'people' && <People myId={me.data.id} />}
         {tab === 'agents' && <Agents />}
         {tab === 'spaces' && <Spaces />}
+        {tab === 'search' && <SearchIndex />}
       </div>
     </div>
   );
@@ -411,6 +412,87 @@ function Spaces() {
         ))}
       </ul>
       <SpaceForm space={editing} onClose={() => setEditing(null)} />
+    </div>
+  );
+}
+
+interface IndexStatus {
+  available: boolean;
+  pages: number;
+  indexed: number;
+  vectors: number;
+  vectorLimit: number;
+}
+
+/** How long the tab follows a backfill; pages still left after it wait for the next one. */
+const FOLLOW_MS = 5 * 60_000;
+
+/** Semantic search index (E3): coverage, vectors against the free limit, and the backfill. */
+function SearchIndex() {
+  const { t } = useTranslation();
+  const [following, setFollowing] = useState(false);
+  const status = useQuery({
+    queryKey: ['admin', 'search-index'],
+    queryFn: () => apiGet<IndexStatus>('/admin/search-index'),
+    refetchInterval: (q) =>
+      following && q.state.data && q.state.data.indexed < q.state.data.pages ? 3000 : false,
+  });
+  const build = useMutation({
+    mutationFn: () => apiSend<{ queued: number }>('POST', '/admin/search-index'),
+    onSuccess: (r) => {
+      setFollowing(r.queued > 0);
+      void status.refetch();
+    },
+  });
+  useEffect(() => {
+    if (!following) return;
+    const timer = setTimeout(() => setFollowing(false), FOLLOW_MS);
+    return () => clearTimeout(timer);
+  }, [following]);
+
+  const s = status.data;
+  if (!s) return null;
+  const pending = s.pages - s.indexed;
+  const nearLimit = s.vectors >= s.vectorLimit * 0.8;
+  const items = [
+    { label: t('admin.searchIndexed'), value: `${s.indexed} / ${s.pages}`, warn: false },
+    {
+      label: t('admin.searchVectors'),
+      value: `${s.vectors.toLocaleString()} / ${s.vectorLimit.toLocaleString()}`,
+      warn: nearLimit,
+    },
+  ];
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-muted-foreground">{t('admin.searchHelp')}</p>
+      {!s.available && <p className="text-sm text-destructive">{t('admin.searchUnavailable')}</p>}
+      <dl className="grid grid-cols-2 gap-3">
+        {items.map((i) => (
+          <div key={i.label} className="rounded-md border px-3 py-2">
+            <dt className="text-xs text-muted-foreground">{i.label}</dt>
+            <dd className={cn('text-xl font-semibold', i.warn && 'text-destructive')}>{i.value}</dd>
+          </div>
+        ))}
+      </dl>
+      {nearLimit && <p className="text-sm text-destructive">{t('admin.searchNearLimit')}</p>}
+      {pending === 0 ? (
+        <p className="text-sm text-muted-foreground">{t('admin.searchUpToDate')}</p>
+      ) : following ? (
+        <p className="text-sm" role="status">
+          {t('admin.searchQueued', { count: pending })}
+        </p>
+      ) : (
+        s.available && (
+          <Button
+            variant="primary"
+            className="self-start"
+            onClick={() => build.mutate()}
+            disabled={build.isPending}
+          >
+            {t('admin.searchBuild')}
+          </Button>
+        )
+      )}
     </div>
   );
 }

@@ -197,6 +197,9 @@ export async function purgeTrash(
     DB.prepare(`DELETE FROM attachments WHERE page_id ${inIds}`).bind(idsJson),
     DB.prepare(`DELETE FROM page_tags WHERE page_id ${inIds}`).bind(idsJson),
     DB.prepare(`DELETE FROM page_lint WHERE page_id ${inIds}`).bind(idsJson),
+    // Their vectors went when the pages were trashed (services/semantic.ts).
+    DB.prepare(`DELETE FROM page_chunks WHERE page_id ${inIds}`).bind(idsJson),
+    DB.prepare(`DELETE FROM page_index WHERE page_id ${inIds}`).bind(idsJson),
     DB.prepare(`DELETE FROM page_revisions WHERE page_id ${inIds}`).bind(idsJson),
     DB.prepare(`DELETE FROM comments WHERE page_id ${inIds}`).bind(idsJson),
     DB.prepare(`DELETE FROM favorites WHERE page_id ${inIds}`).bind(idsJson),

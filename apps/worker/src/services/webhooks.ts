@@ -1,6 +1,6 @@
 import { pageSlugId, type WebhookEvent } from '@clavis/shared/schema';
 import { ulid } from 'ulid';
-import type { EventHandler, QueuedEvent, WebhookRetry } from '../events';
+import type { AnnouncedEvent, EventHandler, WebhookRetry } from '../events';
 import type { Actor } from './actors';
 import { notFound, ServiceError } from './errors';
 
@@ -18,7 +18,7 @@ const KEPT_DELIVERIES = 50;
 const SLACK_EDIT_WINDOW_MS = 5 * 60_000;
 const TIMEOUT_MS = 5_000;
 
-type Source = Exclude<QueuedEvent, WebhookRetry>;
+type Source = AnnouncedEvent;
 
 export interface WebhookRow {
   id: string;
@@ -69,6 +69,7 @@ export const deliverOnEvent: EventHandler = async (env, event) => {
     if (hook) await deliver(env, hook, event.event, event.attempt);
     return;
   }
+  if (event.type === 'index.page') return;
   const what = classify(event);
   if (!what) return;
   const { results } = await env.DB.prepare(

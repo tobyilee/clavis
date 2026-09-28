@@ -4,9 +4,11 @@ import { requireRole } from '../auth/middleware';
 import { db } from '../db/client';
 import { actors, apiTokens } from '../db/schema';
 import { createAgent, issueToken } from '../services/actors';
+import { indexStatus, queueStalePages } from '../services/semantic';
 import { ActorSchema } from './me';
 import { problem, problemResponse } from './problem';
 import { router } from './router';
+import { json } from './schemas';
 
 const IdParam = z.object({ id: z.string().openapi({ param: { name: 'id', in: 'path' } }) });
 
@@ -230,4 +232,40 @@ admin.openapi(
     if (res.meta.changes === 0) return problem(c, 404, 'not-found', 'Active token not found');
     return c.body(null, 204);
   },
+);
+
+const SearchIndexSchema = z
+  .object({
+    available: z.boolean().openapi({ description: 'Workers AI and Vectorize are bound' }),
+    pages: z.number().int().openapi({ description: 'Pages in active spaces' }),
+    indexed: z.number().int().openapi({ description: 'Pages indexed at their current revision' }),
+    vectors: z.number().int(),
+    vectorLimit: z.number().int().openapi({ description: 'Vectors the free plan stores' }),
+  })
+  .openapi('SearchIndexStatus');
+
+admin.openapi(
+  createRoute({
+    method: 'get',
+    path: '/admin/search-index',
+    tags: ['admin'],
+    summary: 'Semantic search index: pages indexed and vectors used',
+    security: [{ bearer: [] }],
+    responses: { 200: json(SearchIndexSchema, 'Index status') },
+  }),
+  async (c) => c.json(await indexStatus(c.env), 200),
+);
+
+admin.openapi(
+  createRoute({
+    method: 'post',
+    path: '/admin/search-index',
+    tags: ['admin'],
+    summary: 'Index every page not indexed at its current revision (through the queue)',
+    security: [{ bearer: [] }],
+    responses: {
+      202: json(z.object({ queued: z.number().int() }), 'Pages queued; poll the status'),
+    },
+  }),
+  async (c) => c.json({ queued: await queueStalePages(c.env) }, 202),
 );

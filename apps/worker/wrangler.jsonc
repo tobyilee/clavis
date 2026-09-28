@@ -26,6 +26,11 @@
     "producers": [{ "binding": "EVENTS", "queue": "clavis-events" }],
     "consumers": [{ "queue": "clavis-events", "max_batch_size": 10, "max_retries": 3 }]
   },
+  // Semantic search (Phase 3 Step 4, D-61): bge-m3 embeddings of H2 chunks. The index was
+  // made with 1024 dimensions, cosine, and metadata indexes on `space` and `docType`.
+  // Neither binding runs locally; without them search falls back to full text.
+  "ai": { "binding": "AI" },
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "clavis-chunks" }],
   // Per-key API limit (S7). Permissive and per-location by design: it stops runaway
   // agents, it is not an accounting system. People get more: one page view makes about
   // seven requests (page, tree, backlinks, comments, ...), and Access already gates them.

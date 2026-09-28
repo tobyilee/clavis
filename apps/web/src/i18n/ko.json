@@ -190,7 +190,10 @@
     "shortQuery": "3글자 미만 검색어는 부분 일치로 찾습니다 (색인 미사용).",
     "none": "\"{{q}}\"에 맞는 페이지가 없습니다.",
     "more": "더 보기",
-    "all": "\"{{q}}\" 전체 검색"
+    "all": "\"{{q}}\" 전체 검색",
+    "meaning": "뜻으로 찾기",
+    "meaningHelp": "다른 단어로 쓰인 내용도 찾습니다 (결과 한 페이지).",
+    "meaningFallback": "뜻으로 찾기를 지금 쓸 수 없어 글자로 찾은 결과입니다."
   },
   "trash": {
     "help": "삭제한 페이지는 {{days}}일 동안 보관된 뒤 영구 삭제됩니다. 하위 페이지와 함께 복원됩니다.",
@@ -225,7 +228,16 @@
     "rename": "이름 변경",
     "renameSave": "저장",
     "renameCancel": "취소",
-    "renameHint": "이 에이전트가 쓴 기존 기록에도 새 이름이 보입니다."
+    "renameHint": "이 에이전트가 쓴 기존 기록에도 새 이름이 보입니다.",
+    "search": "의미 검색",
+    "searchHelp": "문서를 H2 섹션 단위로 나눠 의미 검색 색인에 넣습니다. 저장할 때마다 바뀐 섹션만 다시 색인합니다.",
+    "searchUnavailable": "이 환경에는 Workers AI와 Vectorize가 연결되어 있지 않습니다.",
+    "searchIndexed": "색인된 문서",
+    "searchVectors": "벡터 (무료 한도)",
+    "searchNearLimit": "무료 한도의 80%를 넘었습니다. 유료 플랜 전환을 검토하세요.",
+    "searchBuild": "색인 만들기",
+    "searchUpToDate": "모든 문서가 색인되어 있습니다.",
+    "searchQueued": "{{count}}개 문서를 색인하는 중입니다…"
   },
   "role": {
     "pending": "승인 대기",

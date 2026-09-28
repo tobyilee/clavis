@@ -168,6 +168,10 @@ export const SearchHitSchema = z.object({
   /** Matched text with the hits wrapped in U+E000 / U+E001 markers. */
   snippet: z.string(),
   updatedAt: z.number(),
+  /** Semantic and hybrid search: the page's closest section (null: the text before any H2). */
+  section: z.object({ id: z.string(), title: z.string() }).nullable().optional(),
+  /** Semantic search: cosine similarity of the closest chunk, 0 to 1. */
+  score: z.number().optional(),
 });
 export type SearchHit = z.infer<typeof SearchHitSchema>;
 /** Private-use markers around search hits in snippets; safe to render as text. */

@@ -54,10 +54,12 @@ export type PageEvent =
     };
 
 /** An event as it travels on the queue: no page text (messages are billed per 64KB). */
-export type QueuedEvent =
+export type QueuedEvent = AnnouncedEvent | WebhookRetry | IndexJob;
+
+/** What happened, as the queue carries it: what notifications and webhooks act on. */
+export type AnnouncedEvent =
   | Omit<Extract<PageEvent, { type: 'page.saved' }>, 'content'>
-  | Exclude<PageEvent, { type: 'page.saved' | 'revision.baseline' }>
-  | WebhookRetry;
+  | Exclude<PageEvent, { type: 'page.saved' | 'revision.baseline' }>;
 
 /**
  * A failed webhook delivery, queued again with a delay (D-60). Only the webhook handler acts
@@ -67,7 +69,17 @@ export interface WebhookRetry {
   type: 'webhook.retry';
   webhookId: string;
   attempt: number;
-  event: Exclude<QueuedEvent, WebhookRetry>;
+  event: AnnouncedEvent;
+}
+
+/**
+ * Semantic indexing of one page that did not fit the run it came up in (D-62): the rest of
+ * its chunks, a retry after a failure, or a backfill. Only the index handler acts on it.
+ */
+export interface IndexJob {
+  type: 'index.page';
+  pageId: string;
+  attempt: number;
 }
 
 export type Emit = (event: PageEvent) => void;
@@ -109,8 +121,19 @@ export function eventSink(env: Env, ctx: Pick<ExecutionContext, 'waitUntil'>): E
   };
 }
 
+/**
+ * What one consumer invocation may still spend. All messages of a batch share one invocation
+ * and its 10ms of CPU, so costly work (embedding chunks) is capped per batch, not per message.
+ */
+export interface RunBudget {
+  chunks: number;
+}
+
+/** Chunks embedded per consumer invocation (D-62: start at 8, tune by measured CPU in Z2). */
+export const CHUNKS_PER_RUN = 8;
+
 /** Work run by the queue consumer for each event (listed in events/handlers.ts). */
-export type EventHandler = (env: Env, event: QueuedEvent) => Promise<void>;
+export type EventHandler = (env: Env, event: QueuedEvent, budget: RunBudget) => Promise<void>;
 
 /**
  * The queue consumer. Each message is handled on its own: one that fails is retried (up to
@@ -121,9 +144,10 @@ export async function consumeEvents(
   env: Env,
   handlers: readonly EventHandler[],
 ): Promise<void> {
+  const budget: RunBudget = { chunks: CHUNKS_PER_RUN };
   for (const message of batch.messages) {
     try {
-      for (const handle of handlers) await handle(env, message.body);
+      for (const handle of handlers) await handle(env, message.body, budget);
       message.ack();
     } catch (e) {
       console.error(

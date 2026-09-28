@@ -38,7 +38,7 @@ function renderedText(md: string): string {
 }
 
 /** 32-bit FNV-1a as 8 hex digits: cheap and synchronous, enough to notice a change. */
-function fnv1a(s: string): string {
+export function fnv1a(s: string): string {
   let h = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) {
     h ^= s.charCodeAt(i);
@@ -50,7 +50,7 @@ function fnv1a(s: string): string {
 /** A section before its hash is computed; hashing reads the whole section text. */
 export type SectionHead = Omit<Section, 'hash'>;
 
-function sectionHeads(content: string): { heads: SectionHead[]; lines: string[] } {
+export function sectionHeads(content: string): { heads: SectionHead[]; lines: string[] } {
   const split = splitFrontmatter(content);
   const found = headings(scanLines(split.body, split.bodyStartLine));
   const lines = content.split('\n');

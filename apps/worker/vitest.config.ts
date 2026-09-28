@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [
     cloudflareTest(async () => ({
       wrangler: { configPath: './wrangler.jsonc' },
+      // Workers AI and Vectorize would run on the Cloudflare account; tests fake them.
+      remoteBindings: false,
       miniflare: {
         bindings: {
           TEST_MIGRATIONS: await readD1Migrations(path.join(import.meta.dirname, 'migrations')),
