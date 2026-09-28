@@ -1,6 +1,6 @@
-# Clavis — 기술 아키텍처 (v0.3)
+# Clavis — 기술 아키텍처 (v0.4)
 
-> 상태: **Active** · 작성일: 2026-09-27 · v0.2: Phase 0 결과 반영 (인증 구조, 서버 lint 범위, 백업) · v0.3: Phase 1 구현 반영
+> 상태: **Active** · 작성일: 2026-09-27 · v0.2: Phase 0 결과 반영 (인증 구조, 서버 lint 범위, 백업) · v0.3: Phase 1 구현 반영 · v0.4: Phase 2 구현 반영 (lint 요약·설정, 섹션 편집, 댓글, 템플릿, 홈, `.md`·`llms.txt`, 모바일 편집)
 > 선행 문서: [`00-concept.md`](./00-concept.md) · 결정 로그: [`decisions.md`](./decisions.md)
 > Cloudflare 한도 수치는 2026-09 기준 공식 문서에서 확인한 값이다 (§11 참고).
 
@@ -18,6 +18,7 @@
  AI 에이전트 ──Bearer──▶ │ │ /api/v1/*     : Hono REST (zod-openapi)             │ │
  (Claude Code, Hermes)   │ │ /mcp          : Stateless MCP (createMcpHandler)    │ │
                          │ │ /files/*      : 첨부파일 프록시                        │ │
+                         │ │ *.md, llms.txt: 원본 Markdown, 페이지 목록 (AI용)       │ │
                          │ │ scheduled()   : 야간 백업 (Cron Trigger)             │ │
                          │ │        │ Service Layer (REST·MCP 공용)              │ │
                          │ └────────┼──────────────┬────────────────────────────┘ │
@@ -39,13 +40,15 @@ clavis/
 ├── apps/
 │   ├── web/                 # React + Vite SPA
 │   │   ├── src/routes/      #   화면 (TanStack Router, 파일 기반)
-│   │   ├── src/editor/      #   CodeMirror 6, frontmatter 폼, lint(markdownlint 포함), 스크롤 동기화, 초안
+│   │   ├── src/editor/      #   CodeMirror 6, frontmatter 폼, lint(markdownlint 포함), 스크롤 동기화, 초안,
+│   │   │                    #   모바일 서식 툴바(format.ts·format-toolbar.tsx)
+│   │   ├── src/lib/         #   API 클라이언트·쿼리, viewport.ts(키보드 위 영역), images.ts(사진 줄이기)
 │   │   ├── src/markdown/    #   렌더링 파이프라인 (unified + Clavis 플러그인, Shiki·Mermaid 지연 로딩)
 │   │   ├── src/components/  #   shadcn/ui 기반 컴포넌트, 트리, 팔레트, 관리 화면 부품
 │   │   └── src/i18n/        #   ko.json, en.json (lint 메시지는 ruleId로 번역, D-41)
 │   └── worker/              # Cloudflare Worker
 │       ├── src/index.ts     #   fetch / scheduled 진입점 (백업 + 휴지통 정리)
-│       ├── src/api/         #   Hono 라우트 (zod-openapi), /files, /docs
+│       ├── src/api/         #   Hono 라우트 (zod-openapi), /files, /docs, .md·llms.txt
 │       ├── src/mcp/         #   MCP 서버 & 도구 정의
 │       ├── src/services/    #   도메인 로직 (REST·MCP 공용), ServiceError
 │       ├── src/auth/        #   Access JWT / API Token 검증
@@ -55,9 +58,9 @@ clavis/
 │       └── wrangler.jsonc
 ├── packages/
 │   └── shared/              # 브라우저·Worker 공용 (AST 없는 코드만 — Worker CPU 10ms)
-│       ├── markdown/        #   frontmatter 분리, 줄 스캐너(코드 펜스 인식), 위키 링크·첨부 추출
-│       ├── lint/            #   Clavis 규칙 엔진 (줄 단위)
-│       ├── schema/          #   zod 스키마 (frontmatter, API DTO, problem), URL 헬퍼
+│       ├── markdown/        #   frontmatter 분리·수정, 줄 스캐너(코드 펜스 인식), 위키 링크·첨부 추출, 섹션
+│       ├── lint/            #   Clavis 규칙 엔진 (줄 단위, Space 설정 적용)
+│       ├── schema/          #   zod 스키마 (frontmatter, API DTO, problem, lint 설정), URL 헬퍼
 │       └── templates/       #   문서 유형별 템플릿과 필수 섹션 (코드로 내장)
 ├── e2e/                     # Playwright 스모크 테스트 (D-39)
 └── docs/
@@ -88,7 +91,7 @@ clavis/
   "assets": {
     "directory": "apps/web/dist",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/mcp", "/files/*"]
+    "run_worker_first": ["/api/*", "/mcp", "/files/*", "/s/*.md", "/s/*/llms.txt", "/llms.txt"]
   },
   "d1_databases": [{ "binding": "DB", "database_name": "clavis" }],
   "r2_buckets":   [{ "binding": "FILES", "bucket_name": "clavis-files" }],
@@ -102,6 +105,8 @@ clavis/
 | `/api/v1/**` | Hono REST | Access(엣지) + Worker: Bearer 토큰 **또는** Access JWT |
 | `/mcp` | MCP 핸들러 | Access 서비스 토큰(엣지) + Bearer 토큰 |
 | `/files/{attachmentId}` | R2 프록시 | Access(엣지) + Worker: Bearer 토큰 **또는** Access JWT |
+| `/s/{KEY}/p/{slugId}.md` | 원본 Markdown (`text/markdown`, `X-Clavis-Revision`) | 위와 같음 |
+| `/s/{KEY}/llms.txt`, `/llms.txt` | Space의 페이지 목록(각 항목이 `.md` 링크) / Space 목록 (D-51) | 위와 같음 |
 
 모든 경로가 Access 뒤에 있다. Access를 통과하지 못한 요청은 Worker에 도달하지 않는다 (예외 없음, Bypass 없음).
 
@@ -170,6 +175,10 @@ spaces (
   description   TEXT,
   home_page_id  TEXT,
   tree_version  INTEGER NOT NULL DEFAULT 0,  -- 트리 변경 시 증가 (캐시 무효화)
+  tree_json     TEXT,                      -- 완성된 트리 캐시 (0003), tree_json_version과 함께
+  tree_json_version INTEGER,
+  lint_config   TEXT,                      -- LintConfig JSON (D-47), NULL = 기본값 (0004)
+  lint_config_version INTEGER NOT NULL DEFAULT 0,  -- 설정 변경마다 증가 → 옛 page_lint는 재검사 대상
   created_at    INTEGER NOT NULL,
   archived_at   INTEGER
 )
@@ -219,6 +228,47 @@ attachments (
   created_at    INTEGER NOT NULL,
   UNIQUE (page_id, filename)
 )
+
+-- ── Phase 2 ──
+page_lint (                                -- 페이지별 lint 요약 (D-46, 0004), 저장 쓰기 batch에서 upsert
+  page_id        TEXT PRIMARY KEY REFERENCES pages(id),
+  revision       INTEGER NOT NULL,         -- 검사한 revision (재검사 중 저장된 페이지는 건너뜀)
+  config_version INTEGER NOT NULL,         -- spaces.lint_config_version과 다르면 재검사 필요
+  errors, warnings, infos INTEGER NOT NULL,
+  rules          TEXT NOT NULL,            -- {ruleId: {severity, count, line}} JSON (위키 링크 규칙 제외)
+  checked_at     INTEGER NOT NULL
+)
+
+comments (                                 -- 스레드 = 루트 + 답글 1단계 (D-44, 0005)
+  id            TEXT PRIMARY KEY,
+  page_id       TEXT NOT NULL REFERENCES pages(id),
+  thread_id     TEXT NOT NULL,             -- 루트는 자기 id
+  author_id     TEXT NOT NULL REFERENCES actors(id),
+  body          TEXT NOT NULL,             -- Markdown, 10KB까지
+  section_id    TEXT,                      -- 루트만: 연결한 섹션(헤딩 앵커)
+  created_at    INTEGER NOT NULL,
+  updated_at    INTEGER,
+  resolved_at   INTEGER,                   -- 루트만
+  resolved_by   TEXT REFERENCES actors(id)
+)
+CREATE INDEX comments_page ON comments(page_id, thread_id, created_at);
+CREATE INDEX comments_open ON comments(page_id) WHERE id = thread_id AND resolved_at IS NULL;
+
+templates (                                -- 커스텀 템플릿 (D-49, 0006). 기본 7종은 코드에 있음
+  id            TEXT PRIMARY KEY,
+  space_id      TEXT REFERENCES spaces(id),  -- NULL = 모든 Space (admin)
+  name          TEXT NOT NULL,
+  description   TEXT NOT NULL DEFAULT '',
+  doc_type      TEXT NOT NULL,             -- 기존 7개 유형 중 하나
+  content       TEXT NOT NULL,             -- {{title}}·{{owner}}·{{date}} 자리표시 가능
+  created_by, updated_by TEXT NOT NULL,
+  created_at, updated_at INTEGER NOT NULL
+)
+
+favorites  (actor_id, page_id, created_at, PRIMARY KEY (actor_id, page_id))          -- 0007
+page_views (actor_id, page_id, viewed_at,  PRIMARY KEY (actor_id, page_id))          -- 사람만, 최신 50개 (D-50)
+CREATE INDEX page_views_recent ON page_views(actor_id, viewed_at);
+CREATE INDEX pages_updated ON pages(updated_at) WHERE deleted_at IS NULL;              -- 홈의 최근 변경
 ```
 
 ### 5.2 설계 포인트
@@ -228,6 +278,9 @@ attachments (
 - **형제 순서는 fractional index** (D-32): `a0`, `a0V`, `a1`처럼 문자열 사이에 끼워 넣어 이동 시 **한 행만** 갱신한다. D1 쓰기 한도를 아끼고 동시 이동 충돌을 줄인다.
 - **휴지통**: 페이지 삭제 시 하위 트리 전체에 같은 `deleted_batch`를 기록한다. 복원 시 배치 단위로 되살리고, 부모가 없으면 Space 루트로 복원한다. 30일 후 Cron에서 영구 삭제(첨부 포함).
 - **제목 중복**: 부분 유니크 인덱스로 "삭제되지 않은 페이지끼리만" 유일성을 보장한다.
+- **lint 요약은 저장 시점의 스냅숏**: 위키 링크 규칙은 다른 페이지가 생기거나 지워지면 결과가 바뀌므로 `page_lint`에 넣지 않고, 대시보드는 링크 문제를 `page_links`(`to_page_id IS NULL`)의 **현재 상태**로 보여 준다.
+- **댓글 삭제**: 답글이 있는 루트는 지울 수 없고(409 `has-replies`) 해결로 닫는다. 그래서 soft delete 없이 행만 지운다. 페이지가 휴지통에 가면 함께 숨고, 영구 삭제 때 함께 지운다.
+- **새 테이블과 휴지통**: 페이지를 참조하는 테이블(`page_lint`, `comments`, `favorites`, `page_views`)은 영구 삭제(`services/trash.ts`)에서 함께 지운다. 테이블을 추가하면 여기와 테스트의 `resetDb`에 반영한다.
 - **제목 변경 시 링크** (D-42 개정): `page_links.to_page_id`로 이 페이지를 링크하는 문서의 `[[옛 제목]]`을 같은 저장 요청 안에서 `[[새 제목]]`으로 고친다 (코드 블록 제외, 별칭·`KEY:` 유지). CPU를 위해 한 번에 50페이지·200KB까지만 고치고, 나머지는 깨진 링크로 남아 lint warning이 뜬다.
 
 ### 5.3 전문 검색 (FTS5, D-11)
@@ -251,15 +304,16 @@ CREATE VIRTUAL TABLE pages_fts USING fts5(
 PUT /api/v1/pages/{ref}  { title?, content, baseRevision }
   1. 인증/권한 확인 (editor 이상), 본문 100KB 초과 시 413 (D-33)
   2. 위키 링크 추출 (줄 스캔, 코드 블록 제외) — Worker는 AST를 만들지 않는다
-  3. D1 읽기 batch 1회: 페이지(+태그·조상), 링크 대상 존재 여부(JSON 파라미터 1개로 전달),
+  3. D1 읽기 batch 1회: 페이지(+태그·조상), Space(보관 여부·lint 설정), 링크 대상 존재 여부(JSON 파라미터 1개로 전달),
      첨부 목록, 새 제목 중복, 옛 제목으로 들어오는 링크 수
   4. revision 불일치 → 409 + 현재 revision / Space 보관됨 → 409
-  5. 서버 lint: Clavis 규칙 전체 (D-27 개정). error가 있으면 422 + violations
+  5. 서버 lint: Clavis 규칙 전체, Space 설정 적용 (D-27 개정, D-47). error가 있으면 422 + violations
   6. D1 쓰기 batch 1회 (단일 트랜잭션):
        revision 가드 (불일치면 json() 오류로 batch 전체 롤백 → 409)
        UPDATE pages (revision + 1, 파생 컬럼), page_tags·page_links 교체,
        제목 변경 시 참조 문서의 [[옛 제목]] 수정(50페이지·200KB까지, 문장 3개)·나머지 링크 끊기·새 제목을 기다리던 링크 연결,
        트리가 바뀌면 tree_version 증가,
+       page_lint 요약 upsert (문장 1개, D-46),
        저장된 페이지를 다시 SELECT (같은 batch 안에서)
   7. 200 { page(본문 제외), violations(warning/info), linksUpdated?, linksToOldTitle? }
 ```
@@ -271,17 +325,35 @@ PUT /api/v1/pages/{ref}  { title?, content, baseRevision }
 - **AST 기반 파싱은 서버 금지**: remark·markdownlint는 Cloudflare 실측 10KB에 25ms 이상(S3). markdownlint 서식 규칙은 브라우저 에디터에서만 실행한다.
 - 저장 응답과 `POST /api/v1/lint`(MCP `lint_markdown`)는 같은 Clavis 규칙 결과를 반환하므로, 에이전트는 저장 응답만으로 warning을 확인할 수 있다.
 
+### 6.1 섹션 편집과 속성 변경 (D-48)
+
+```
+PUT /api/v1/pages/{ref}/sections/{section}  { mode: replace|append, content, baseSectionHash? | baseRevision? }
+  1. 페이지 읽기 → parseSections(scanLines 결과, 코드 블록 안 헤딩 제외)로 섹션을 id(TOC 앵커 slug) 또는 헤딩 텍스트로 찾음
+     (같은 제목이 여럿이면 409 + id 목록)
+  2. replace: baseSectionHash가 지금 섹션 해시(FNV-1a)와 다르면 409 + 최신 섹션·해시
+     append: base 불필요. 섹션 마지막 비어 있지 않은 줄 뒤에 — 목록·표는 이어 붙이고, 그 밖은 빈 줄로 새 블록
+  3. 고친 전체 문서를 위의 일반 저장 파이프라인으로 저장 (lint, 링크, revision 가드)
+     baseRevision을 주지 않았으면 경합(409) 시 한 번 다시 읽어 다시 적용 — 섹션 해시가 계속 보호한다
+```
+
+- 그래서 에이전트가 `## 액션 아이템`을 고치는 동안 사람이 다른 섹션을 저장해도 둘 다 남는다. `baseRevision`을 주면 기존처럼 엄격하게 판정한다.
+- `PATCH /pages/{ref}/meta`는 status·owner·tags만 받아 서버가 frontmatter YAML을 고친다(`yaml` Document API — 주석·키 순서 유지, 웹 속성 폼과 같은 `updateFrontmatter`). 본문은 그대로이고 저장 경로는 같다.
+- 섹션 저장은 "읽기 + 섹션 교체 + 일반 저장"이라 CPU가 가장 빠듯한 요청이다(Phase 2 Z2 실측 대상).
+
 ## 7. Lint 엔진 (`packages/shared/lint`)
 
 ```ts
 interface LintRule {
   id: string;                     // 'clavis/frontmatter-required'
-  severity: 'error' | 'warning' | 'info';
-  blocking: boolean;              // error면 저장 차단 (D-09)
+  severity: 'error' | 'warning' | 'info';   // 기본 심각도. 실제 심각도는 Space 설정이 덮어쓴다
   check(doc: LintDocument, env: LintEnv): RuleViolation[];
 }
+lint(input: string | LintDocument, options?: LintEnv & { blockingOnly? }): Violation[]
+                                  // error가 하나라도 있으면 저장 차단 (D-09)
 interface LintDocument { content: string; split: SplitResult; lines: ScannedLine[]; frontmatter: Frontmatter | null }
 interface LintEnv {
+  config?: LintConfig;             // Space 설정 (§7.1)
   resolveLink?(spaceKey: string | null, title: string): boolean;   // 브라우저: 트리 캐시 / 서버: D1
   attachmentExists?(filename: string): boolean;
 }
@@ -304,6 +376,21 @@ interface Violation { ruleId: string; severity: Severity; message: string; line:
 - 브라우저 에디터는 여기에 **markdownlint** 서식 규칙을 더한다 (severity `info`, `markdownlint/MDxxx`). Clavis 규칙과 겹치는 MD001·MD025·MD040·MD045와 위키에 맞지 않는 MD013·MD028·MD033·MD041·MD060은 끈다.
 - 메시지: 위반 항목의 `message`는 영어(API·에이전트용), UI는 `ruleId`·`params`로 번역한다 (D-41).
 - 필수 섹션은 `templates/`의 정의를 참조한다 → **템플릿과 규칙이 한 곳에서 관리됨**.
+
+### 7.1 Space별 설정 (D-47)
+
+```ts
+LintConfig = {
+  rules?: { [ruleId]: 'off' | 'info' | 'warning' | 'error' },   // frontmatter-required는 조정 불가(error 고정)
+  requiredSections?: { [docType]: string[] },                   // 유형의 필수 H2를 교체 (빈 목록 = 없음)
+  docLengthKb?: number,                                          // doc-length 기준 (5~100KB)
+}
+```
+
+- `spaces.lint_config`에 저장하고 `PUT /spaces/{key}/lint-config`(admin)로 바꾼다. Space 응답에 `lintConfig`·`lintConfigVersion`이 들어 있어 **에디터·저장 API·`/lint`·MCP가 같은 설정**으로 검사한다. 저장 읽기 batch가 이미 Space 행을 읽으므로 D1 호출은 늘지 않는다.
+- 규칙을 `error`로 올려도 기존 페이지는 그대로 있고, 다음 저장 때 고치도록 막힌다(설정 화면에 경고).
+- 설정을 바꾸면 버전이 올라 기존 `page_lint`가 옛것이 된다. 대시보드가 열리면 `POST /spaces/{key}/lint/recheck`를 끝날 때까지 반복 호출한다: 요약이 없거나 옛 버전인 페이지를 **본문 합계 약 100KB까지** 검사해 한 문장(`json_each`)으로 저장한다(계획의 150KB에서 CPU 때문에 낮춤). 그사이 저장된 페이지는 revision 조건으로 건너뛴다.
+- 기본 템플릿 7종도 Space의 필수 섹션으로 렌더링한다. 커스텀 템플릿은 저장할 때 자리표시(`{{title}}`·`{{owner}}`·`{{date}}`)를 채운 샘플로 그 Space 규칙에 따라 검사하고, error면 422로 거부한다.
 
 ## 8. REST API (D-26)
 
@@ -345,6 +432,29 @@ interface Violation { ruleId: string; severity: Severity; message: string; line:
 | GET / PATCH / POST / DELETE | `/admin/actors`, `/admin/agents`, `/admin/tokens` | 사람 승인·역할, 에이전트, 토큰 | admin |
 | GET | `/openapi.json`, `/docs` | OpenAPI 3.1, Scalar 문서 | 공개(Access 뒤) |
 
+### 8.3 엔드포인트 (P2)
+
+| Method | Path | 설명 | 권한 |
+|---|---|---|---|
+| GET | `/pages/{ref}/backlinks` | 이 페이지를 링크하는 문서 (다른 Space 포함, 휴지통 제외) | viewer |
+| GET | `/spaces/{key}/health` | 대시보드: 규칙별·페이지별 lint 요약, 깨진 위키 링크(현재 상태), 재검사 필요 수 | viewer |
+| POST | `/spaces/{key}/lint/recheck` | 오래된 요약의 다음 묶음(약 100KB) 재검사, 남은 수 반환 (대시보드를 여는 누구나) | viewer |
+| PUT | `/spaces/{key}/lint-config` | Space lint 설정 교체 (설정 조회는 `GET /spaces/{key}`의 `lintConfig`) | admin |
+| GET | `/pages/{ref}/sections` | 섹션 목록 (id, 레벨, 제목, 줄 범위, 해시) | viewer |
+| GET / PUT | `/pages/{ref}/sections/{section}` | 섹션 읽기 / 교체·끝에 추가 (§6.1) | viewer / editor |
+| PATCH | `/pages/{ref}/meta` | status·owner·tags만 변경 | editor |
+| GET / POST | `/pages/{ref}/comments` | 스레드 목록 / 댓글·답글 작성 (`replyTo`, `sectionId`) | viewer (D-45) |
+| PATCH / DELETE | `/comments/{id}` | 수정(작성자) / 삭제(작성자·admin, 답글 있는 루트는 409) | 작성자 |
+| POST | `/comments/{id}/resolve`, `/comments/{id}/reopen` | 스레드 해결 / 다시 열기 (스레드의 어느 댓글 id든) | editor |
+| GET | `/templates?space=&locale=` | 커스텀(Space → 전역) + 기본 템플릿 | viewer |
+| POST / PUT / DELETE | `/templates`, `/templates/{id}` | 커스텀 템플릿 관리 (전역 `space: null`은 admin) | editor |
+| GET | `/me/home` | 홈: 즐겨찾기, 최근 본, 최근 변경(🧑/🤖 필터는 화면에서), 내 문서의 열린 댓글 (D1 1회) | viewer |
+| GET | `/me/favorites` | 즐겨찾기 목록 | viewer |
+| PUT / DELETE | `/pages/{ref}/favorite` | 즐겨찾기 추가 / 빼기 | viewer |
+
+- `GET /pages/{ref}`는 사람이 읽으면 응답 뒤(`ctx.waitUntil`)에 `page_views`를 upsert하고 50개를 넘는 옛 기록을 지운다. 에이전트 조회는 기록하지 않는다.
+- `POST /spaces/{key}/pages`의 `template`은 문서 유형 또는 커스텀 템플릿 id다(다른 Space의 템플릿은 400).
+
 ## 9. MCP 서버 (D-12)
 
 - **Stateless** `createMcpHandler` + Streamable HTTP, 엔드포인트 `/mcp`. Durable Objects 불필요(무료 플랜 OK). 요청마다 McpServer를 만들고 인증된 actor를 닫아 둔다.
@@ -358,12 +468,23 @@ interface Violation { ruleId: string; severity: Severity; message: string; line:
 | `get_space_tree` | `space` | viewer |
 | `search_pages` | `query`, `space?`, `type?`, `status?`, `limit?` | viewer |
 | `read_page` | `page` (shortId 또는 `KEY:제목`) | viewer |
-| `list_templates` | `locale?` | viewer |
+| `list_templates` | `space?`, `locale?` | viewer |
 | `lint_markdown` | `content`, `space?`, `page?` | viewer |
 | `create_page` | `space`, `title`, `content?`, `template?`, `parent?`, `after?` | editor |
 | `update_page` | `page`, `content`, `baseRevision`, `title?` | editor |
 | `move_page` | `page`, `parent?`, `after?`, `before?` | editor |
 | `delete_page` | `page` | editor |
+| `get_backlinks` | `page` | viewer |
+| `get_space_health` | `space` | viewer |
+| `list_sections` · `read_section` | `page`, `section` | viewer |
+| `update_section` | `page`, `section`, `mode`, `content`, `baseSectionHash?` (replace는 필수) | editor |
+| `set_page_meta` | `page`, `status?`, `owner?`, `tags?` | editor |
+| `list_comments` | `page`, `includeResolved?` | viewer |
+| `add_comment` | `page`, `body`, `replyTo?`, `section?` | viewer (D-45) |
+| `resolve_comment` | `comment`, `reopen?` | editor |
+
+- Phase 2에서 추가: `read_page` 헤더 주석에 `open_comments=N`(백링크는 `get_backlinks`로 따로), `list_templates`·`lint_markdown`에 `space`(커스텀 템플릿·Space 규칙), `create_page`의 `template`에 커스텀 템플릿 id.
+- instructions는 큰 문서에서 **섹션 도구 우선**, 그리고 "사람이 남긴 미해결 댓글을 반영하면 답글을 달고 해결" 흐름(D-53)을 안내한다.
 
 - 서버 `instructions`에 작성 규칙(frontmatter 필드, 제목은 인자, 템플릿 사용, 수정 전 `read_page`, 링크·첨부 문법)을 담는다.
 - 첨부 업로드는 MCP 도구가 없고 REST로 한다 ([연결 가이드](./guides/agent-connection.md) §6).
@@ -413,6 +534,7 @@ interface Violation { ruleId: string; severity: Severity; message: string; line:
 | Worker 요청 (에이전트) | 3개 × 500회 | 1,500 | 1.5% |
 | D1 읽기 행 | 트리 조회 시 Space 전체 행(≈150) 스캔 × 1,000회 + 기타 | ≈ 300,000 | 6% |
 | D1 쓰기 행 | 저장 200회 × (pages·fts·links·tags ≈ 20행) | ≈ 4,000 | 4% |
+| D1 쓰기 행 (P2) | 최근 본 기록: 페이지뷰 1,000회 × upsert 1행(+ 50개 초과분 삭제) | ≈ 1,000~2,000 | 1~2% |
 | D1 저장 | 문서 평균 10KB × 500 + 인덱스 | ≈ 20MB | 4% (500MB 기준) |
 | R2 저장 | 이미지 2,000개 × 300KB | ≈ 600MB | 6% |
 
@@ -429,12 +551,14 @@ interface Violation { ruleId: string; severity: Severity; message: string; line:
 ### 12.1 라우트
 | 경로 | 화면 |
 |---|---|
-| `/` | Space 목록 (admin은 새 Space) |
+| `/` | 홈: Space 목록(admin은 새 Space), 즐겨찾기, 최근 본 문서, 최근 변경(🧑/🤖), 내 문서의 열린 댓글 |
 | `/s/:key` | Space 홈 → 홈 페이지로 이동 (D-35) |
 | `/s/:key/p/:slugId` | 페이지 보기 (slug가 다르면 정규 URL로 교체) |
-| `/s/:key/p/:slugId/edit` | 편집 |
+| `/s/:key/p/:slugId/edit?line=` | 편집 (`line`이면 그 줄로 이동) |
 | `/s/:key/new?parent=&template=` | 새 페이지 (템플릿 선택) |
 | `/s/:key/w/:title` | 위키 링크 해석 → 페이지로 이동 |
+| `/s/:key/health` | 문서 상태 대시보드 (열면 재검사 자동 반복, 위반 클릭 → `edit?line=N`) |
+| `/s/:key/settings?tab=rules\|templates` | 문서 규칙·템플릿 (규칙은 admin만 편집) |
 | `/s/:key/trash` | 휴지통 |
 | `/search?q=&space=&type=&status=` | 검색 결과 (헤더의 ⌘K 팔레트에서도 진입) |
 | `/admin` | 사람·에이전트·토큰·Space 관리 |
@@ -447,11 +571,18 @@ interface Violation { ruleId: string; severity: Severity; message: string; line:
 - **위키 링크 자동완성**: `[[` 입력 시 현재 Space 트리(캐시)에서, `[[KEY:`는 그 Space 트리에서. `](attachments/`는 첨부 목록에서.
 - **충돌 처리**: 409면 다이얼로그 → 내 내용을 클립보드로 복사하고 최신본 불러오기.
 - **이탈 방지**: 미저장 변경은 `localStorage` 초안으로 보관(다시 열면 복구 제안), 이동·닫기 시 경고.
+- **페이지 보기 하단**: 백링크 목록, 댓글 스레드(해결된 것은 접기, 섹션 선택, 답글·수정·삭제·해결). 헤딩 옆에 열린 댓글 수 배지 → 해당 스레드로 스크롤.
+- **페이지 메뉴**: 즐겨찾기(별), AI용 복사(제목·URL·원문), 원본 Markdown 열기 — viewer에게도 보이고 편집 항목만 editor 전용.
 - **트리 편집**: 사이드바 드래그(위 1/4 = 앞, 아래 1/4 = 뒤, 가운데 = 하위로)와 페이지 메뉴의 이동 대화상자(키보드·모바일).
 
 ### 12.3 반응형
 - `md` 이상: 3단(사이드바/본문/TOC), 편집 시 2단 분할.
 - `md` 미만: 사이드바는 Drawer, TOC는 상단 접이식, 편집은 [편집 | 미리보기] 탭 (D-06).
+- **폰 편집 화면** (Phase 2 Step 6): 앱 전체를 덮고 **키보드 위 보이는 영역**(`visualViewport`)에 고정한다. iOS는 키보드가 떠도 `100dvh`·fixed 요소를 줄이지 않고 캐럿을 보이려고 페이지를 스크롤하므로, `useVisualViewportVars()`(`lib/viewport.ts`)가 `<html>`에 `--vv-top`·`--vv-height`를 두고 레이아웃이 따라간다. 제목·저장은 항상 위, 서식 툴바는 키보드 바로 위.
+  - 서식 툴바: 헤딩(##→###→해제)·굵게·목록·체크박스·링크·`[[`·코드. 선택 영역을 감싸고 다시 누르면 풀린다. 버튼은 `onMouseDown`에서 `preventDefault`해 에디터 포커스(키보드)를 유지한다.
+  - 속성 폼과 lint 문제는 아래 시트(시트도 키보드 위로). CodeMirror 툴팁은 `tooltips({ tooltipSpace })`로 에디터 영역 안에서만 열린다.
+  - 사진: `accept="image/*"`(카메라와 사진 보관함 모두 — `capture`는 카메라만 열어 뺐다). JPEG·HEIC는 브라우저에서 긴 변 2000px JPEG(품질 0.85, EXIF 회전 반영)로 줄여 올린다. 붙여넣기·첨부 버튼도 같다.
+- **터치 화면의 입력칸은 16px 이상**: iOS Safari는 16px 미만 입력칸을 누르면 확대하고 되돌리지 않는다. 공통 입력 컴포넌트는 `text-sm pointer-coarse:text-base`, 에디터는 `--editor-font-size`(`(pointer: coarse)`에서 16px). `maximum-scale=1`로 확대 자체를 막지는 않는다(접근성).
 
 ## 13. 보안
 

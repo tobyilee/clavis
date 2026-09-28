@@ -12,7 +12,7 @@
 |---|---|---|
 | Phase 0 — 기반·기술 검증 | ✅ 완료 | [`02-phase0-plan.md`](./02-phase0-plan.md) |
 | Phase 1 — MVP | ✅ 완료 | [`03-phase1-plan.md`](./03-phase1-plan.md) |
-| **Phase 2 — 팀 생산성 & AI 연동** | 🔶 **진행 중 (Step 0~6 완료, Step 7 남음)** | [`04-phase2-plan.md`](./04-phase2-plan.md) §9에 Step별 결과 |
+| **Phase 2 — 팀 생산성 & AI 연동** | 🔶 **진행 중 (Step 0~6 완료, Step 7 진행 중: Z1·Z3 ✅, Z2·Z4 남음)** | [`04-phase2-plan.md`](./04-phase2-plan.md) §9에 Step별 결과 |
 
 Phase 2 진행 현황 (결정 D-44~D-53은 모두 추천안으로 확정, [`decisions.md`](./decisions.md)):
 
@@ -27,6 +27,7 @@ Phase 2 진행 현황 (결정 D-44~D-53은 모두 추천안으로 확정, [`deci
 | – | 수정: 다크 모드에서 에디터 커서가 안 보임 + 편집 화면 진입 시 자동 포커스 | `02b01fd` |
 | – | 수정: 아이폰에서 입력칸을 누르면 화면이 확대돼 저장 버튼이 가려짐 → 터치 화면은 입력칸 16px | `c8c470f` |
 | 6 | 모바일 편집: 키보드 위 서식 툴바, 사진 첨부(긴 변 2000px JPEG), 속성·문제 시트, 편집 화면을 키보드 위 영역에 고정 | `27323fa` |
+| 7 (일부) | Z1 섹션 추가 E2E(댓글 테스트에 합침), Z3 `01-architecture.md` v0.4·`guides/writing.md` | 이 문서와 같은 커밋 |
 
 - 모든 커밋 push·배포 완료, CI 통과. 운영 D1에 migration `0000`~`0007` 적용됨(Step 6은 migration 없음).
 - 테스트: shared 59 · web 23 · worker 109 · E2E 9개, 모두 통과.
@@ -42,9 +43,8 @@ Phase 2 진행 현황 (결정 D-44~D-53은 모두 추천안으로 확정, [`deci
 - 키보드 동작은 자동화로 재현할 수 없어 가짜 `visualViewport`로만 검증했다(아래 §8). 결과가 다르면 사용자에게 증상(가능하면 스크린샷)을 받아 §8부터 본다.
 
 ### 그다음: **Step 7 — 마무리** (계획서 §5 Step 7)
-- **Z1** E2E: 모바일 툴바·사진·시트는 Step 6에서 모바일 테스트에 넣었다. 남은 후보는 섹션 추가(REST). 전체 6~8개 수준 유지 — 현재 9개라 늘리기보다 기존 테스트에 합친다.
-- **Z2** 운영 CPU 실측(§7 방법): 섹션 저장 100KB가 가장 빠듯(getPage + 저장 파이프라인), 그다음 재검사 1회·대시보드·댓글 목록·홈·백링크 → 계획서 §9에 기록. `.agent.env`와 `wrangler login`이 필요하다.
-- **Z3** `01-architecture.md` v0.4(스키마·API·MCP 도구·화면) + `guides/agent-connection.md`(섹션·댓글 도구) + `guides/writing.md`(댓글·대시보드·설정·모바일 편집).
+- ~~Z1~~ ✅ · ~~Z3~~ ✅ (계획서 §9 Step 7 행)
+- **Z2** 운영 CPU 실측(§7 방법): 섹션 저장 100KB가 가장 빠듯(getPage + 저장 파이프라인), 그다음 재검사 1회·대시보드·댓글 목록·홈·백링크 → 계획서 §9에 기록. `.agent.env`와 `wrangler login`이 필요하다(현재 장비에는 둘 다 있음). 운영 D1에 임시 페이지를 만들고 지우므로 **시작 전 사용자 확인**.
 - **Z4** Exit 점검: 계획서 §2 체크리스트, 사용자와 실제 문서로 한 번 써 보기.
 
 ### 사용자 쪽 대기 항목
@@ -99,7 +99,7 @@ gh auth status                    # CI 확인용
   - `apps/web` — React 19 + Vite + TanStack Router/Query + Tailwind v4/shadcn, CodeMirror 6 에디터, i18n(ko/en)
     - 편집 화면: `editor/page-editor.tsx`(레이아웃), `markdown-editor.tsx`(CodeMirror 핸들), `codemirror.ts`(확장·테마), `format.ts`·`format-toolbar.tsx`(모바일 서식), `lib/viewport.ts`(키보드 위 영역), `lib/images.ts`(사진 줄이기)
   - `e2e/` — Playwright, `serve.sh`가 빈 로컬 D1로 `wrangler dev`(:8788). 프로젝트: desktop(Chrome 1440px) · mobile(Pixel 7)
-- 설계: [`01-architecture.md`](./01-architecture.md)(v0.3 — Phase 2 반영은 Step 7에서 v0.4로), 가이드: [`guides/agent-connection.md`](./guides/agent-connection.md), [`guides/writing.md`](./guides/writing.md).
+- 설계: [`01-architecture.md`](./01-architecture.md)(v0.4, Phase 2 반영), 가이드: [`guides/agent-connection.md`](./guides/agent-connection.md), [`guides/writing.md`](./guides/writing.md).
 
 ## 7. 꼭 알아야 할 제약과 요령
 

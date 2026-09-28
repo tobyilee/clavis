@@ -146,6 +146,19 @@ test('comments: section thread with badge, reply, resolve', async ({ page, reque
   await thread.getByRole('button', { name: '해결' }).click();
   await expect(page.getByRole('button', { name: '해결된 스레드 1개 보기' })).toBeVisible();
   await expect(page.getByRole('button', { name: '이 섹션의 열린 댓글 1개' })).toHaveCount(0);
+
+  // An agent answers the thread by appending to that section only (REST, D-48).
+  const append = await request.put(
+    `/api/v1/pages/${p.shortId}/sections/${encodeURIComponent('일정')}`,
+    { data: { mode: 'append', content: '- 10월 첫 주에 확정\n' } },
+  );
+  expect(append.status()).toBe(200);
+  const section = await (
+    await request.get(`/api/v1/pages/${p.shortId}/sections/${encodeURIComponent('일정')}`)
+  ).json();
+  expect(section.content).toContain('미정\n\n- 10월 첫 주에 확정');
+  await page.reload();
+  await expect(page.locator('.prose-clavis').getByText('10월 첫 주에 확정')).toBeVisible();
 });
 
 test('space settings: stricter rule and a custom template', async ({ page, request }) => {
