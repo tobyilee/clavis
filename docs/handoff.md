@@ -136,4 +136,4 @@ gh auth status                    # CI 확인용
 ## 9. 운영 데이터 현황
 
 - Space: CLAVIS("Clavis 사용 안내", "MCP 연결"), TEAM(홈 "팀", ADR1·ADR2 등 사용자 테스트 문서). 휴지통에 "주간 회의 2026-09-27"(hermes 작성), "아키텍처".
-- 사람 관리자 1명(최초 로그인 사용자), 에이전트 `hermes`(editor).
+- 사람 관리자 1명(최초 로그인 사용자), 에이전트 `Adam`(editor, Hermes Agent로 실행 — 2026-09-28에 표시 이름을 `hermes`에서 바꿈, 토큰은 그대로이고 `.agent.env`의 키 이름도 `CLAVIS_TOKEN_HERMES` 그대로). 관리 화면에는 이름 변경 기능이 없어 D1 `actors.name`을 직접 고쳤다.
