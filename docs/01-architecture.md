@@ -339,7 +339,7 @@ PUT /api/v1/pages/{ref}/sections/{section}  { mode: replace|append, content, bas
 
 - 그래서 에이전트가 `## 액션 아이템`을 고치는 동안 사람이 다른 섹션을 저장해도 둘 다 남는다. `baseRevision`을 주면 기존처럼 엄격하게 판정한다.
 - `PATCH /pages/{ref}/meta`는 status·owner·tags만 받아 서버가 frontmatter YAML을 고친다(`yaml` Document API — 주석·키 순서 유지, 웹 속성 폼과 같은 `updateFrontmatter`). 본문은 그대로이고 저장 경로는 같다.
-- 섹션 저장은 "읽기 + 섹션 교체 + 일반 저장"이라 CPU가 가장 빠듯한 요청이다(Phase 2 Z2 실측 대상).
+- 섹션 저장은 "읽기 + 섹션 교체 + 일반 저장"이라 저장 중 가장 빠듯하다. 그래서 섹션 편집은 페이지 전체(`getPage`: 태그·조상 포함)가 아니라 `id·revision·content` 한 문장만 읽고, 찾은 섹션 하나만 해시한다(`locateSection`). 운영 실측(Z2, 100KB): 섹션 저장 중앙값 6ms·p95 9ms, 섹션 읽기 3ms·5ms. 상세: [`04-phase2-plan.md`](./04-phase2-plan.md) §9.
 
 ## 7. Lint 엔진 (`packages/shared/lint`)
 
