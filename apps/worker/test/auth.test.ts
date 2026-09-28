@@ -66,6 +66,30 @@ describe('admin workflow', () => {
     expect(res.status).toBe(400);
   });
 
+  it('renames agents, not people; past edits show the new name', async () => {
+    const actors = await setup();
+    const agent = await call('/api/v1/admin/agents', {
+      ...admin,
+      method: 'POST',
+      body: { name: 'hermes', role: 'editor' },
+    });
+    const renamed = await call(`/api/v1/admin/actors/${agent.json.id}`, {
+      ...admin,
+      method: 'PATCH',
+      body: { name: ' Adam ' },
+    });
+    expect(renamed.status).toBe(200);
+    expect(renamed.json).toMatchObject({ name: 'Adam', kind: 'agent', role: 'editor' });
+    const person = actors.find((a) => a.email === 'teammate@gmail.com');
+    const res = await call(`/api/v1/admin/actors/${person?.id}`, {
+      ...admin,
+      method: 'PATCH',
+      body: { name: 'Teammate' },
+    });
+    expect(res.status).toBe(400);
+    expect(res.json.type).toMatch(/invalid-name$/);
+  });
+
   it('returns problem+json for invalid request bodies', async () => {
     await setup();
     const res = await call('/api/v1/admin/agents', {

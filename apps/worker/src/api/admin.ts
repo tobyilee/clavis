@@ -68,7 +68,7 @@ admin.openapi(
     method: 'patch',
     path: '/admin/actors/{id}',
     tags: ['admin'],
-    summary: 'Approve, change role, or disable an actor',
+    summary: 'Approve, change role, disable, or rename an actor (only agents are renamed)',
     security: [{ bearer: [] }],
     request: {
       params: IdParam,
@@ -78,6 +78,8 @@ admin.openapi(
             schema: z.object({
               role: z.enum(['admin', 'editor', 'viewer', 'pending']).optional(),
               disabled: z.boolean().optional(),
+              /** Agents only: people are named by their sign-in. Past edits show the new name. */
+              name: z.string().trim().min(1).max(64).optional(),
             }),
           },
         },
@@ -104,8 +106,12 @@ admin.openapi(
     if (target.kind === 'agent' && (body.role === 'admin' || body.role === 'pending')) {
       return problem(c, 400, 'invalid-role', 'Agents can only be editor or viewer');
     }
+    if (body.name !== undefined && target.kind !== 'agent') {
+      return problem(c, 400, 'invalid-name', 'Only agents can be renamed');
+    }
     const patch: Partial<typeof actors.$inferInsert> = {};
     if (body.role) patch.role = body.role;
+    if (body.name !== undefined) patch.name = body.name;
     if (body.disabled !== undefined) patch.disabledAt = body.disabled ? Date.now() : null;
     if (Object.keys(patch).length > 0) await d.update(actors).set(patch).where(eq(actors.id, id));
     const updated = await d.query.actors.findFirst({ where: eq(actors.id, id) });

@@ -220,7 +220,11 @@
     "tokenTitle": "{{agent}} 토큰",
     "tokenOnce": "이 토큰은 지금 한 번만 보입니다. 에이전트 설정에 저장하세요. 잃어버리면 새로 발급하고 이 토큰은 폐기하세요.",
     "copy": "복사",
-    "done": "완료"
+    "done": "완료",
+    "rename": "이름 변경",
+    "renameSave": "저장",
+    "renameCancel": "취소",
+    "renameHint": "이 에이전트가 쓴 기존 기록에도 새 이름이 보입니다."
   },
   "role": {
     "pending": "승인 대기",

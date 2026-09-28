@@ -220,7 +220,11 @@
     "tokenTitle": "Token for {{agent}}",
     "tokenOnce": "This token is shown only now. Store it in the agent's settings. If it is lost, issue a new one and revoke this one.",
     "copy": "Copy",
-    "done": "Done"
+    "done": "Done",
+    "rename": "Rename",
+    "renameSave": "Save",
+    "renameCancel": "Cancel",
+    "renameHint": "Past edits by this agent show the new name too."
   },
   "role": {
     "pending": "Pending",

@@ -2,7 +2,7 @@ import type { Space } from '@clavis/shared/schema';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { cn } from 'cn';
-import { Bot, Check, Copy, KeyRound, User } from 'lucide-react';
+import { Bot, Check, Copy, KeyRound, Pencil, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Notice } from '@/components/notice';
@@ -88,8 +88,12 @@ function useActors() {
 function useUpdateActor() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (v: { id: string; role?: AdminActor['role']; disabled?: boolean }) =>
-      apiSend('PATCH', `/admin/actors/${v.id}`, { role: v.role, disabled: v.disabled }),
+    mutationFn: (v: { id: string; role?: AdminActor['role']; disabled?: boolean; name?: string }) =>
+      apiSend('PATCH', `/admin/actors/${v.id}`, {
+        role: v.role,
+        disabled: v.disabled,
+        name: v.name,
+      }),
     onSettled: () => void queryClient.invalidateQueries({ queryKey: ['admin', 'actors'] }),
   });
 }
@@ -168,6 +172,7 @@ function Agents() {
   const [role, setRole] = useState<'editor' | 'viewer'>('editor');
   const [issued, setIssued] = useState<{ agent: string; token: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ['admin'] });
 
   const create = useMutation({
@@ -209,7 +214,7 @@ function Agents() {
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="hermes"
+            placeholder="Adam"
             className="w-48"
           />
         </label>
@@ -232,7 +237,53 @@ function Agents() {
             <li key={a.id} className={cn('px-4 py-3', a.disabledAt && 'opacity-60')}>
               <div className="flex flex-wrap items-center gap-3">
                 <Bot className="size-4 text-muted-foreground" />
-                <span className="flex-1 font-medium">{a.name}</span>
+                {renaming?.id === a.id ? (
+                  <form
+                    className="flex flex-1 flex-wrap items-center gap-2"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const next = renaming.name.trim();
+                      if (next && next !== a.name) update.mutate({ id: a.id, name: next });
+                      setRenaming(null);
+                    }}
+                  >
+                    <Input
+                      value={renaming.name}
+                      onChange={(e) => setRenaming({ id: a.id, name: e.target.value })}
+                      aria-label={t('admin.agentName')}
+                      maxLength={64}
+                      className="w-48"
+                      autoFocus
+                    />
+                    <Button type="submit" size="sm" disabled={!renaming.name.trim()}>
+                      {t('admin.renameSave')}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setRenaming(null)}
+                    >
+                      {t('admin.renameCancel')}
+                    </Button>
+                    <span className="w-full text-xs text-muted-foreground">
+                      {t('admin.renameHint')}
+                    </span>
+                  </form>
+                ) : (
+                  <span className="flex flex-1 items-center gap-1 font-medium">
+                    {a.name}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7"
+                      aria-label={t('admin.rename')}
+                      onClick={() => setRenaming({ id: a.id, name: a.name })}
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                  </span>
+                )}
                 <Select
                   value={a.role}
                   onChange={(e) =>
