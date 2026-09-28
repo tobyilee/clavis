@@ -25,6 +25,11 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
       testIgnore: /mobile/,
     },
-    { name: 'mobile', use: { ...devices['Pixel 7'] }, testMatch: /mobile/ },
+    // 375px: the narrowest common phone width (Phase 2 exit criteria), on Pixel 7 emulation.
+    {
+      name: 'mobile',
+      use: { ...devices['Pixel 7'], viewport: { width: 375, height: 740 } },
+      testMatch: /mobile/,
+    },
   ],
 });

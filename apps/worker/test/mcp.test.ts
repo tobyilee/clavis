@@ -157,6 +157,46 @@ describe('agent workflow (plan M1)', () => {
     expect(res.text).toContain('clavis/wiki-link-exists');
   });
 
+  it("follows the space's rules and custom templates (D-47, D-49)", async () => {
+    await call('/api/v1/spaces/PAY/lint-config', {
+      ...ADMIN,
+      method: 'PUT',
+      body: { rules: { 'clavis/no-h1': 'error' } },
+    });
+    const made = await call('/api/v1/templates', {
+      ...ADMIN,
+      method: 'POST',
+      body: {
+        space: 'PAY',
+        name: '장애 보고',
+        content: '---\ntype: note\nstatus: draft\nowner: {{owner}}\n---\n## 타임라인\n',
+      },
+    });
+    expect(made.status).toBe(201);
+
+    const templates = JSON.parse((await tool(editor, 'list_templates', { space: 'PAY' })).text);
+    expect(templates[0]).toMatchObject({ id: made.json.id, name: '장애 보고' });
+    const created = await tool(editor, 'create_page', {
+      space: 'PAY',
+      title: '9/28 장애',
+      template: made.json.id,
+    });
+    expect(created.isError).toBe(false);
+    const read = await tool(editor, 'read_page', { page: 'PAY:9/28 장애' });
+    expect(read.text).toContain('owner: hermes\n---\n## 타임라인\n');
+
+    // An H1 is an error in this space: the draft check and the save both say so.
+    const lint = await tool(editor, 'lint_markdown', { content: `${FM()}# 제목\n`, space: 'PAY' });
+    expect(lint.text).toMatch(/- L\d+ error clavis\/no-h1/);
+    const blocked = await tool(editor, 'create_page', {
+      space: 'PAY',
+      title: '제목 있음',
+      content: `${FM()}# 제목\n`,
+    });
+    expect(blocked.isError).toBe(true);
+    expect(blocked.text).toContain('Nothing was saved');
+  });
+
   it('edits one section and the status without sending the page (D-48)', async () => {
     const created = await tool(editor, 'create_page', {
       space: 'PAY',

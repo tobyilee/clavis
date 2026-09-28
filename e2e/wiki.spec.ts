@@ -205,6 +205,15 @@ test('home: favorites, recently viewed; raw Markdown and llms.txt', async ({ pag
   const sidebarFavorites = page.getByRole('region', { name: '즐겨찾기' });
   await expect(sidebarFavorites.getByRole('link', { name: '자주 보는 문서' })).toBeVisible();
 
+  // Copy for AI: title, link and the raw Markdown in one paste.
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.getByRole('button', { name: '더 보기' }).click();
+  await page.getByRole('menuitem', { name: 'AI용 복사 (Markdown)' }).click();
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toBe(
+    `# 자주 보는 문서\n\nSource: http://localhost:8788${decodeURI(url)}\n\n${fm}본문\n`,
+  );
+
   await page.goto('/');
   const favorites = page.locator('section', {
     has: page.getByRole('heading', { name: '즐겨찾기' }),
