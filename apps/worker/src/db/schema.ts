@@ -147,6 +147,33 @@ export const pageLint = sqliteTable('page_lint', {
 });
 
 /**
+ * Version history (D-54): one row per saved revision. The text lives in R2 at
+ * rev/{pageId}/{revision}.md (see services/revisions.ts); the row is written in the save's
+ * own batch, so a save still makes two D1 calls. `baseline` is a page's text from before
+ * history began, kept the first time the page is saved after that.
+ */
+export const pageRevisions = sqliteTable(
+  'page_revisions',
+  {
+    pageId: text('page_id')
+      .notNull()
+      .references(() => pages.id),
+    revision: integer('revision').notNull(),
+    actorId: text('actor_id')
+      .notNull()
+      .references(() => actors.id),
+    createdAt: createdAt(),
+    title: text('title').notNull(),
+    bytes: integer('bytes').notNull(),
+    /** create | update | link-rewrite | restore | baseline */
+    kind: text('kind').notNull(),
+    /** For kind = restore: the revision whose text came back. */
+    restoredFrom: integer('restored_from'),
+  },
+  (t) => [primaryKey({ columns: [t.pageId, t.revision] })],
+);
+
+/**
  * Page comments (D-44): a thread is a root comment plus replies one level deep. Roots may
  * point at a section (heading id) and are resolved as a whole. A root with replies cannot be
  * deleted (resolve it instead), so deletes remove the row.

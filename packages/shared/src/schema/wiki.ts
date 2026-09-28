@@ -288,6 +288,42 @@ export const RecheckResultSchema = z.object({
 });
 export type RecheckResult = z.infer<typeof RecheckResultSchema>;
 
+/** One saved version of a page (D-54). Its text is read separately. */
+export const RevisionSchema = z.object({
+  revision: z.number().int(),
+  actor: ActorRefSchema,
+  at: z.number(),
+  /** The page title at that revision. */
+  title: z.string(),
+  bytes: z.number().int(),
+  /** baseline: the text from before history began, kept when the page was next saved. */
+  kind: z.enum(['create', 'update', 'link-rewrite', 'restore', 'baseline']),
+  /** For kind = restore: the revision whose text came back. */
+  restoredFrom: z.number().int().nullable(),
+});
+export type Revision = z.infer<typeof RevisionSchema>;
+
+export const RevisionListSchema = z.object({
+  /** The page's current revision. */
+  revision: z.number().int(),
+  revisions: z.array(RevisionSchema),
+  /** Pass as `before` for older revisions; null when there are none. */
+  nextBefore: z.number().int().nullable(),
+  /** The oldest revision history has, once the list reaches it; earlier text was not kept. */
+  historyStart: z.number().int().nullable(),
+});
+
+export const RevisionReadSchema = z.object({
+  current: z.number().int(),
+  revision: RevisionSchema,
+  content: z.string(),
+});
+
+export const RestoreRevisionSchema = z.object({
+  /** Fail if the page changed since you looked (default: restore onto whatever is there). */
+  baseRevision: z.number().int().positive().optional(),
+});
+
 /** A heading and everything under it (D-48); see @clavis/shared/markdown parseSections. */
 export const SectionSchema = z.object({
   /** The heading's anchor on the rendered page; pass it (or the heading text) to address it. */

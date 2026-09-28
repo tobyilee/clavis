@@ -4,6 +4,7 @@ import type { WriteOptions } from '../events';
 import type { Actor } from './actors';
 import { notFound, ServiceError } from './errors';
 import { toPageRef } from './page-read';
+import { revisionKey } from './revisions';
 
 /** How long trashed pages are kept before the nightly purge (D-36). */
 export const TRASH_RETENTION_MS = 30 * 86_400_000;
@@ -170,27 +171,33 @@ export async function purgeTrash(
   limit = 50,
 ): Promise<number> {
   const cutoff = now - TRASH_RETENTION_MS;
-  const [pagesRes, attRes] = await DB.batch([
-    DB.prepare('SELECT id FROM pages WHERE deleted_at < ? ORDER BY deleted_at LIMIT ?').bind(
+  const expired = 'SELECT id FROM pages WHERE deleted_at < ? ORDER BY deleted_at LIMIT ?';
+  const [pagesRes, attRes, revRes] = await DB.batch([
+    DB.prepare(expired).bind(cutoff, limit),
+    DB.prepare(`SELECT r2_key FROM attachments WHERE page_id IN (${expired})`).bind(cutoff, limit),
+    DB.prepare(`SELECT page_id, revision FROM page_revisions WHERE page_id IN (${expired})`).bind(
       cutoff,
       limit,
     ),
-    DB.prepare(
-      `SELECT r2_key FROM attachments WHERE page_id IN (
-         SELECT id FROM pages WHERE deleted_at < ? ORDER BY deleted_at LIMIT ?)`,
-    ).bind(cutoff, limit),
   ]);
   const ids = ((pagesRes?.results ?? []) as { id: string }[]).map((r) => r.id);
   if (ids.length === 0) return 0;
-  const keys = ((attRes?.results ?? []) as { r2_key: string }[]).map((r) => r.r2_key);
+  const keys = [
+    ...((attRes?.results ?? []) as { r2_key: string }[]).map((r) => r.r2_key),
+    ...((revRes?.results ?? []) as { page_id: string; revision: number }[]).map((r) =>
+      revisionKey(r.page_id, r.revision),
+    ),
+  ];
   // R2 first: if the DB step then fails, the next run retries and deleting again is harmless.
-  if (keys.length > 0) await bucket.delete(keys);
+  // One delete call takes up to 1,000 keys.
+  for (let i = 0; i < keys.length; i += 1000) await bucket.delete(keys.slice(i, i + 1000));
   const idsJson = JSON.stringify(ids);
   const inIds = 'IN (SELECT value FROM json_each(?))';
   await DB.batch([
     DB.prepare(`DELETE FROM attachments WHERE page_id ${inIds}`).bind(idsJson),
     DB.prepare(`DELETE FROM page_tags WHERE page_id ${inIds}`).bind(idsJson),
     DB.prepare(`DELETE FROM page_lint WHERE page_id ${inIds}`).bind(idsJson),
+    DB.prepare(`DELETE FROM page_revisions WHERE page_id ${inIds}`).bind(idsJson),
     DB.prepare(`DELETE FROM comments WHERE page_id ${inIds}`).bind(idsJson),
     DB.prepare(`DELETE FROM favorites WHERE page_id ${inIds}`).bind(idsJson),
     DB.prepare(`DELETE FROM page_views WHERE page_id ${inIds}`).bind(idsJson),

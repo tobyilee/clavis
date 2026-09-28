@@ -76,7 +76,8 @@
     "unstar": "Remove from favorites",
     "copyForAi": "Copy for AI (Markdown)",
     "rawMarkdown": "Open raw Markdown (.md)",
-    "copied": "Copied"
+    "copied": "Copied",
+    "history": "History"
   },
   "status": {
     "draft": "Draft",
@@ -337,6 +338,30 @@
       "space": "This space",
       "global": "Every space",
       "builtin": "Built-in"
+    }
+  },
+  "history": {
+    "title": "History",
+    "list": "Revisions",
+    "changes": "Changes",
+    "current": "current",
+    "more": "Show more",
+    "start": "Nothing older than r{{revision}} was kept (before history began).",
+    "compareWith": "Compare with",
+    "noChanges": "The text is the same (only the title or properties may differ).",
+    "unchanged": "{{count}} unchanged lines",
+    "textMissing": "The text of this revision was not kept.",
+    "restore": "Restore this revision",
+    "restoreTitle": "Restore r{{revision}}?",
+    "restoreBody": "This revision's text is saved as a new revision. The current text stays in history, so you can go back again. The title does not change.",
+    "restoreConflict": "Someone saved in the meantime. Refresh the list and try again.",
+    "restoreInvalid": "This revision's text breaks a document rule that is now an error. Fix it in the editor instead.",
+    "kind": {
+      "create": "created",
+      "update": "edited",
+      "link-rewrite": "links updated",
+      "restore": "restored from r{{revision}}",
+      "baseline": "text from before history"
     }
   }
 }

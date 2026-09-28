@@ -8,6 +8,7 @@ import { home } from './home';
 import { me } from './me';
 import { pages } from './pages';
 import { quality } from './quality';
+import { revisions } from './revisions';
 import { router } from './router';
 import { search } from './search';
 import { sections } from './sections';
@@ -35,6 +36,7 @@ export function buildApi() {
     spaces,
     pages,
     sections,
+    revisions,
     comments,
     quality,
     trash,

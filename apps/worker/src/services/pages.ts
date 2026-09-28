@@ -37,6 +37,7 @@ import {
 } from './page-read';
 import { positionAmong, type Sibling } from './position';
 import { parseLintConfig, summarize, summaryStatement } from './quality';
+import { revisionRows } from './revisions';
 import { templateContent } from './templates';
 
 /**
@@ -347,6 +348,7 @@ export async function createPage(
           now,
           now,
         ),
+        revisionRows(DB, { id }, 'create'),
         ...tagRows(DB, id, fm.tags),
         ...linkRows(DB, id, key, targets, resolved),
         reconnectLinks(DB, id, key, input.title),
@@ -381,7 +383,7 @@ export async function updatePage(
   actor: Actor,
   ref: string,
   input: UpdatePageInput,
-  { now = Date.now(), emit }: WriteOptions = {},
+  { now = Date.now(), emit, restoredFrom }: WriteOptions & { restoredFrom?: number } = {},
 ): Promise<SaveResult> {
   assertSize(input.content);
   const loc = parsePageRef(ref);
@@ -392,29 +394,41 @@ export async function updatePage(
     `SELECT p.${col} FROM pages p JOIN spaces s ON s.id = p.space_id WHERE ${w.sql} LIMIT 1`;
   const doc = parseDocument(input.content);
   const targets = linkTargets(doc, null);
-  const [pageRes, tagsRes, ancRes, linksRes, attRes, titleRes, incomingRes, refRes, configRes] =
-    await DB.batch([
-      ...pageStatements(DB, loc, { withContent: false }),
-      resolveLinksStatement(DB, targets, {
-        sql: `SELECT s.key FROM pages p JOIN spaces s ON s.id = p.space_id WHERE ${w.sql} LIMIT 1`,
-        binds: w.binds,
-      }),
-      DB.prepare(`SELECT filename FROM attachments WHERE page_id = (${target('id')})`).bind(
-        ...w.binds,
-      ),
-      DB.prepare(
-        `SELECT 1 FROM pages WHERE space_id = (${target('space_id')}) AND title = ?
+  const [
+    pageRes,
+    tagsRes,
+    ancRes,
+    linksRes,
+    attRes,
+    titleRes,
+    incomingRes,
+    refRes,
+    configRes,
+    baselineRes,
+  ] = await DB.batch([
+    ...pageStatements(DB, loc, { withContent: false }),
+    resolveLinksStatement(DB, targets, {
+      sql: `SELECT s.key FROM pages p JOIN spaces s ON s.id = p.space_id WHERE ${w.sql} LIMIT 1`,
+      binds: w.binds,
+    }),
+    DB.prepare(`SELECT filename FROM attachments WHERE page_id = (${target('id')})`).bind(
+      ...w.binds,
+    ),
+    DB.prepare(
+      `SELECT 1 FROM pages WHERE space_id = (${target('space_id')}) AND title = ?
        AND id != (${target('id')}) AND deleted_at IS NULL`,
-      ).bind(...w.binds, input.title ?? '', ...w.binds),
-      DB.prepare(
-        `SELECT COUNT(DISTINCT from_page_id) AS n FROM page_links
+    ).bind(...w.binds, input.title ?? '', ...w.binds),
+    DB.prepare(
+      `SELECT COUNT(DISTINCT from_page_id) AS n FROM page_links
        WHERE to_page_id = (${target('id')}) AND from_page_id != to_page_id`,
-      ).bind(...w.binds),
-      // Pages linking here, with content, up to the rewrite cap — only when the title changes
-      // (NULL != x is not true, so no title means no rows).
-      DB.prepare(
-        `SELECT id, space_key, revision, content FROM (
+    ).bind(...w.binds),
+    // Pages linking here, with content, up to the rewrite cap — only when the title changes
+    // (NULL != x is not true, so no title means no rows).
+    DB.prepare(
+      `SELECT id, space_key, revision, content, has_rev FROM (
          SELECT p.id, s.key AS space_key, p.revision, p.content,
+                EXISTS (SELECT 1 FROM page_revisions r
+                        WHERE r.page_id = p.id AND r.revision = p.revision) AS has_rev,
                 ROW_NUMBER() OVER (ORDER BY p.id) AS n,
                 SUM(length(CAST(p.content AS BLOB))) OVER (ORDER BY p.id) AS running
          FROM pages p JOIN spaces s ON s.id = p.space_id
@@ -422,18 +436,24 @@ export async function updatePage(
            AND p.id != (${target('id')}) AND p.deleted_at IS NULL AND s.archived_at IS NULL
            AND ? != (${target('title')}))
        WHERE n <= ? AND running <= ?`,
-      ).bind(
-        ...w.binds,
-        ...w.binds,
-        input.title ?? null,
-        ...w.binds,
-        RENAME_LIMITS.pages,
-        RENAME_LIMITS.bytes,
-      ),
-      DB.prepare(
-        `SELECT lint_config, lint_config_version FROM spaces WHERE id = (${target('space_id')})`,
-      ).bind(...w.binds),
-    ]);
+    ).bind(
+      ...w.binds,
+      ...w.binds,
+      input.title ?? null,
+      ...w.binds,
+      RENAME_LIMITS.pages,
+      RENAME_LIMITS.bytes,
+    ),
+    DB.prepare(
+      `SELECT lint_config, lint_config_version FROM spaces WHERE id = (${target('space_id')})`,
+    ).bind(...w.binds),
+    // The text as it is now, only if history does not have it yet (D-54 baseline).
+    DB.prepare(
+      `SELECT p.revision, p.content FROM pages p WHERE p.id = (${target('id')})
+         AND NOT EXISTS (SELECT 1 FROM page_revisions r
+                         WHERE r.page_id = p.id AND r.revision = p.revision)`,
+    ).bind(...w.binds),
+  ]);
   const current = pageFromResults([pageRes, tagsRes, ancRes] as D1Result[]);
   if (!current) throw notFound('Page');
   const row = current.row;
@@ -462,7 +482,7 @@ export async function updatePage(
   const treeChanged = renamed || fm.docType !== row.doc_type || fm.status !== row.status;
 
   // Rewrite [[old title]] in the pages that link here (D-42 revised).
-  const rewrites: { id: string; rev: number; content: string }[] = [];
+  const rewrites: { id: string; rev: number; content: string; old: string | null }[] = [];
   if (renamed) {
     const rename = { spaceKey: row.space_key, oldTitle: row.title, newTitle: title };
     for (const ref of (refRes?.results ?? []) as {
@@ -470,15 +490,21 @@ export async function updatePage(
       space_key: string;
       revision: number;
       content: string;
+      has_rev: number;
     }[]) {
       const out = renameWikiLinks(ref.content, ref.space_key, rename);
-      if (out.count > 0) rewrites.push({ id: ref.id, rev: ref.revision, content: out.content });
+      if (out.count === 0) continue;
+      // The text before the rewrite, when history does not have it yet.
+      const old = ref.has_rev ? null : ref.content;
+      rewrites.push({ id: ref.id, rev: ref.revision, content: out.content, old });
     }
   }
 
+  const baseline = baselineRes?.results[0] as { revision: number; content: string } | undefined;
   try {
     const results = await DB.batch([
       revisionGuard(DB, row.id, input.baseRevision),
+      ...(baseline ? [revisionRows(DB, { id: row.id }, 'baseline')] : []),
       DB.prepare(
         `UPDATE pages SET title = ?, slug = ?, content = ?, doc_type = ?, status = ?, owner = ?,
            revision = revision + 1, updated_by = ?, updated_at = ?
@@ -494,6 +520,7 @@ export async function updatePage(
         now,
         row.id,
       ),
+      revisionRows(DB, { id: row.id }, restoredFrom ? 'restore' : 'update', restoredFrom ?? null),
       DB.prepare('DELETE FROM page_tags WHERE page_id = ?').bind(row.id),
       ...tagRows(DB, row.id, fm.tags),
       DB.prepare('DELETE FROM page_links WHERE from_page_id = ?').bind(row.id),
@@ -516,9 +543,10 @@ export async function updatePage(
     // Rewrites that lost a race with another save were skipped by their revision check.
     const updated = renamed ? await rewrittenIds(DB, rewrites, actor, now) : new Set<string>();
     const saved = { actorId: actor.id, at: now };
+    if (baseline) emit?.({ type: 'revision.baseline', pageId: row.id, ...baseline });
     emit?.({
       type: 'page.saved',
-      kind: 'update',
+      kind: restoredFrom ? 'restore' : 'update',
       pageId: row.id,
       revision: row.revision + 1,
       content: input.content,
@@ -526,6 +554,9 @@ export async function updatePage(
     });
     for (const r of rewrites) {
       if (!updated.has(r.id)) continue;
+      if (r.old !== null) {
+        emit?.({ type: 'revision.baseline', pageId: r.id, revision: r.rev, content: r.old });
+      }
       emit?.({
         type: 'page.saved',
         kind: 'link-rewrite',
@@ -562,10 +593,13 @@ function renameStatements(
   actor: Actor,
   row: PageRow,
   newTitle: string,
-  rewrites: { id: string; rev: number; content: string }[],
+  rewrites: { id: string; rev: number; content: string; old: string | null }[],
   now: number,
 ): D1PreparedStatement[] {
-  const json = JSON.stringify(rewrites);
+  const json = JSON.stringify(rewrites.map(({ id, rev, content }) => ({ id, rev, content })));
+  const baselineIds = JSON.stringify(
+    rewrites.filter((r) => r.old !== null).map((r) => ({ id: r.id })),
+  );
   // A page counts as rewritten only if this batch just wrote it (same actor and time).
   const rewritten = `SELECT json_extract(j.value, '$.id') FROM json_each(?) j
      JOIN pages p ON p.id = json_extract(j.value, '$.id')
@@ -573,6 +607,7 @@ function renameStatements(
   return [
     ...(rewrites.length > 0
       ? [
+          revisionRows(DB, { idsJson: baselineIds }, 'baseline'),
           DB.prepare(
             `UPDATE pages SET
                content = (SELECT json_extract(j.value, '$.content') FROM json_each(?1) j
@@ -582,6 +617,7 @@ function renameStatements(
                SELECT 1 FROM json_each(?1) j
                WHERE json_extract(j.value, '$.id') = pages.id AND json_extract(j.value, '$.rev') = pages.revision)`,
           ).bind(json, actor.id, now),
+          revisionRows(DB, { idsJson: json, actorId: actor.id, at: now }, 'link-rewrite'),
           // A rewritten page may already hold a (broken) link to the new title.
           DB.prepare(
             `DELETE FROM page_links WHERE target_space_key = ? AND target_title = ?

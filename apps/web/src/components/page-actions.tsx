@@ -6,6 +6,7 @@ import {
   FileCode,
   FilePlus,
   FolderInput,
+  History,
   MoreHorizontal,
   Pencil,
   Star,
@@ -137,6 +138,11 @@ export function PageActions({ page, isHome }: { page: Page; isHome: boolean }) {
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => void copyForAi()}>
             <Bot /> {t('page.copyForAi')}
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link to="/s/$key/p/$slugId/history" params={pageParams(page)}>
+              <History /> {t('page.history')}
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <a href={`${pagePath(page)}.md`} target="_blank" rel="noreferrer">

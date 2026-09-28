@@ -65,6 +65,22 @@ test('an error blocks the save; a conflict keeps my text', async ({ page, reques
   await expect(page.locator('.cm-content')).toContainText('다른 사람의 문장');
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
   expect(clipboard).toContain('내 문장');
+
+  // History: the other save is listed with its diff, and the first text comes back (D-54, D-56).
+  await page.goto(page.url().replace(/\/edit$/, '/history'));
+  const revisions = page.getByRole('list', { name: '버전 목록' });
+  await expect(revisions.getByRole('button')).toHaveCount(2);
+  await expect(revisions.getByRole('button').first()).toContainText('현재');
+  const changes = page.getByRole('region', { name: '바뀐 내용' });
+  await expect(changes.locator('[data-kind="add"]', { hasText: '다른 사람의 문장' })).toBeVisible();
+  // The current revision has nothing to restore.
+  await expect(changes.getByRole('button', { name: '이 버전으로 복원' })).toHaveCount(0);
+  await revisions.getByRole('button').last().click();
+  await changes.getByRole('button', { name: '이 버전으로 복원' }).click();
+  await expect(page.getByRole('dialog')).toContainText('r1 버전으로 복원할까요?');
+  await page.getByRole('dialog').getByRole('button', { name: '이 버전으로 복원' }).click();
+  await expect(page).not.toHaveURL(/\/history/);
+  await expect(page.locator('.prose-clavis')).not.toContainText('다른 사람의 문장');
 });
 
 test('paste an image: uploaded, referenced, rendered', async ({ page, request }) => {

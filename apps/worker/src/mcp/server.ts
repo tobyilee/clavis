@@ -27,6 +27,7 @@ import {
   updatePage,
 } from '../services/pages';
 import { spaceHealth } from '../services/quality';
+import { listRevisions, readRevision, restoreRevision } from '../services/revisions';
 import { searchPages } from '../services/search';
 import { listSections, patchPageMeta, readSection, updateSection } from '../services/sections';
 import { listSpaces } from '../services/spaces';
@@ -51,6 +52,8 @@ Writing (editor agents)
   update_section. Others may edit other sections meanwhile without a conflict. To add a
   list item or a note (meeting action items, logs), update_section with mode "append".
 - To change only status, owner or tags, use set_page_meta.
+- Every save is kept. list_revisions shows who changed a page and when; read_revision gives
+  an old text. If a change went wrong, restore_revision saves an old text as a new revision.
 
 Comments
 - read_page shows open_comments=N. list_comments shows review threads from people and
@@ -238,6 +241,25 @@ const INPUT = {
     }),
   ),
   read_section: cached(z.object({ page: pageArg, section: sectionArg })),
+  list_revisions: cached(
+    z.object({
+      page: pageArg,
+      before: z.number().int().positive().optional().describe('Only revisions older than this'),
+    }),
+  ),
+  read_revision: cached(z.object({ page: pageArg, revision: z.number().int().positive() })),
+  restore_revision: cached(
+    z.object({
+      page: pageArg,
+      revision: z.number().int().positive().describe('The revision whose text to bring back'),
+      baseRevision: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('Fail if the page is no longer at this revision'),
+    }),
+  ),
   update_section: cached(
     z.object({
       page: pageArg,
@@ -439,6 +461,47 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '', emit?: Emit)
   );
 
   server.registerTool(
+    'list_revisions',
+    {
+      title: 'List page revisions',
+      description: 'Who changed a page and when, newest first: one line per saved revision (D-54).',
+      inputSchema: INPUT.list_revisions,
+      annotations: { readOnlyHint: true },
+    },
+    async ({ page, before }) =>
+      guard(async () => {
+        const r = await listRevisions(DB, page, { before });
+        const when = (at: number) => `${new Date(at).toISOString().slice(0, 16)}Z`;
+        const lines = r.revisions.map(
+          (v) =>
+            `- r${v.revision} ${when(v.at)} ${v.actor.name} (${v.actor.kind}) ${v.kind}` +
+            `${v.restoredFrom ? ` from r${v.restoredFrom}` : ''} ${v.bytes}B "${v.title}"`,
+        );
+        if (r.nextBefore) lines.push(`More: list_revisions before=${r.nextBefore}`);
+        if (r.historyStart && r.historyStart > 1) {
+          lines.push(`History starts at r${r.historyStart}; older text was not kept.`);
+        }
+        return text(lines.join('\n'));
+      }),
+  );
+
+  server.registerTool(
+    'read_revision',
+    {
+      title: 'Read page revision',
+      description: "A page's text as it was at one revision.",
+      inputSchema: INPUT.read_revision,
+      annotations: { readOnlyHint: true },
+    },
+    async ({ page, revision }) =>
+      guard(async () => {
+        const r = await readRevision(env, page, revision);
+        const header = `<!-- clavis revision: r${r.revision.revision} of r${r.current} by ${r.revision.actor.name} ${r.revision.kind} "${r.revision.title}" -->`;
+        return text(`${header}\n${r.content}`);
+      }),
+  );
+
+  server.registerTool(
     'search_pages',
     {
       title: 'Search pages',
@@ -632,6 +695,21 @@ export function buildMcpServer(env: Env, actor: Actor, origin = '', emit?: Emit)
       guard(async () => {
         const result = await patchPageMeta(DB, actor, page, patch, emit);
         return saved('Updated', result.page, result.violations);
+      }),
+  );
+
+  server.registerTool(
+    'restore_revision',
+    {
+      title: 'Restore page revision',
+      description:
+        "Save an old revision's text as a new revision (history is kept; the title stays).",
+      inputSchema: INPUT.restore_revision,
+    },
+    async ({ page, revision, baseRevision }) =>
+      guard(async () => {
+        const result = await restoreRevision(env, actor, page, revision, baseRevision, { emit });
+        return saved(`Restored r${revision} as`, result.page, result.violations);
       }),
   );
 

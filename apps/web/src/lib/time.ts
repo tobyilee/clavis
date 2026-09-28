@@ -14,7 +14,8 @@ export function relativeTime(ms: number, locale: string, now = Date.now()): stri
   for (const [unit, size] of UNITS) {
     if (Math.abs(diff) >= size) return fmt.format(Math.round(diff / size), unit);
   }
-  return fmt.format(0, 'minute');
+  // Under a minute: "지금" / "now" (the minute form reads "현재 분" in Korean).
+  return fmt.format(0, 'second');
 }
 
 export function absoluteTime(ms: number, locale: string): string {

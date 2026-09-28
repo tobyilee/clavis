@@ -76,7 +76,8 @@
     "unstar": "즐겨찾기에서 빼기",
     "copyForAi": "AI용 복사 (Markdown)",
     "rawMarkdown": "원본 Markdown 열기 (.md)",
-    "copied": "복사했습니다"
+    "copied": "복사했습니다",
+    "history": "변경 기록"
   },
   "status": {
     "draft": "초안",
@@ -337,6 +338,30 @@
       "space": "이 Space",
       "global": "모든 Space",
       "builtin": "기본"
+    }
+  },
+  "history": {
+    "title": "변경 기록",
+    "list": "버전 목록",
+    "changes": "바뀐 내용",
+    "current": "현재",
+    "more": "더 보기",
+    "start": "r{{revision}}보다 오래된 기록은 없습니다 (변경 기록 기능이 생기기 전).",
+    "compareWith": "비교 대상",
+    "noChanges": "본문이 같습니다 (제목이나 속성만 다를 수 있음).",
+    "unchanged": "{{count}}줄 같음",
+    "textMissing": "이 버전의 본문이 보관되지 않았습니다.",
+    "restore": "이 버전으로 복원",
+    "restoreTitle": "r{{revision}} 버전으로 복원할까요?",
+    "restoreBody": "이 버전의 본문을 새 버전으로 저장합니다. 지금 본문도 기록에 남으므로 다시 되돌릴 수 있습니다. 제목은 바뀌지 않습니다.",
+    "restoreConflict": "그사이 다른 사람이 저장했습니다. 목록을 새로 고친 뒤 다시 시도하세요.",
+    "restoreInvalid": "이 버전의 본문은 지금 문서 규칙에 맞지 않아 복원할 수 없습니다. 편집 화면에서 직접 고쳐 주세요.",
+    "kind": {
+      "create": "만듦",
+      "update": "수정",
+      "link-rewrite": "링크 자동 수정",
+      "restore": "r{{revision}}에서 복원",
+      "baseline": "기록 시작 전 내용"
     }
   }
 }

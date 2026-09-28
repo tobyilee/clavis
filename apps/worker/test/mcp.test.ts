@@ -58,13 +58,16 @@ describe('MCP endpoint', () => {
       'get_space_tree',
       'lint_markdown',
       'list_comments',
+      'list_revisions',
       'list_sections',
       'list_spaces',
       'list_templates',
       'move_page',
       'read_page',
+      'read_revision',
       'read_section',
       'resolve_comment',
+      'restore_revision',
       'search_pages',
       'set_page_meta',
       'update_page',
@@ -79,6 +82,8 @@ describe('MCP endpoint', () => {
     expect(names).toContain('search_pages');
     expect(names).not.toContain('create_page');
     expect(names).not.toContain('resolve_comment');
+    expect(names).not.toContain('restore_revision');
+    expect(names).toContain('list_revisions');
     // Viewers may comment (D-45).
     expect(names).toContain('add_comment');
     const res = await rpc('tools/call', { name: 'create_page', arguments: {} }, viewer);
@@ -155,6 +160,33 @@ describe('agent workflow (plan M1)', () => {
     expect(res.isError).toBe(false);
     expect(res.text).toContain('Warnings (2), saved anyway');
     expect(res.text).toContain('clavis/wiki-link-exists');
+  });
+
+  it('shows who changed a page and brings an old text back (D-54, D-56)', async () => {
+    const created = await tool(editor, 'create_page', {
+      space: 'PAY',
+      title: '정책',
+      content: `${FM()}좋은 본문\n`,
+    });
+    const id = /PAY\/([0-9a-z]{6})/.exec(created.text)?.[1];
+    await tool(editor, 'update_page', {
+      page: id,
+      content: `${FM()}망가진 본문\n`,
+      baseRevision: 1,
+    });
+
+    const list = await tool(editor, 'list_revisions', { page: id });
+    expect(list.text).toMatch(/^- r2 \S+ hermes \(agent\) update \d+B "정책"\n- r1 .* create /);
+    const old = await tool(editor, 'read_revision', { page: id, revision: 1 });
+    expect(old.text).toContain('<!-- clavis revision: r1 of r2 by hermes create "정책" -->');
+    expect(old.text).toContain('좋은 본문');
+
+    const restored = await tool(editor, 'restore_revision', { page: id, revision: 1 });
+    expect(restored.text).toContain(`Restored r1 as PAY/${id} "정책" revision=3`);
+    expect((await tool(editor, 'read_page', { page: id })).text).toContain('좋은 본문');
+    const again = await tool(editor, 'restore_revision', { page: id, revision: 3 });
+    expect(again).toMatchObject({ isError: true });
+    expect(again.text).toContain('current one');
   });
 
   it("follows the space's rules and custom templates (D-47, D-49)", async () => {

@@ -20,6 +20,7 @@ import { Route as SKeyTrashRouteImport } from './routes/s.$key.trash'
 import { Route as SKeyPSlugIdRouteImport } from './routes/s.$key.p.$slugId'
 import { Route as SKeyWTitleRouteImport } from './routes/s.$key.w.$title'
 import { Route as SKeyPSlugIdEditRouteImport } from './routes/s.$key.p.$slugId_.edit'
+import { Route as SKeyPSlugIdHistoryRouteImport } from './routes/s.$key.p.$slugId_.history'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +77,11 @@ const SKeyPSlugIdEditRoute = SKeyPSlugIdEditRouteImport.update({
   path: '/s/$key/p/$slugId/edit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SKeyPSlugIdHistoryRoute = SKeyPSlugIdHistoryRouteImport.update({
+  id: '/s/$key/p/$slugId_/history',
+  path: '/s/$key/p/$slugId/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/s/$key/p/$slugId': typeof SKeyPSlugIdRoute
   '/s/$key/w/$title': typeof SKeyWTitleRoute
   '/s/$key/p/$slugId/edit': typeof SKeyPSlugIdEditRoute
+  '/s/$key/p/$slugId/history': typeof SKeyPSlugIdHistoryRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/s/$key/p/$slugId': typeof SKeyPSlugIdRoute
   '/s/$key/w/$title': typeof SKeyWTitleRoute
   '/s/$key/p/$slugId/edit': typeof SKeyPSlugIdEditRoute
+  '/s/$key/p/$slugId/history': typeof SKeyPSlugIdHistoryRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/s/$key/p/$slugId': typeof SKeyPSlugIdRoute
   '/s/$key/w/$title': typeof SKeyWTitleRoute
   '/s/$key/p/$slugId_/edit': typeof SKeyPSlugIdEditRoute
+  '/s/$key/p/$slugId_/history': typeof SKeyPSlugIdHistoryRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/s/$key/p/$slugId'
     | '/s/$key/w/$title'
     | '/s/$key/p/$slugId/edit'
+    | '/s/$key/p/$slugId/history'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/s/$key/p/$slugId'
     | '/s/$key/w/$title'
     | '/s/$key/p/$slugId/edit'
+    | '/s/$key/p/$slugId/history'
   id:
     | '__root__'
     | '/'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/s/$key/p/$slugId'
     | '/s/$key/w/$title'
     | '/s/$key/p/$slugId_/edit'
+    | '/s/$key/p/$slugId_/history'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,6 +183,7 @@ export interface RootRouteChildren {
   SKeyPSlugIdRoute: typeof SKeyPSlugIdRoute
   SKeyWTitleRoute: typeof SKeyWTitleRoute
   SKeyPSlugIdEditRoute: typeof SKeyPSlugIdEditRoute
+  SKeyPSlugIdHistoryRoute: typeof SKeyPSlugIdHistoryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SKeyPSlugIdEditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/s/$key/p/$slugId_/history': {
+      id: '/s/$key/p/$slugId_/history'
+      path: '/s/$key/p/$slugId/history'
+      fullPath: '/s/$key/p/$slugId/history'
+      preLoaderRoute: typeof SKeyPSlugIdHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -267,6 +287,7 @@ const rootRouteChildren: RootRouteChildren = {
   SKeyPSlugIdRoute: SKeyPSlugIdRoute,
   SKeyWTitleRoute: SKeyWTitleRoute,
   SKeyPSlugIdEditRoute: SKeyPSlugIdEditRoute,
+  SKeyPSlugIdHistoryRoute: SKeyPSlugIdHistoryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
