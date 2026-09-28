@@ -175,6 +175,41 @@ test('comments: section thread with badge, reply, resolve', async ({ page, reque
   expect(section.content).toContain('미정\n\n- 10월 첫 주에 확정');
   await page.reload();
   await expect(page.locator('.prose-clavis').getByText('10월 첫 주에 확정')).toBeVisible();
+
+  // An agent to talk to (Phase 3 Step 2): @mention it with autocomplete.
+  const agent = await request.post('/api/v1/admin/agents', {
+    data: { name: 'Adam', role: 'editor' },
+  });
+  const token = (
+    await (await request.post(`/api/v1/admin/agents/${(await agent.json()).id}/tokens`)).json()
+  ).token;
+  const box = page.getByLabel('새 댓글');
+  await box.fill('확인 부탁해요 @Ad');
+  await page.getByRole('option', { name: 'Adam' }).click();
+  await expect(box).toHaveValue(/^확인 부탁해요 @\[Adam\]\(actor:\w+\) $/);
+  await page.getByRole('button', { name: '댓글 달기' }).click();
+  await expect(page.locator('a[href^="#mention-"]', { hasText: '@Adam' })).toBeVisible();
+
+  // The agent edits my page: the bell counts it and leads to the change.
+  const bearer = { Authorization: `Bearer ${token}` };
+  const current = await (
+    await request.get(`/api/v1/pages/${p.shortId}`, { headers: bearer })
+  ).json();
+  await request.put(`/api/v1/pages/${p.shortId}`, {
+    headers: bearer,
+    data: { content: `${current.content}\n에이전트가 정리함\n`, baseRevision: current.revision },
+  });
+  const bell = page.getByRole('button', { name: /^알림/ });
+  // The queue consumer runs a few seconds later.
+  await expect(async () => {
+    await page.reload();
+    await expect(bell).toHaveAccessibleName('알림 (안 읽음 1개)', { timeout: 1000 });
+  }).toPass({ timeout: 20_000 });
+  await bell.click();
+  await page.getByRole('menuitem', { name: /댓글 문서/ }).click();
+  await expect(page).toHaveURL(/\/history\?r=\d+&base=\d+$/);
+  await expect(page.locator('[data-kind="add"]', { hasText: '에이전트가 정리함' })).toBeVisible();
+  await expect(bell).toHaveAccessibleName('알림 (안 읽음 0개)');
 });
 
 test('space settings: stricter rule and a custom template', async ({ page, request }) => {

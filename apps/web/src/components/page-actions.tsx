@@ -2,7 +2,10 @@ import type { Page, TreeNode } from '@clavis/shared/schema';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import {
+  BellOff,
+  BellRing,
   Bot,
+  Eye,
   FileCode,
   FilePlus,
   FolderInput,
@@ -34,6 +37,7 @@ import { Select } from '@/components/ui/input';
 import { apiSend, isApiError } from '@/lib/api';
 import { useFavorite } from '@/lib/home';
 import { useCanEdit } from '@/lib/me';
+import { useSetWatch, watchQuery } from '@/lib/notifications';
 import { treeQuery } from '@/lib/queries';
 import { pageParams, pagePath } from '@/lib/urls';
 
@@ -60,6 +64,10 @@ export function PageActions({ page, isHome }: { page: Page; isHome: boolean }) {
   const tree = useQuery({ ...treeQuery(queryClient, page.spaceKey), enabled: dialog === 'move' });
   const favorite = useFavorite(page.id);
   const [copied, setCopied] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  // Asked only when the menu opens: most page views never need it.
+  const watch = useQuery({ ...watchQuery(page.id), enabled: menuOpen });
+  const setWatch = useSetWatch(page.id);
 
   /** Title, link and the raw Markdown, ready to paste into an AI chat (D-51). */
   const copyForAi = async () => {
@@ -129,13 +137,38 @@ export function PageActions({ page, isHome }: { page: Page; isHome: boolean }) {
           </Link>
         </Button>
       )}
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" aria-label={t('page.more')}>
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {watch.data && (
+            <>
+              <p className="px-2 pt-1 text-xs text-muted-foreground">
+                {watch.data.muted
+                  ? t('watch.muted')
+                  : watch.data.reason
+                    ? t(`watch.reason.${watch.data.reason}`)
+                    : null}
+              </p>
+              {watch.data.muted ? (
+                <DropdownMenuItem onSelect={() => setWatch.mutate(null)}>
+                  <BellRing /> {t('watch.unmute')}
+                </DropdownMenuItem>
+              ) : watch.data.watching ? (
+                <DropdownMenuItem onSelect={() => setWatch.mutate('mute')}>
+                  <BellOff /> {t('watch.unwatch')}
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onSelect={() => setWatch.mutate('watch')}>
+                  <Eye /> {t('watch.watch')}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuItem onSelect={() => void copyForAi()}>
             <Bot /> {t('page.copyForAi')}
           </DropdownMenuItem>

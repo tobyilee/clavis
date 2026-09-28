@@ -8,6 +8,7 @@ import { LANGUAGES } from '@/i18n';
 import { useMe } from '@/lib/me';
 import { cn } from '@/lib/utils';
 import { CommandPalette } from './command-palette';
+import { NotificationBell } from './notification-bell';
 import { Sidebar } from './sidebar';
 
 function LanguageToggle() {
@@ -29,6 +30,12 @@ function LanguageToggle() {
       ))}
     </div>
   );
+}
+
+/** Approved people and agents only: a pending account cannot read notifications. */
+function Bell() {
+  const { data } = useMe();
+  return data && data.role !== 'pending' ? <NotificationBell /> : null;
 }
 
 function CurrentUser() {
@@ -100,6 +107,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <kbd className="hidden text-xs sm:inline">⌘K</kbd>
         </button>
         <LanguageToggle />
+        <Bell />
         <CurrentUser />
       </header>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />

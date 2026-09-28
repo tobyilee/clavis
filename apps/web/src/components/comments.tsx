@@ -1,16 +1,18 @@
+import { renderMentions } from '@clavis/shared/markdown';
 import type { Comment, Thread } from '@clavis/shared/schema';
 import { useQuery } from '@tanstack/react-query';
 import { Bot, Check, MessageSquare, RotateCcw, User } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Select, Textarea } from '@/components/ui/input';
+import { Select } from '@/components/ui/input';
 import { isApiError } from '@/lib/api';
 import { threadsQuery, useCommentAction } from '@/lib/comments';
 import { useMe } from '@/lib/me';
 import { absoluteTime, relativeTime } from '@/lib/time';
 import type { TocItem } from '@/markdown/plugins';
 import { type RenderContext, renderMarkdown } from '@/markdown/render';
+import { MentionTextarea } from './mention-textarea';
 
 interface Props {
   pageId: string;
@@ -103,9 +105,9 @@ function Composer({
         submit();
       }}
     >
-      <Textarea
+      <MentionTextarea
         value={body}
-        onChange={(e) => setBody(e.target.value)}
+        onChange={setBody}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit();
         }}
@@ -236,7 +238,10 @@ function CommentView({
   const action = useCommentAction(pageId);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(comment.body);
-  const body = useMemo(() => renderMarkdown(comment.body, ctx).element, [comment.body, ctx]);
+  const body = useMemo(
+    () => renderMarkdown(renderMentions(comment.body), ctx).element,
+    [comment.body, ctx],
+  );
   const mine = me?.id === comment.author.id;
   const Icon = comment.author.kind === 'agent' ? Bot : User;
 
@@ -279,11 +284,7 @@ function CommentView({
             );
           }}
         >
-          <Textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            aria-label={t('comments.edit')}
-          />
+          <MentionTextarea value={draft} onChange={setDraft} aria-label={t('comments.edit')} />
           <div className="flex gap-2">
             <Button type="submit" size="sm" disabled={!draft.trim() || action.isPending}>
               {t('comments.save')}

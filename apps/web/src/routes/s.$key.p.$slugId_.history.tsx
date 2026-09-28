@@ -92,7 +92,7 @@ function HistoryPage() {
   const current = history.data.pages[0]?.revision ?? page.data.revision;
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6 md:px-8">
+    <div className="mx-auto flex max-w-6xl flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="ghost" size="sm" asChild>
           <Link to="/s/$key/p/$slugId" params={pageParams(page.data)}>

@@ -363,5 +363,35 @@
       "restore": "restored from r{{revision}}",
       "baseline": "text from before history"
     }
+  },
+  "notifications": {
+    "bell": "Notifications ({{count}} unread)",
+    "title": "Notifications",
+    "readAll": "Mark all read",
+    "empty": "No new notifications.",
+    "muteAgentEdits": "Don't notify me of edits by agents",
+    "unread": "unread",
+    "kind": {
+      "page": {
+        "changed_one": "edited the page",
+        "changed_other": "edited the page {{count}} times"
+      },
+      "comment_one": "new comment",
+      "comment_other": "{{count}} new comments",
+      "mention_one": "mentioned you",
+      "mention_other": "mentioned you {{count}} times"
+    }
+  },
+  "watch": {
+    "watch": "Watch",
+    "unwatch": "Mute notifications",
+    "unmute": "Unmute",
+    "reason": {
+      "watch": "Watching",
+      "creator": "Notified: you created it",
+      "owner": "Notified: you own it",
+      "commenter": "Notified: you commented"
+    },
+    "muted": "Notifications muted"
   }
 }

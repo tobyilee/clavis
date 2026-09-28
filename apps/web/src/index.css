@@ -141,6 +141,10 @@
 .prose-comment > :last-child {
   @apply mb-0;
 }
+/* @mentions (N3): stored as @[name](actor:id), shown as a chip. */
+.prose-comment a[href^="#mention-"] {
+  @apply rounded bg-primary/10 px-1 font-medium text-primary no-underline;
+}
 
 /* Wiki links (D-14): broken ones are dashed red so they stand out while reading. */
 .prose-clavis a.wikilink {
