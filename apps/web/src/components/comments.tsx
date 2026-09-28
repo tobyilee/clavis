@@ -132,7 +132,12 @@ function Composer({
             ))}
           </Select>
         )}
-        <Button type="submit" size="sm" disabled={!body.trim() || action.isPending}>
+        <Button
+          variant="primary"
+          type="submit"
+          size="sm"
+          disabled={!body.trim() || action.isPending}
+        >
           {t(replyTo ? 'comments.reply' : 'comments.submit')}
         </Button>
         {onDone && (
@@ -286,7 +291,12 @@ function CommentView({
         >
           <MentionTextarea value={draft} onChange={setDraft} aria-label={t('comments.edit')} />
           <div className="flex gap-2">
-            <Button type="submit" size="sm" disabled={!draft.trim() || action.isPending}>
+            <Button
+              variant="primary"
+              type="submit"
+              size="sm"
+              disabled={!draft.trim() || action.isPending}
+            >
               {t('comments.save')}
             </Button>
             <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>

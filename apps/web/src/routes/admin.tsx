@@ -62,7 +62,7 @@ function Admin() {
             onClick={() => setTab(key)}
             className={cn(
               'px-3 py-2 text-sm',
-              tab === key && 'border-b-2 border-foreground font-medium',
+              tab === key && 'border-b-2 border-tab-selected font-medium',
             )}
           >
             {t(`admin.${key}`)}
@@ -225,7 +225,7 @@ function Agents() {
             <option value="viewer">{t('role.viewer')}</option>
           </Select>
         </label>
-        <Button type="submit" disabled={create.isPending || !name.trim()}>
+        <Button variant="primary" type="submit" disabled={create.isPending || !name.trim()}>
           {t('admin.addAgent')}
         </Button>
       </form>
@@ -255,7 +255,12 @@ function Agents() {
                       className="w-48"
                       autoFocus
                     />
-                    <Button type="submit" size="sm" disabled={!renaming.name.trim()}>
+                    <Button
+                      variant="primary"
+                      type="submit"
+                      size="sm"
+                      disabled={!renaming.name.trim()}
+                    >
                       {t('admin.renameSave')}
                     </Button>
                     <Button

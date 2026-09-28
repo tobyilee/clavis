@@ -53,7 +53,7 @@ export function NotificationBell() {
         >
           <Bell />
           {unread > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-primary px-1 text-[10px] leading-4 text-primary-foreground">
+            <span className="absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-link px-1 text-[10px] leading-4 text-white">
               {unread > 99 ? '99+' : unread}
             </span>
           )}
@@ -103,7 +103,9 @@ function NotificationItem({ n, onSelect }: { n: Notification; onSelect: () => vo
   const Who = n.actor.kind === 'agent' ? Bot : User;
   return (
     <DropdownMenuItem onSelect={onSelect} className="items-start gap-2 py-2">
-      <Icon className={cn('mt-0.5 size-4 shrink-0', !n.readAt && 'text-primary')} />
+      <Icon
+        className={cn('mt-0.5 size-4 shrink-0 text-muted-foreground', !n.readAt && 'text-link')}
+      />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className={cn('truncate', !n.readAt && 'font-medium')}>{n.page.title}</span>
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -115,7 +117,7 @@ function NotificationItem({ n, onSelect }: { n: Notification; onSelect: () => vo
         </span>
       </span>
       {!n.readAt && (
-        <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary">
+        <span className="mt-1.5 size-2 shrink-0 rounded-full bg-link">
           <span className="sr-only">{t('notifications.unread')}</span>
         </span>
       )}

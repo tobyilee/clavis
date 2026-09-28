@@ -235,7 +235,7 @@ export function PageActions({ page, isHome }: { page: Page; isHome: boolean }) {
             <Button variant="ghost" onClick={() => setDialog(null)}>
               {t('editor.cancel')}
             </Button>
-            <Button onClick={() => void move()} disabled={busy}>
+            <Button variant="primary" onClick={() => void move()} disabled={busy}>
               {t('page.move')}
             </Button>
           </DialogFooter>

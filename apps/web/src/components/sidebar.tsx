@@ -39,7 +39,7 @@ function SpaceSwitcher({ spaceKey }: { spaceKey: string | null }) {
           type="button"
           className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent"
         >
-          <span className="flex size-6 shrink-0 items-center justify-center rounded bg-primary text-[10px] font-bold text-primary-foreground">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded border bg-background text-[10px] font-bold text-muted-foreground">
             {(current?.key ?? '·').slice(0, 3)}
           </span>
           <span className="min-w-0 flex-1 truncate font-medium">

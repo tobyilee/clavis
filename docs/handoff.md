@@ -117,6 +117,7 @@ gh auth status                    # CI 확인용
 - 문서 본문은 **`github-markdown-css`(light)** 의 `.markdown-body` — 16px, 줄 높이 1.5, H1·H2 밑줄, GitHub 표·코드·알림(`markdown-alert`)·작업 목록. `.prose-clavis`는 그 위에 위키 링크·Mermaid·표 스크롤만 더한다(E2E 선택자도 이 클래스). Tailwind 초기화가 목록 기호를 지우므로 `ul`/`ol` 기호는 직접 지정.
 - 본문 폭은 GitHub `container-lg`와 같은 **최대 1012px**. 오른쪽 목차는 둘 다 들어가는 2xl(1536px) 이상에서만, 그 아래는 본문 위 접이식 목차.
 - 댓글은 같은 스타일에 14px. 에디터 문법 색(`--cm-*`)도 GitHub 코드 색으로 정의(전에는 정의되지 않아 색이 없었다).
+- **버튼**(GitHub 방식): 기본 변형은 연회색 배경·테두리(검정 금지), 화면의 주요 동작 하나만 `variant="primary"`(GitHub 초록 #1f883d — 저장, 만들기, 댓글 달기, 복원, 설정·템플릿 저장 등). 아이콘은 기본이 보조색(#59636e, 우선순위 0인 `:where(svg.lucide)`라 색을 지정한 아이콘은 그대로), 초록·빨강 버튼 안은 흰색. 선택된 탭 밑줄은 GitHub 주황 #fd8c73(`border-tab-selected`), 강조(알림 배지·안 읽음·현재 버전·드래그 위치선)는 링크 파랑(`bg-link`/`text-link`).
 
 ## 8. 모바일 UI 규칙과 검증 방법 (Step 6에서 정함)
 

@@ -322,6 +322,7 @@ export function PageEditor({
             </Link>
           </Button>
           <Button
+            variant="primary"
             onClick={() => void save(true)}
             disabled={saving || hasErrors}
             title="⌘S"
@@ -387,7 +388,7 @@ export function PageEditor({
               onClick={() => setTab(key)}
               className={cn(
                 'flex-1 py-2 text-sm',
-                tab === key && 'border-b-2 border-foreground font-medium',
+                tab === key && 'border-b-2 border-tab-selected font-medium',
               )}
             >
               {key === 'edit' ? (
@@ -533,7 +534,9 @@ export function PageEditor({
             <Button variant="ghost" onClick={() => setConflictRevision(null)}>
               {t('editor.keepEditing')}
             </Button>
-            <Button onClick={() => void loadLatest(true)}>{t('editor.copyAndLoad')}</Button>
+            <Button variant="primary" onClick={() => void loadLatest(true)}>
+              {t('editor.copyAndLoad')}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

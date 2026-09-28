@@ -114,7 +114,7 @@ export function SpaceForm({
             <Button type="button" variant="ghost" onClick={onClose}>
               {t('editor.cancel')}
             </Button>
-            <Button type="submit" disabled={busy}>
+            <Button variant="primary" type="submit" disabled={busy}>
               {isNew ? t('space.create') : t('space.save')}
             </Button>
           </DialogFooter>

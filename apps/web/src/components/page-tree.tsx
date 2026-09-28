@@ -201,9 +201,9 @@ function TreeItem({
           drag?.dragging === node.shortId && 'opacity-50',
           zone === 'inside' && 'ring-2 ring-ring',
           zone === 'before' &&
-            'before:absolute before:inset-x-0 before:-top-px before:h-0.5 before:bg-foreground',
+            'before:absolute before:inset-x-0 before:-top-px before:h-0.5 before:bg-link',
           zone === 'after' &&
-            'after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-foreground',
+            'after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-link',
         )}
         style={{ paddingLeft: `${depth * 12 + 4}px` }}
       >

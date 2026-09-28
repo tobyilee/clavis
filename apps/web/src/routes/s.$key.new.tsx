@@ -94,7 +94,7 @@ function NewPage() {
               key={tpl.id}
               className={cn(
                 'flex cursor-pointer flex-col gap-1 rounded-lg border p-3 text-sm hover:bg-accent',
-                template === tpl.id && 'border-foreground bg-accent',
+                template === tpl.id && 'border-link bg-link/5 ring-1 ring-link',
               )}
             >
               <input
@@ -128,7 +128,7 @@ function NewPage() {
         <Button type="button" variant="ghost" onClick={() => window.history.back()}>
           {t('editor.cancel')}
         </Button>
-        <Button type="submit" disabled={busy || !title.trim()}>
+        <Button variant="primary" type="submit" disabled={busy || !title.trim()}>
           {busy && <Loader2 className="animate-spin" />}
           {t('newPage.create')}
         </Button>

@@ -120,7 +120,7 @@ function HistoryPage() {
                 <span className="flex items-center gap-1.5 font-medium">
                   r{r.revision}
                   {r.revision === current && (
-                    <span className="rounded bg-primary/10 px-1.5 text-xs text-primary">
+                    <span className="rounded-full border border-link/30 px-1.5 text-xs text-link">
                       {t('history.current')}
                     </span>
                   )}
@@ -310,7 +310,7 @@ function RestoreButton(props: {
             <Button variant="ghost" onClick={() => setOpen(false)}>
               {t('editor.cancel')}
             </Button>
-            <Button onClick={() => restore.mutate()} disabled={restore.isPending}>
+            <Button variant="primary" onClick={() => restore.mutate()} disabled={restore.isPending}>
               {t('history.restore')}
             </Button>
           </DialogFooter>

@@ -188,7 +188,7 @@ function SpaceList() {
               className="flex h-full flex-col rounded-lg border p-4 transition-colors hover:bg-accent"
             >
               <span className="flex items-center gap-2">
-                <span className="rounded bg-primary px-1.5 py-0.5 font-mono text-xs font-bold text-primary-foreground">
+                <span className="rounded border bg-secondary px-1.5 py-0.5 font-mono text-xs font-bold text-muted-foreground">
                   {s.key}
                 </span>
                 <span className="font-semibold">{s.name}</span>

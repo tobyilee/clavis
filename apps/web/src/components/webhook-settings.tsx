@@ -98,6 +98,7 @@ function AddWebhook({ spaceKey }: { spaceKey: string }) {
       <EventPicker value={events} onChange={setEvents} />
       <div className="flex items-center gap-2">
         <Button
+          variant="primary"
           type="submit"
           size="sm"
           disabled={!url.trim() || events.length === 0 || add.isPending}

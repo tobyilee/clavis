@@ -31,6 +31,10 @@
   --sidebar-foreground: #1f2328;
   --sidebar-border: #d1d9e0;
   --link: #0969da;
+  --github-green: #1f883d;
+  --github-green-hover: #1c8139;
+  /* GitHub's underline for the selected tab. */
+  --tab-selected: #fd8c73;
   /* Editor syntax colors: GitHub's light code colors. */
   --cm-link: #0969da;
   --cm-code: #0550ae;
@@ -79,6 +83,10 @@
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-border: var(--sidebar-border);
+  --color-link: var(--link);
+  --color-tab-selected: var(--tab-selected);
+  --color-github-green: var(--github-green);
+  --color-github-green-hover: var(--github-green-hover);
 }
 
 @layer base {
@@ -88,6 +96,11 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-github);
+  }
+  /* Icons in GitHub's muted gray unless something colors them (zero specificity: any
+     utility class or a parent's [&_svg] rule wins). */
+  :where(svg.lucide) {
+    color: var(--muted-foreground);
   }
 }
 

@@ -8,14 +8,21 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        // GitHub's buttons: default is light gray with a border and muted icons; primary is
+        // green, for the one main action on a screen.
+        default:
+          'border bg-secondary text-foreground shadow-xs hover:bg-accent [&_svg]:text-muted-foreground',
+        primary:
+          'border border-black/10 bg-github-green text-white shadow-xs hover:bg-github-green-hover [&_svg]:text-white',
         destructive:
-          'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40',
+          'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 [&_svg]:text-white',
         outline:
-          'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
-        link: 'text-primary underline-offset-4 hover:underline',
+          'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground [&_svg]:text-muted-foreground',
+        secondary:
+          'border bg-secondary text-secondary-foreground hover:bg-accent [&_svg]:text-muted-foreground',
+        ghost:
+          'hover:bg-accent hover:text-accent-foreground [&_svg]:text-muted-foreground hover:[&_svg]:text-foreground',
+        link: 'text-link underline-offset-4 hover:underline',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',

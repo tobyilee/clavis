@@ -63,7 +63,7 @@ function Settings() {
             className={cn(
               '-mb-px border-b-2 px-3 py-2 text-sm',
               tab === id
-                ? 'border-foreground font-medium'
+                ? 'border-tab-selected font-medium'
                 : 'border-transparent text-muted-foreground hover:text-foreground',
             )}
           >
@@ -250,7 +250,7 @@ function RulesForm({ space }: { space: Space }) {
 
       {isAdmin && (
         <div className="flex items-center gap-3">
-          <Button type="submit" disabled={save.isPending}>
+          <Button variant="primary" type="submit" disabled={save.isPending}>
             {t('settings.save')}
           </Button>
           {message && (
@@ -466,7 +466,7 @@ function TemplateForm({
         </div>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={save.isPending || !name.trim()}>
+        <Button variant="primary" type="submit" disabled={save.isPending || !name.trim()}>
           {t('templates.save')}
         </Button>
         <Button type="button" variant="ghost" onClick={onDone}>
