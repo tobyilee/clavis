@@ -1,0 +1,13 @@
+# gitleaks config: the default rules plus allowlists for known public values.
+# Scan history with `gitleaks git . --redact`, files with `gitleaks dir . --redact`.
+# `gitleaks dir` still reports the git-ignored .agent.env on purpose: it holds real secrets.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Cloudflare Access application AUD tag: a public identifier (every Access JWT carries it in `aud`), used only to verify those JWTs"
+targetRules = ["generic-api-key"]
+regexTarget = "line"
+# "ACCESS_AUD": "<hex>" in wrangler.jsonc, ACCESS_AUD: "<hex>" in the generated worker-configuration.d.ts
+regexes = ['''\bACCESS_AUD"?\s*:\s*"[0-9a-f]{64}"''']
