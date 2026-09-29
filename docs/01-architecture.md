@@ -631,7 +631,7 @@ LintConfig = {
 
 - Phase 3에서 추가: instructions에 "되돌리기는 `restore_revision`", "`@멘션` → `list_notifications` → 처리 → 답글 → 읽음" 흐름(D-59), "단어는 `search_pages`, 뜻은 `semantic_search` → `read_section`".
 - 서버 `instructions`에 작성 규칙(frontmatter 필드, 제목은 인자, 템플릿 사용, 수정 전 `read_page`, 링크·첨부 문법)을 담는다.
-- 첨부 업로드는 MCP 도구가 없고 REST로 한다 ([연결 가이드](./guides/agent-connection.md) §6).
+- 첨부 업로드는 MCP 도구가 없고 REST로 한다 ([연결 가이드](./guides/agent-connection.md) §7).
 
 ## 10. 첨부파일 & 백업 (D-20, D-30, D-31)
 
