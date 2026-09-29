@@ -131,6 +131,7 @@ claude mcp add --transport http --scope user clavis https://clavis.<서브도메
 
 | 문서 | 내용 |
 |---|---|
+| [`CHANGELOG.md`](CHANGELOG.md) | 주요 변경 내역 (업데이트할 때 할 일 포함) |
 | [`docs/00-concept.md`](docs/00-concept.md) | 컨셉, 목표와 비목표, 기능 범위 |
 | [`docs/01-architecture.md`](docs/01-architecture.md) | 기술 아키텍처, 데이터 모델, API, 무료 플랜 한도 |
 | [`docs/decisions.md`](docs/decisions.md) | 결정 로그 (`D-xx`) |

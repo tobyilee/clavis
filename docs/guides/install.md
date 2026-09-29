@@ -169,6 +169,7 @@ git remote add upstream https://github.com/tobyilee/clavis.git   # 처음 한 �
 git fetch upstream && git merge upstream/main
 ```
 
+- 받기 전에 [`CHANGELOG.md`](../../CHANGELOG.md)에서 **업데이트할 때 할 일**을 확인합니다.
 - `wrangler.jsonc`·`ci.yml`이 충돌하면 **내 값**(database_id, vars, 주소)을 남기고 새로 생긴 항목만 받아들입니다. 새 바인딩(새 Queue·인덱스 등)이 생겼다면 §2처럼 리소스를 만듭니다.
 - 자동 배포를 쓰면 push로 끝입니다. 직접 배포할 때는 **마이그레이션을 먼저** 합니다:
 
