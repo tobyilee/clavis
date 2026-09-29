@@ -1,6 +1,7 @@
 # AI 에이전트 연결 가이드 (MCP)
 
 > 대상: Claude Code, Claude Desktop, Cursor, VS Code, Hermes Agent 등 MCP 클라이언트 · 작성일: 2026-09-27 · 갱신: 2026-09-29 (사용자별 에이전트 등록 절차, 클라이언트 추가)
+> 예시의 `https://clavis.<서브도메인>.workers.dev`는 내가 설치한 Clavis 주소로 바꿔 읽습니다([설치 가이드](./install.md)).
 
 사용자가 **자기 AI 에이전트**를 Clavis에 등록하고 MCP로 연결하는 순서:
 
@@ -86,7 +87,7 @@ export CLAVIS_TOKEN="$(security find-generic-password -a "$USER" -s clavis-token
 
 ## 2. 엔드포인트와 연결 확인
 
-- URL: `https://clavis.crawl-proxy.workers.dev/mcp`
+- URL: `https://clavis.<서브도메인>.workers.dev/mcp`
 - 전송 방식: Streamable HTTP (Stateless)
 - 헤더 세 개: 서비스 토큰(`CF-Access-Client-Id`·`CF-Access-Client-Secret`)은 Cloudflare Access를 통과하는 **출입증**, `Authorization: Bearer clv_…`는 **어느 에이전트인지**를 밝힌다. 둘 다 있어야 한다.
 - 도구: §5 참고 (편집 에이전트는 25개, 읽기 에이전트는 쓰기 도구를 뺀 17개)
@@ -95,7 +96,7 @@ export CLAVIS_TOKEN="$(security find-generic-password -a "$USER" -s clavis-token
 클라이언트에 등록하기 전에 값이 맞는지 확인합니다:
 
 ```sh
-curl -sS -w '\nHTTP %{http_code}\n' https://clavis.crawl-proxy.workers.dev/api/v1/me \
+curl -sS -w '\nHTTP %{http_code}\n' https://clavis.<서브도메인>.workers.dev/api/v1/me \
   -H "CF-Access-Client-Id: $CLAVIS_CF_ACCESS_CLIENT_ID" \
   -H "CF-Access-Client-Secret: $CLAVIS_CF_ACCESS_CLIENT_SECRET" \
   -H "Authorization: Bearer $CLAVIS_TOKEN"
@@ -111,7 +112,7 @@ HTTP 200
 MCP 도구 목록까지 확인하려면:
 
 ```sh
-curl -sS https://clavis.crawl-proxy.workers.dev/mcp \
+curl -sS https://clavis.<서브도메인>.workers.dev/mcp \
   -H "CF-Access-Client-Id: $CLAVIS_CF_ACCESS_CLIENT_ID" \
   -H "CF-Access-Client-Secret: $CLAVIS_CF_ACCESS_CLIENT_SECRET" \
   -H "Authorization: Bearer $CLAVIS_TOKEN" \
@@ -126,7 +127,7 @@ curl -sS https://clavis.crawl-proxy.workers.dev/mcp \
 모든 프로젝트에서 쓰기 (내 설정에만 저장):
 
 ```sh
-claude mcp add --transport http --scope user clavis https://clavis.crawl-proxy.workers.dev/mcp \
+claude mcp add --transport http --scope user clavis https://clavis.<서브도메인>.workers.dev/mcp \
   --header "CF-Access-Client-Id: $CLAVIS_CF_ACCESS_CLIENT_ID" \
   --header "CF-Access-Client-Secret: $CLAVIS_CF_ACCESS_CLIENT_SECRET" \
   --header "Authorization: Bearer $CLAVIS_TOKEN"
@@ -141,7 +142,7 @@ claude mcp add --transport http --scope user clavis https://clavis.crawl-proxy.w
   "mcpServers": {
     "clavis": {
       "type": "http",
-      "url": "https://clavis.crawl-proxy.workers.dev/mcp",
+      "url": "https://clavis.<서브도메인>.workers.dev/mcp",
       "headers": {
         "CF-Access-Client-Id": "${CLAVIS_CF_ACCESS_CLIENT_ID}",
         "CF-Access-Client-Secret": "${CLAVIS_CF_ACCESS_CLIENT_SECRET}",
@@ -167,7 +168,7 @@ Claude Desktop의 커넥터 추가 화면은 요청 헤더를 넣을 수 없어�
     "clavis": {
       "command": "npx",
       "args": [
-        "-y", "mcp-remote", "https://clavis.crawl-proxy.workers.dev/mcp",
+        "-y", "mcp-remote", "https://clavis.<서브도메인>.workers.dev/mcp",
         "--header", "CF-Access-Client-Id:${CF_ID}",
         "--header", "CF-Access-Client-Secret:${CF_SECRET}",
         "--header", "Authorization:${CLAVIS_AUTH}"
@@ -194,7 +195,7 @@ Claude Desktop의 커넥터 추가 화면은 요청 헤더를 넣을 수 없어�
 {
   "mcpServers": {
     "clavis": {
-      "url": "https://clavis.crawl-proxy.workers.dev/mcp",
+      "url": "https://clavis.<서브도메인>.workers.dev/mcp",
       "headers": {
         "CF-Access-Client-Id": "${env:CLAVIS_CF_ACCESS_CLIENT_ID}",
         "CF-Access-Client-Secret": "${env:CLAVIS_CF_ACCESS_CLIENT_SECRET}",
@@ -222,7 +223,7 @@ Claude Desktop의 커넥터 추가 화면은 요청 헤더를 넣을 수 없어�
   "servers": {
     "clavis": {
       "type": "http",
-      "url": "https://clavis.crawl-proxy.workers.dev/mcp",
+      "url": "https://clavis.<서브도메인>.workers.dev/mcp",
       "headers": {
         "CF-Access-Client-Id": "${input:clavis-cf-id}",
         "CF-Access-Client-Secret": "${input:clavis-cf-secret}",
@@ -242,7 +243,7 @@ Claude Desktop의 커넥터 추가 화면은 요청 헤더를 넣을 수 없어�
 ```yaml
 mcp_servers:
   clavis:
-    url: "https://clavis.crawl-proxy.workers.dev/mcp"
+    url: "https://clavis.<서브도메인>.workers.dev/mcp"
     headers:
       CF-Access-Client-Id: "${CLAVIS_CF_ACCESS_CLIENT_ID}"
       CF-Access-Client-Secret: "${CLAVIS_CF_ACCESS_CLIENT_SECRET}"
@@ -384,7 +385,7 @@ MCP와 같은 기능을 REST로도 쓸 수 있습니다. 명세는 `/api/v1/open
 **첨부 파일 업로드** (MCP 도구에는 없음, 파일당 25MB): 파일 내용을 그대로 본문으로 보냅니다(multipart 아님). 응답의 `filename`(이름이 겹치면 `-1`이 붙음)으로 본문에서 `![설명](attachments/<filename>)`처럼 참조합니다.
 
 ```bash
-curl -X POST "https://clavis.crawl-proxy.workers.dev/api/v1/pages/<shortId>/attachments?filename=arch.png" \
+curl -X POST "https://clavis.<서브도메인>.workers.dev/api/v1/pages/<shortId>/attachments?filename=arch.png" \
   -H "CF-Access-Client-Id: $CLAVIS_CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CLAVIS_CF_ACCESS_CLIENT_SECRET" \
   -H "Authorization: Bearer $CLAVIS_TOKEN" -H "Content-Type: image/png" \
   --data-binary @arch.png

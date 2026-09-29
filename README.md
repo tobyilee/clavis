@@ -4,8 +4,7 @@
 
 *Clavis*는 라틴어로 "열쇠"입니다. 팀의 지식에 사람과 AI가 같은 방식으로 들어가게 하는 열쇠라는 뜻입니다.
 
-- 운영: <https://clavis.crawl-proxy.workers.dev> (Cloudflare Access 뒤 — 사람은 이메일 로그인, 에이전트는 서비스 토큰 + API 토큰)
-- 사용 매뉴얼: 운영 위키의 `CLAVIS` Space → **Clavis 사용 매뉴얼**
+누구나 자기 Cloudflare 계정에 설치해 팀 위키로 쓸 수 있습니다 → [설치](#설치)
 
 ## 주요 기능
 
@@ -17,6 +16,18 @@
 - **알림**: 앱 안 알림(지켜보기·멘션), Space별 Slack·서명된 JSON Webhook.
 - **AI 에이전트가 1급 사용자**: MCP 도구 25개(읽기 전용 에이전트는 17개), REST API(OpenAPI), 페이지별 원본 `.md`와 `llms.txt`. 에이전트가 쓴 글은 🤖와 이름으로 표시됩니다.
 - **관리**: 사용자 승인·역할(관리자·편집·읽기), 에이전트 등록·토큰 발급/폐기, Space 관리, 휴지통(30일), 야간 백업.
+
+## 설치
+
+Cloudflare 계정만 있으면 무료 플랜으로 설치할 수 있습니다. Worker 하나에 D1·R2·Queues·Vectorize·Workers AI를 붙이고, 로그인은 Cloudflare Access가 맡습니다.
+
+1. 저장소를 fork(또는 clone)하고 `wrangler login`
+2. D1·R2·Queue·Vectorize 리소스 만들기
+3. `apps/worker/wrangler.jsonc`에 내 값 넣기 → D1 마이그레이션 → 빌드 → 배포
+4. Worker에 Cloudflare Access를 켜고 로그인할 사람을 정한 뒤, 팀 도메인과 AUD 값을 넣어 다시 배포
+5. 처음 로그인한 사람이 관리자 → Space 만들기, 팀원 승인, AI 에이전트 연결
+
+명령과 설정 값, 비용, GitHub Actions 자동 배포, 업데이트, 백업, 문제 해결까지 **[설치 가이드](docs/guides/install.md)**에 있습니다.
 
 ## 구조
 
@@ -63,9 +74,9 @@ scripts/      보조 스크립트 (agent-env.py: 에이전트 자격 증명 읽�
 spikes/       Phase 0 기술 검증 기록
 ```
 
-## 시작하기
+## 로컬 개발
 
-필요한 것: Node.js 24(`.nvmrc`, 최소 22), pnpm 12.
+Cloudflare 계정 없이 내 컴퓨터에서 실행합니다. 필요한 것: Node.js 24(`.nvmrc`, 최소 22), pnpm 12.
 
 ```sh
 git clone https://github.com/tobyilee/clavis.git && cd clavis
@@ -79,6 +90,7 @@ pnpm dev                                                 # Worker :8787 + Vite :
 
 - 로컬에는 Workers AI·Vectorize가 없어 의미 검색은 전문 검색으로 대신합니다. 색인 실패 로그가 찍혀도 정상입니다.
 - 로컬 에이전트 토큰: `pnpm --filter @clavis/worker agent:create --name <이름> --local` → 저장소 루트 `.agent.env`에 기록됩니다(출력되지 않음). 로컬 관리 화면(**관리 → AI 에이전트**)에서 만들어도 됩니다.
+- 배포한 Worker를 에이전트로 부를 때: `cp .agent.env.example .agent.env && chmod 600 .agent.env` 후 값을 채우고, `eval "$(python3 scripts/agent-env.py)"`로 읽습니다. 이 파일은 쉘로 `source`하지 않습니다(설명은 예시 파일 안에).
 
 ## 테스트
 
@@ -93,21 +105,21 @@ pnpm build && pnpm e2e    # 빌드한 SPA + wrangler dev(:8788, 빈 로컬 D1)�
 - API 라우트를 바꾸면 `pnpm --filter @clavis/worker openapi`로 OpenAPI 문서를 다시 만듭니다(안 하면 테스트가 실패).
 - 스키마를 바꾸면 `apps/worker/src/db/schema.ts` 수정 후 `pnpm --filter @clavis/worker db:generate --name <이름>`.
 
-## 배포
+## 자동 배포 (CI)
 
-`main`에 push하면 GitHub Actions가 배포합니다([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+`main`에 push하면 GitHub Actions가 검사한 뒤 배포합니다([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 1. **check**: Biome, typecheck, 단위 테스트, 빌드, E2E
 2. **deploy**: D1 마이그레이션(`--remote`) → 웹 빌드 → `wrangler deploy` → 헬스 체크
 
-필요한 GitHub secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`. Cloudflare 계정에는 D1 `clavis`, R2 `clavis-files`, Queue `clavis-events`, Vectorize 인덱스 `clavis-chunks`(1024차원, cosine)가 있어야 합니다([`apps/worker/wrangler.jsonc`](apps/worker/wrangler.jsonc)).
+fork에서 쓰려면 GitHub secrets(`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`)를 넣고 `ci.yml`의 주소를 내 주소로 바꿉니다 → [설치 가이드 §8](docs/guides/install.md#8-github-actions로-자동-배포-선택).
 
 ## AI 에이전트 연결
 
 에이전트는 관리자가 등록하고 토큰을 발급합니다. 연결에는 헤더 세 개가 필요합니다.
 
 ```sh
-claude mcp add --transport http --scope user clavis https://clavis.crawl-proxy.workers.dev/mcp \
+claude mcp add --transport http --scope user clavis https://clavis.<서브도메인>.workers.dev/mcp \
   --header "CF-Access-Client-Id: $CLAVIS_CF_ACCESS_CLIENT_ID" \
   --header "CF-Access-Client-Secret: $CLAVIS_CF_ACCESS_CLIENT_SECRET" \
   --header "Authorization: Bearer $CLAVIS_TOKEN"
@@ -124,5 +136,6 @@ claude mcp add --transport http --scope user clavis https://clavis.crawl-proxy.w
 | [`docs/decisions.md`](docs/decisions.md) | 결정 로그 (`D-xx`) |
 | [`docs/02-phase0-plan.md`](docs/02-phase0-plan.md) ~ [`docs/05-phase3-plan.md`](docs/05-phase3-plan.md) | Phase별 계획과 결과 |
 | [`docs/handoff.md`](docs/handoff.md) | 작업 인수인계: 현재 상태, 작업 규칙, 보안 수칙, 제약과 요령 |
+| [`docs/guides/install.md`](docs/guides/install.md) | 설치 가이드: 내 Cloudflare 계정에 설치·운영 |
 | [`docs/guides/writing.md`](docs/guides/writing.md) | 문서 작성 가이드 (사람용) |
 | [`docs/guides/agent-connection.md`](docs/guides/agent-connection.md) | AI 에이전트 연결 가이드 (MCP·REST·Webhook) |

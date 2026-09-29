@@ -122,9 +122,9 @@ describe('webhook delivery (D-60)', () => {
     await deliver();
     expect(posts.map((p) => p.url)).toEqual([SLACK, SLACK]);
     const texts = posts.map((p) => JSON.parse(p.body).text as string);
-    expect(texts[0]).toMatch(
-      /^🤖 \*Adam\* · 새 문서 · \[PAY\] <https:\/\/clavis\.crawl-proxy\.workers\.dev\/s\/PAY\/p\/.+\|결제 API 설계>$/,
-    );
+    expect(texts[0]).toMatch(/^🤖 \*Adam\* · 새 문서 · \[PAY\] <.+\|결제 API 설계>$/);
+    // Links use the deployment's APP_ORIGIN (wrangler.jsonc), whatever the install sets it to.
+    expect(texts[0]).toContain(`<${env.APP_ORIGIN}/s/PAY/p/`);
     // The second edit falls in the first one's 5-minute window.
     expect(texts[1]).toMatch(
       /· 문서 수정 · \[PAY\] <.+\|결제 API 설계> r2 · <.+\/history\?r=2&base=1\|변경 보기>$/,
