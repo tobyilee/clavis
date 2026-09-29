@@ -271,10 +271,12 @@ test('space settings: stricter rule and a custom template', async ({ page, reque
     await expect(channel.getByText(/서명 키/)).toBeVisible();
     await channel.getByRole('button', { name: '테스트 전송' }).click();
     await expect(channel.getByRole('status')).toHaveText('보냈습니다. 채널에서 확인해 보세요.');
-    expect(received).toHaveLength(1);
-    expect(received[0]?.headers['x-clavis-event']).toBe('ping');
-    expect(received[0]?.headers['x-clavis-signature']).toMatch(/^sha256=[0-9a-f]{64}$/);
-    expect(JSON.parse(received[0]?.body ?? '')).toMatchObject({
+    // Only the ping: the local queue consumer runs a few seconds late, so this test's earlier
+    // page.created can reach the channel added just now, before or after the ping.
+    const pings = received.filter((r) => r.headers['x-clavis-event'] === 'ping');
+    expect(pings).toHaveLength(1);
+    expect(pings[0]?.headers['x-clavis-signature']).toMatch(/^sha256=[0-9a-f]{64}$/);
+    expect(JSON.parse(pings[0]?.body ?? '')).toMatchObject({
       event: 'ping',
       space: { key: 'SET' },
     });
