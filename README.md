@@ -27,7 +27,7 @@ Cloudflare 계정만 있으면 무료 플랜으로 설치할 수 있습니다. W
 4. Worker에 Cloudflare Access를 켜고 로그인할 사람을 정한 뒤, 팀 도메인과 AUD 값을 넣어 다시 배포
 5. 처음 로그인한 사람이 관리자 → Space 만들기, 팀원 승인, AI 에이전트 연결
 
-명령과 설정 값, 비용, GitHub Actions 자동 배포, 업데이트, 백업, 문제 해결까지 **[설치 가이드](docs/guides/install.md)**에 있습니다.
+명령과 설정 값, 비용, GitHub Actions 자동 배포, 업데이트, 백업, 문제 해결까지 **[설치 가이드](docs/guides/install.md)**에 있습니다. Cloudflare 계정 여러 개를 오가며 배포한다면 → [Cloudflare 계정 바꾸기](#cloudflare-계정-바꾸기).
 
 ## 구조
 
@@ -113,6 +113,99 @@ pnpm build && pnpm e2e    # 빌드한 SPA + wrangler dev(:8788, 빈 로컬 D1)�
 2. **deploy**: D1 마이그레이션(`--remote`) → 웹 빌드 → `wrangler deploy` → 헬스 체크
 
 fork에서 쓰려면 GitHub secrets(`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`)를 넣고 `ci.yml`의 주소를 내 주소로 바꿉니다 → [설치 가이드 §8](docs/guides/install.md#8-github-actions로-자동-배포-선택).
+
+## Cloudflare 계정 바꾸기
+
+Cloudflare 계정 여러 개를 오가며 배포할 때는 **계정마다 설정 파일을 하나씩** 두고, 배포할 때 그 파일을 고릅니다. `apps/worker/wrangler.jsonc`는 `main` push로 CI가 배포하는 인스턴스의 설정이므로 고치지 않습니다.
+
+### wrangler가 계정을 정하는 방법
+
+| 무엇을 | 정하는 곳 | 설명 |
+|---|---|---|
+| 누구로 로그인했나 | `wrangler login`(브라우저 OAuth) 또는 환경 변수 `CLOUDFLARE_API_TOKEN` | OAuth는 한 번에 Cloudflare 사용자 한 명만. 토큰이 있으면 토큰이 우선 |
+| 그 사용자의 어느 계정인가 | 설정 파일의 `"account_id"` 또는 환경 변수 `CLOUDFLARE_ACCOUNT_ID` | 사용자에게 계정이 하나뿐이면 자동으로 정해짐 |
+
+설정 파일에 `account_id`를 넣어 두면, 다른 사용자로 로그인한 채 배포해도 엉뚱한 계정에 올라가지 않고 오류로 멈춥니다.
+
+아래 예시의 계정 별칭은 `cfuser`입니다. 계정마다 알아보기 쉬운 별칭을 정해 `cfuser` 자리에 씁니다.
+
+### 1. 배포할 계정으로 로그인
+
+```sh
+cd apps/worker
+pnpm exec wrangler whoami                               # 지금 로그인한 사용자와, 그 사용자의 계정 목록(이름·ID)
+pnpm exec wrangler logout && pnpm exec wrangler login   # 다른 이메일로 가입한 계정일 때만
+```
+
+- `login`은 브라우저를 열고, 거기서 **Allow**를 누르면 끝납니다. 브라우저가 Cloudflare 대시보드에 **이전 사용자로 로그인돼 있으면 그 사용자로 승인**되므로, 대시보드에서 먼저 로그아웃하거나 다른 브라우저 프로필에서 로그인합니다.
+- 한 사용자가 여러 계정에 들어갈 수 있으면(계정 멤버로 초대받은 경우) 로그아웃할 필요 없이 설정 파일의 `account_id`가 계정을 고릅니다.
+- 로그인 정보는 컴퓨터에 하나만 저장됩니다(`wrangler whoami`가 위치를 알려 줌). 다른 저장소의 wrangler 명령도 같은 로그인을 씁니다.
+
+### 2. 계정마다 설정 파일 만들기 (처음 한 번)
+
+```sh
+cp wrangler.jsonc wrangler.cfuser.jsonc   # .gitignore의 apps/worker/wrangler.*.jsonc라 커밋되지 않음
+```
+
+`wrangler.cfuser.jsonc`에서 아래 값을 그 계정의 것으로 바꿉니다.
+
+| 항목 | 값 | 찾는 곳 |
+|---|---|---|
+| `account_id` (`"name"` 아래에 새로 추가) | 계정 ID (32자리) | `pnpm exec wrangler whoami`, 대시보드 계정 홈 |
+| `d1_databases[0].database_id` | 그 계정의 D1 `clavis` ID | `pnpm exec wrangler d1 list` |
+| `vars.APP_ORIGIN` | `https://clavis.<서브도메인>.workers.dev` | 배포 결과에 나오는 주소 (Slack·Webhook 메시지의 링크) |
+| `vars.ACCESS_TEAM_DOMAIN`, `vars.ACCESS_AUD` | 그 계정 Access 앱의 팀 도메인과 AUD | Zero Trust → Access → Applications ([설치 가이드 §5~§6](docs/guides/install.md#5-cloudflare-access-설정-로그인)) |
+
+- R2 버킷(`clavis-files`)·Queue(`clavis-events`)·Vectorize 인덱스(`clavis-chunks`)는 이름으로 찾습니다. 그 계정에서 같은 이름으로 만들었다면 고치지 않습니다.
+- 파일은 `wrangler.jsonc`와 같은 폴더에 둡니다. `main`·`assets.directory`·`migrations_dir`가 이 파일 위치를 기준으로 풀립니다.
+- 그 계정에 **이미 Clavis가 배포돼 있으면** 배포된 Worker의 설정에서 값을 그대로 읽어 올 수 있습니다. `bindings`에 D1 ID와 `vars`가 들어 있습니다.
+
+  ```sh
+  pnpm exec wrangler deployments list --name clavis                     # 맨 아래 배포의 Version ID
+  pnpm exec wrangler versions view <Version ID> --name clavis --json     # resources.bindings
+  ```
+
+- 그 계정에 **Clavis가 아직 없으면** 리소스(D1·R2·Queue·Vectorize)와 Access부터 만듭니다 → [설치 가이드](docs/guides/install.md) §2~§6. 명령마다 `-c wrangler.cfuser.jsonc`를 붙입니다.
+
+### 3. 배포
+
+```sh
+cd apps/worker
+pnpm exec wrangler d1 migrations list DB --remote -c wrangler.cfuser.jsonc    # 적용할 마이그레이션 확인
+pnpm exec wrangler d1 migrations apply DB --remote -c wrangler.cfuser.jsonc   # DB 먼저
+(cd ../.. && pnpm build)                                                      # 웹 빌드 → apps/web/dist
+pnpm exec wrangler deploy -c wrangler.cfuser.jsonc --message "$(git rev-parse --short HEAD)"
+```
+
+- **모든 wrangler 명령에 `-c wrangler.cfuser.jsonc`**를 붙입니다. 빠뜨리면 `wrangler.jsonc`(CI가 배포하는 인스턴스)의 값으로 지금 로그인한 계정에 실행됩니다.
+- 마이그레이션은 배포보다 먼저 합니다. 새 코드가 새 테이블을 바로 씁니다.
+- `--message`는 배포 기록(`deployments list`)에 남아, 어느 커밋을 올렸는지 알 수 있습니다.
+
+### 4. 확인
+
+```sh
+curl -sS -o /dev/null -w '%{http_code}\n' https://clavis.<서브도메인>.workers.dev/api/v1/health   # 302 = Access 로그인으로 이동, 정상
+pnpm exec wrangler deployments list -c wrangler.cfuser.jsonc                                      # 맨 아래가 방금 배포
+```
+
+브라우저로 열어 로그인한 뒤 화면을 확인합니다.
+
+### API 토큰으로 바꾸기 (선택)
+
+로그아웃·로그인 없이 명령마다 계정을 바꾸려면 계정마다 API 토큰을 만들어 둡니다. 권한은 CI용 토큰과 같습니다([설치 가이드 §8](docs/guides/install.md#8-github-actions로-자동-배포-선택)). 토큰은 화면·쉘 기록·채팅에 남기지 않습니다.
+
+```sh
+read -rs CLOUDFLARE_API_TOKEN && export CLOUDFLARE_API_TOKEN   # 붙여 넣어도 화면·기록에 남지 않음
+pnpm exec wrangler whoami                                      # 토큰의 계정 확인
+pnpm exec wrangler deploy -c wrangler.cfuser.jsonc
+unset CLOUDFLARE_API_TOKEN                                     # 끝나면 지움 (남아 있으면 OAuth 로그인보다 우선)
+```
+
+### 주의
+
+- `wrangler.jsonc`는 고치지 않습니다. 고쳐서 커밋하면 CI가 기존 계정에 새 값으로 배포해 운영 중인 인스턴스가 깨집니다.
+- CI는 GitHub secrets의 `CLOUDFLARE_API_TOKEN`·`CLOUDFLARE_ACCOUNT_ID`로 배포하므로, 로컬에서 어느 계정으로 로그인했는지와 상관없습니다.
+- 계정마다 Access·D1·R2가 따로입니다. 사람·에이전트 로그인과 문서 데이터도 계정마다 따로이고, 서로 옮겨지지 않습니다.
 
 ## AI 에이전트 연결
 

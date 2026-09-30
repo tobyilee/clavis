@@ -103,6 +103,7 @@ cp wrangler.jsonc wrangler.personal.jsonc   # .gitignore에 들어 있어 커밋
 - 위 표의 값(`database_id`, `vars`)은 이 파일에서 고칩니다.
 - 이 문서의 wrangler 명령(§2 리소스 만들기 포함)에 **모두** `-c wrangler.personal.jsonc`를 붙입니다. 예: `pnpm exec wrangler deploy -c wrangler.personal.jsonc`
 - 파일은 `wrangler.jsonc`와 같은 폴더에 둡니다. `main`, `assets.directory`, `migrations_dir`가 이 파일 위치를 기준으로 풀립니다.
+- 계정이 여러 개면 계정마다 `wrangler.<별칭>.jsonc`로 둡니다(`.gitignore`가 `apps/worker/wrangler.*.jsonc`를 모두 뺌). 로그인 바꾸기, 배포 순서, API 토큰으로 바꾸기는 README의 [Cloudflare 계정 바꾸기](../../README.md#cloudflare-계정-바꾸기).
 - wrangler의 `env` 블록은 쓰지 않습니다. 바인딩과 `vars`는 상속되지 않아 어차피 전부 다시 써야 하고, Worker 이름이 `clavis-<env>`로 바뀌어 주소도 달라집니다.
 - 이 인스턴스는 CI가 배포하지 않습니다. 업데이트는 §9의 "직접 배포" 순서로 합니다.
 

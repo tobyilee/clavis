@@ -22,6 +22,7 @@ Clavis의 주요 변경을 기록합니다. 형식은 [Keep a Changelog](https:/
 - 사람·에이전트 이름은 새로 정하거나 바꿀 때 대소문자를 무시하고 겹칠 수 없음(409 `name-taken`), `[`·`]`·줄바꿈은 쓸 수 없음 (D-68)
 - 댓글의 `@멘션`이 쓸 때의 이름 대신 지금 이름으로 보임
 - 폰 헤더: 사이트 제목 자리를 위해 검색은 아이콘으로, 언어 선택은 계정 메뉴로
+- README에 **Cloudflare 계정 바꾸기**: 계정마다 `apps/worker/wrangler.<별칭>.jsonc`를 두고 `-c`로 골라 배포, 로그인 바꾸기·API 토큰 방법. `.gitignore`는 `wrangler.*.jsonc`를 모두 뺌
 
 ### 업데이트할 때 할 일
 
