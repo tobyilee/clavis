@@ -11,6 +11,10 @@ Clavis의 주요 변경을 기록합니다. 형식은 [Keep a Changelog](https:/
 
 ## [Unreleased]
 
+### 추가
+
+- 사용 매뉴얼: CLAVIS Space의 「Clavis 사용 매뉴얼」과 하위 페이지 14개를 Markdown 원문 그대로 저장소에 둠. 파일 이름은 페이지 제목 ([`docs/manual`](docs/manual))
+
 ## [0.9.0] - 2026-09-30
 
 ### 추가
