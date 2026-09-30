@@ -6,15 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { LANGUAGES } from '@/i18n';
 import { useMe } from '@/lib/me';
+import { formatSiteTitle, useSite } from '@/lib/site';
 import { cn } from '@/lib/utils';
 import { CommandPalette } from './command-palette';
 import { NotificationBell } from './notification-bell';
 import { Sidebar } from './sidebar';
+import { UserMenu } from './user-menu';
 
 function LanguageToggle() {
   const { i18n } = useTranslation();
   return (
-    <div className="flex rounded-md border text-xs">
+    // On phones the account menu holds it, leaving the header room for the site title.
+    <div className="hidden rounded-md border text-xs sm:flex">
       {LANGUAGES.map((lng) => (
         <button
           key={lng}
@@ -38,27 +41,18 @@ function Bell() {
   return data && data.role !== 'pending' ? <NotificationBell /> : null;
 }
 
-function CurrentUser() {
-  const { t } = useTranslation();
-  const { data } = useMe();
-  if (!data) return null;
+/** "Clavis - {title}" in the header and the browser tab (D-64); a long title is cut short. */
+function SiteTitle() {
+  const title = useSite().data;
+  const full = formatSiteTitle(title);
+  useEffect(() => {
+    document.title = full;
+  }, [full]);
   return (
-    <>
-      {data.role === 'admin' && (
-        <Link
-          to="/admin"
-          className="hidden text-xs text-muted-foreground hover:text-foreground sm:inline"
-        >
-          {t('admin.title')}
-        </Link>
-      )}
-      <span
-        className="hidden max-w-40 truncate text-xs text-muted-foreground sm:inline"
-        title={data.email ?? ''}
-      >
-        {data.name}
-      </span>
-    </>
+    <Link to="/" className="min-w-0 truncate tracking-tight" title={full}>
+      <span className="font-semibold">Clavis</span>
+      {title && ` - ${title}`}
+    </Link>
   );
 }
 
@@ -82,7 +76,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => setMenuOpen(false), [pathname]);
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur sm:gap-3">
         <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden" aria-label="Menu">
@@ -94,21 +88,20 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Sidebar />
           </SheetContent>
         </Sheet>
-        <Link to="/" className="font-semibold tracking-tight">
-          Clavis
-        </Link>
+        <SiteTitle />
+        {/* An icon on phones, so the site title keeps the room. */}
         <button
           type="button"
-          className="ml-auto flex h-9 w-full max-w-72 items-center gap-2 rounded-md border px-3 text-sm text-muted-foreground hover:bg-accent"
+          className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-md border text-sm text-muted-foreground hover:bg-accent sm:w-full sm:max-w-72 sm:shrink sm:justify-start sm:px-3"
           onClick={() => setPaletteOpen(true)}
         >
-          <Search className="size-4" />
-          <span className="flex-1 text-left">{t('app.search')}</span>
+          <Search className="size-4 shrink-0" />
+          <span className="flex-1 text-left max-sm:sr-only">{t('app.search')}</span>
           <kbd className="hidden text-xs sm:inline">⌘K</kbd>
         </button>
         <LanguageToggle />
         <Bell />
-        <CurrentUser />
+        <UserMenu />
       </header>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <div className="flex flex-1">

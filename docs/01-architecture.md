@@ -1,6 +1,6 @@
-# Clavis — 기술 아키텍처 (v0.5)
+# Clavis — 기술 아키텍처 (v0.6)
 
-> 상태: **Active** · 작성일: 2026-09-27 · v0.2: Phase 0 결과 반영 (인증 구조, 서버 lint 범위, 백업) · v0.3: Phase 1 구현 반영 · v0.4: Phase 2 구현 반영 (lint 요약·설정, 섹션 편집, 댓글, 템플릿, 홈, `.md`·`llms.txt`, 모바일 편집) · v0.5: Phase 3 구현 반영 (저장 이벤트·Queues, 버전 기록, 알림, Slack·Webhook, 의미 검색)
+> 상태: **Active** · 작성일: 2026-09-27 · v0.2: Phase 0 결과 반영 (인증 구조, 서버 lint 범위, 백업) · v0.3: Phase 1 구현 반영 · v0.4: Phase 2 구현 반영 (lint 요약·설정, 섹션 편집, 댓글, 템플릿, 홈, `.md`·`llms.txt`, 모바일 편집) · v0.5: Phase 3 구현 반영 (저장 이벤트·Queues, 버전 기록, 알림, Slack·Webhook, 의미 검색) · v0.6: 사이트 제목·표시 이름 ([`06-site-title-display-name-plan.md`](./06-site-title-display-name-plan.md))
 > 선행 문서: [`00-concept.md`](./00-concept.md) · 결정 로그: [`decisions.md`](./decisions.md)
 > Cloudflare 한도 수치는 2026-09 기준 공식 문서에서 확인한 값이다 (§11 참고).
 
@@ -164,7 +164,7 @@ Worker (authenticate 미들웨어) — "Clavis 안에서 누구인가"
 actors (
   id            TEXT PRIMARY KEY,          -- ULID
   kind          TEXT NOT NULL,             -- 'human' | 'agent'
-  name          TEXT NOT NULL,             -- 표시명 (예: 'hermes')
+  name          TEXT NOT NULL,             -- 표시 이름. 사람: 첫 로그인 이름 → 본인이 변경, 에이전트: admin (D-66, D-67)
   email         TEXT UNIQUE,               -- human만
   role          TEXT NOT NULL,             -- 'admin' | 'editor' | 'viewer'
   locale        TEXT DEFAULT 'ko',
@@ -325,6 +325,9 @@ page_chunks (                              -- 의미 검색 청크, Vectorize �
   chars         INTEGER NOT NULL
 )
 page_index (page_id PRIMARY KEY, revision, indexed_at)   -- 색인된 revision (다르면 색인 대기)
+
+-- 설치 단위 설정 (0012, D-64). 행이 없으면 기본값
+settings (key PRIMARY KEY, value, updated_by, updated_at)   -- 'site.title'
 ```
 
 ### 5.2 설계 포인트
@@ -337,6 +340,7 @@ page_index (page_id PRIMARY KEY, revision, indexed_at)   -- 색인된 revision (
 - **lint 요약은 저장 시점의 스냅숏**: 위키 링크 규칙은 다른 페이지가 생기거나 지워지면 결과가 바뀌므로 `page_lint`에 넣지 않고, 대시보드는 링크 문제를 `page_links`(`to_page_id IS NULL`)의 **현재 상태**로 보여 준다.
 - **댓글 삭제**: 답글이 있는 루트는 지울 수 없고(409 `has-replies`) 해결로 닫는다. 그래서 soft delete 없이 행만 지운다. 페이지가 휴지통에 가면 함께 숨고, 영구 삭제 때 함께 지운다.
 - **새 테이블과 휴지통**: 페이지를 참조하는 테이블(`page_lint`, `comments`, `favorites`, `page_views`, `page_revisions`(+R2 본문), `notifications`, `watches`, `page_chunks`, `page_index`)은 영구 삭제(`services/trash.ts`)에서 함께 지운다. 테이블을 추가하면 여기와 테스트의 `resetDb`에 반영한다. Vectorize 벡터는 영구 삭제가 아니라 휴지통으로 갈 때 지운다(§5.4).
+- **표시 이름** (D-66~D-68): 모든 조회가 `actors.name`을 조인하므로 이름을 바꾸면 지난 기록에도 새 이름이 보인다. 이름은 `@[이름](actor:ID)` 멘션 마크업에 들어가므로 1~64자, `[`·`]`·줄바꿈 불가. 공백 없는 `@이름` 멘션이 `lower(name)`으로 찾으므로 대소문자를 무시하고 겹칠 수 없다 — 인덱스가 아니라 이름을 정할 때 조건부 INSERT·UPDATE 한 문장으로 검사한다(이전부터 겹친 이름은 그대로). 로그인은 이름을 덮어쓰지 않는다. frontmatter `owner`는 이메일이나 이름으로 담당자를 찾으므로, 이름으로 적은 문서는 이름을 바꾸면 자동 지켜보기가 풀린다.
 - **제목 변경 시 링크** (D-42 개정): `page_links.to_page_id`로 이 페이지를 링크하는 문서의 `[[옛 제목]]`을 같은 저장 요청 안에서 `[[새 제목]]`으로 고친다 (코드 블록 제외, 별칭·`KEY:` 유지). CPU를 위해 한 번에 50페이지·200KB까지만 고치고, 나머지는 깨진 링크로 남아 lint warning이 뜬다.
 
 ### 5.3 전문 검색 (FTS5, D-11)
@@ -593,6 +597,15 @@ LintConfig = {
 | GET / POST | `/admin/search-index` | 색인 현황(문서·벡터 수, 한도) / 색인이 낡은 페이지 큐에 넣기 (202) | admin |
 | PATCH | `/admin/actors/{id}` | `name` 추가 (에이전트 이름 변경, 사람은 400) | admin |
 
+### 8.5 엔드포인트 (사이트 제목·표시 이름)
+
+| Method | Path | 설명 | 권한 |
+|---|---|---|---|
+| GET | `/site` | 사이트 제목 `{ title }` (없으면 `null`) — 헤더가 승인 대기 중에도 보이므로 역할 확인 없음 | 로그인 |
+| PUT | `/admin/site` | 사이트 제목 저장 (`title`: 0~40자, 줄바꿈 불가, 빈 값 = 지움) | admin |
+| PATCH | `/me` | 내 표시 이름 (`name`, §5.2 규칙). 에이전트는 403 `agent-rename`, 이미 쓰는 이름은 409 `name-taken` | 로그인 (승인 대기 포함) |
+| POST · PATCH | `/admin/agents` · `/admin/actors/{id}` | 에이전트 이름도 같은 규칙, 이미 쓰는 이름은 409 `name-taken` | admin |
+
 ## 9. MCP 서버 (D-12)
 
 - **Stateless** `createMcpHandler` + Streamable HTTP, 엔드포인트 `/mcp`. Durable Objects 불필요(무료 플랜 OK). 요청마다 McpServer를 만들고 인증된 actor를 닫아 둔다.
@@ -710,8 +723,9 @@ LintConfig = {
 | `/s/:key/settings?tab=rules\|templates\|channels` | 문서 규칙·템플릿·알림 채널(Slack·Webhook, admin만) |
 | `/s/:key/trash` | 휴지통 |
 | `/search?q=&space=&type=&status=&mode=hybrid` | 검색 결과 (⌘K 팔레트에서도 진입). **뜻으로 찾기** 체크 = `mode=hybrid`, 결과에 "› 섹션" |
-| `/admin` | 사람·에이전트(이름 변경)·토큰·Space 관리, **의미 검색** 탭(색인 현황·색인 만들기) |
+| `/admin` | 사람·에이전트(이름 변경)·토큰·Space 관리, **의미 검색** 탭(색인 현황·색인 만들기), **일반** 탭(사이트 제목) |
 
+- 헤더 왼쪽 위는 `Clavis - {사이트 제목}`(없으면 `Clavis`, 브라우저 탭 제목도 같음, 긴 제목은 말줄임). 마지막 제목을 `localStorage`에 두어 새로 고침 때 깜박이지 않는다. 오른쪽 끝은 **계정 메뉴**(이름·이메일, 표시 이름 바꾸기, 관리). 폰에서는 제목 자리를 위해 검색이 아이콘이 되고 언어 선택이 계정 메뉴로 들어간다.
 - 헤더의 **알림 벨**: 안 읽은 수(60초마다 갱신), 문서 수정 알림은 변경 기록 diff로, 댓글·멘션은 페이지 댓글로 이동. 페이지 메뉴에 지켜보기·알림 끄기와 지켜보는 이유.
 
 ### 12.2 편집기

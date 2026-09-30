@@ -6,7 +6,7 @@ import { createTar } from './tar';
 //
 //   backup/{date}/state.json      cursor and progress
 //   backup/{date}/part-001.tar    SPACE/<parent>--<id>/<title>--<id>.md ...
-//   backup/{date}/meta.json       spaces, actors, attachments, page metadata (written last)
+//   backup/{date}/meta.json       spaces, actors, attachments, settings, page metadata (last)
 //
 // Extracting every part into one directory rebuilds the full tree.
 
@@ -130,7 +130,7 @@ export async function runBackupStep(
   const exhausted = state.cursor >= maxRowid;
   let pruned: string[] = [];
   if (exhausted) {
-    const [pageMeta, actors, attachments] = await env.DB.batch([
+    const [pageMeta, actors, attachments, settings] = await env.DB.batch([
       env.DB.prepare(
         `SELECT id, short_id, space_id, parent_id, position, title, slug, doc_type, status, owner,
                 revision, created_by, updated_by, created_at, updated_at, deleted_at, deleted_batch
@@ -141,6 +141,7 @@ export async function runBackupStep(
         'SELECT id, kind, name, email, role, locale, created_at, disabled_at FROM actors',
       ),
       env.DB.prepare('SELECT * FROM attachments'),
+      env.DB.prepare('SELECT key, value, updated_by, updated_at FROM settings'),
     ]);
     const meta = {
       format: 'clavis-backup',
@@ -150,6 +151,7 @@ export async function runBackupStep(
       spaces: spaceRows,
       actors: actors?.results ?? [],
       attachments: attachments?.results ?? [],
+      settings: settings?.results ?? [],
       pages: ((pageMeta?.results ?? []) as unknown as PageMetaRow[]).map((p) => ({
         ...p,
         path: paths.get(p.id),

@@ -85,6 +85,13 @@
       "when": 1790587897036,
       "tag": "0011_page_chunks",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790739747528,
+      "tag": "0012_settings",
+      "breakpoints": true
     }
   ]
 }

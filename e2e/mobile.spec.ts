@@ -1,8 +1,11 @@
 import { expect, test } from '@playwright/test';
 import { createPage, createSpace, typeAtEnd } from './helpers';
 
-test('read and edit on a phone', async ({ page }) => {
+test('read and edit on a phone', async ({ page, request }) => {
   await createSpace(page, 'MOB', '모바일');
+  // The longest site title (40 characters) must not push the header wider than the phone.
+  const title = '긴 제목 '.repeat(8).trim();
+  await request.put('/api/v1/admin/site', { data: { title } });
   await createPage(page, 'MOB', '현장 메모', '노트');
   await typeAtEnd(page, '\n## 메모\n\n');
 
@@ -52,8 +55,17 @@ test('read and edit on a phone', async ({ page }) => {
   await page.getByRole('button', { name: 'Menu' }).click();
   await page.getByRole('dialog').getByRole('link', { name: '모바일' }).first().click();
   await expect(page.getByRole('dialog')).toBeHidden();
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow).toBe(0);
+  const overflow = () =>
+    page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+  expect(await overflow()).toBe(0);
+
+  // The header keeps the title (cut short) and the account menu, even at 320px.
+  const header = page.getByRole('banner');
+  await expect(header.getByRole('link', { name: `Clavis - ${title}` })).toBeVisible();
+  await expect(header.getByRole('button', { name: '내 계정' })).toBeInViewport();
+  await page.setViewportSize({ width: 320, height: 740 });
+  expect(await overflow()).toBe(0);
+  await expect(header.getByRole('button', { name: '내 계정' })).toBeInViewport();
 });

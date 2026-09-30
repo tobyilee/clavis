@@ -237,7 +237,29 @@
     "searchNearLimit": "Over 80% of the free limit. Consider the paid plan.",
     "searchBuild": "Build index",
     "searchUpToDate": "Every page is indexed.",
-    "searchQueued": "Indexing {{count}} pages…"
+    "searchQueued": "Indexing {{count}} pages…",
+    "general": "General",
+    "siteTitle": "Site title",
+    "siteTitlePlaceholder": "e.g. Payments wiki",
+    "siteTitleHelp": "Shown to everyone as \"Clavis - title\" at the top left and in the browser tab. Leave it empty for just \"Clavis\". Up to 40 characters.",
+    "siteTitlePreview": "Preview:",
+    "siteTitleSave": "Save",
+    "siteTitleSaved": "Saved."
+  },
+  "user": {
+    "menu": "Account",
+    "name": "Display name",
+    "rename": "Change display name",
+    "renameTitle": "Change display name",
+    "renameHelp": "Shown wherever you appear: pages, comments, notifications. Past records show the new name too.",
+    "renameMentionHint": "Without spaces, people can mention you as @name in comments. Autocomplete works with spaces too.",
+    "renameOwnerHint": "Put your email instead of your name as a page's owner, and you keep hearing about the page after a rename.",
+    "nameTaken": "Another person or agent already has this name.",
+    "save": "Save",
+    "language": {
+      "ko": "한국어",
+      "en": "English"
+    }
   },
   "role": {
     "pending": "Pending",

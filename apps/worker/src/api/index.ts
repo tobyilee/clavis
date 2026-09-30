@@ -13,6 +13,7 @@ import { revisions } from './revisions';
 import { router } from './router';
 import { search } from './search';
 import { sections } from './sections';
+import { site } from './site';
 import { spaces } from './spaces';
 import { trash } from './trash';
 import { webhooks } from './webhooks';
@@ -33,6 +34,7 @@ export function buildApi() {
   for (const r of [
     health,
     me,
+    site,
     home,
     notifications,
     admin,

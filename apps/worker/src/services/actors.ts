@@ -55,10 +55,42 @@ export async function findActorByToken(d: Db, token: string, now: number) {
   return { actor: row.actor, touch };
 }
 
+/** Runs of whitespace become one space, so "Adam  Kim" and "Adam Kim" are one name. */
+const tidyName = (name: string) => name.trim().replace(/\s+/g, ' ');
+
+// A name is unique ignoring case (D-68): a plain @name mention is resolved by lower(name), so
+// two actors with one name would both be notified. SQLite's lower() folds ASCII only, which is
+// enough for Korean (no case). Checked when a name is chosen, not by an index, because names
+// taken from sign-ins before this rule may already repeat.
+const nameTaken = (name: string, exceptId: string) =>
+  sql`EXISTS (SELECT 1 FROM actors WHERE lower(name) = lower(${name}) AND id != ${exceptId})`;
+
+/** Registers an agent; null when another actor already has the name. */
 export async function createAgent(d: Db, name: string, role: 'editor' | 'viewer', now: number) {
-  const agent = { id: ulid(now), kind: 'agent' as const, name, role, createdAt: now };
-  await d.insert(actors).values(agent);
-  return agent;
+  const agent = {
+    id: ulid(now),
+    kind: 'agent' as const,
+    name: tidyName(name),
+    role,
+    createdAt: now,
+  };
+  // One statement checks and inserts, so two simultaneous registrations cannot share a name.
+  const res = await d.run(sql`
+    INSERT INTO actors (id, kind, name, role, created_at)
+    SELECT ${agent.id}, 'agent', ${agent.name}, ${role}, ${now}
+    WHERE NOT ${nameTaken(agent.name, agent.id)}`);
+  return res.meta.changes > 0 ? agent : null;
+}
+
+/**
+ * Renames a person or an agent. Past records show the new name, since every read joins
+ * actors. Returns the stored name, or null when another actor already has it.
+ */
+export async function renameActor(d: Db, id: string, name: string) {
+  const tidy = tidyName(name);
+  const res = await d.run(sql`
+    UPDATE actors SET name = ${tidy} WHERE id = ${id} AND NOT ${nameTaken(tidy, id)}`);
+  return res.meta.changes > 0 ? tidy : null;
 }
 
 /** Issues a token for an agent. The plaintext is returned once and never stored. */

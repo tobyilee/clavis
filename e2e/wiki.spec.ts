@@ -286,7 +286,10 @@ test('space settings: stricter rule and a custom template', async ({ page, reque
   }
 });
 
-test('home: favorites, recently viewed; raw Markdown and llms.txt', async ({ page, request }) => {
+test('home: favorites, recently viewed; raw Markdown and llms.txt; site title and my name', async ({
+  page,
+  request,
+}) => {
   await ensureSpace(request, 'HOME', '홈');
   const fm = '---\ntype: note\nstatus: draft\nowner: dev@example.com\n---\n';
   const res = await request.post('/api/v1/spaces/HOME/pages', {
@@ -327,6 +330,30 @@ test('home: favorites, recently viewed; raw Markdown and llms.txt', async ({ pag
   const llms = await (await request.get('/s/HOME/llms.txt')).text();
   expect(llms).toContain(`- [자주 보는 문서](http://localhost:8788${url}.md): note, draft`);
   expect(await (await request.get('/llms.txt')).text()).toContain('- [홈 (HOME)]');
+
+  // An admin names the site: "Clavis - {title}" in the header and the browser tab (D-64).
+  await page.goto('/admin');
+  await page.getByRole('tab', { name: '일반' }).click();
+  await page.getByLabel('사이트 제목').fill('결제팀 위키');
+  await page.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(page.getByText('저장했습니다.')).toBeVisible();
+  const header = page.getByRole('banner');
+  await expect(header.getByRole('link', { name: 'Clavis - 결제팀 위키' })).toBeVisible();
+  await expect(page).toHaveTitle('Clavis - 결제팀 위키');
+
+  // People choose their display name; past records show it too (D-66, D-67).
+  await page.goto(url);
+  await header.getByRole('button', { name: '내 계정' }).click();
+  await page.getByRole('menuitem', { name: '표시 이름 바꾸기' }).click();
+  const rename = page.getByRole('dialog', { name: '표시 이름 바꾸기' });
+  await rename.getByLabel('표시 이름').fill('이투비');
+  await rename.getByRole('button', { name: '저장' }).click();
+  await expect(rename).toBeHidden();
+  await expect(header.getByRole('button', { name: '내 계정' })).toHaveText('이투비');
+  await expect(page.getByRole('main').getByText('이투비', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page).toHaveTitle('Clavis - 결제팀 위키');
+  await expect(header.getByRole('button', { name: '내 계정' })).toHaveText('이투비');
 });
 
 test('editor: focused on open, light like GitHub even on a dark OS', async ({ page, request }) => {

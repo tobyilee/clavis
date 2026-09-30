@@ -20,6 +20,7 @@ import { Input, Select } from '@/components/ui/input';
 import { apiGet, apiSend, isApiError } from '@/lib/api';
 import { useMe } from '@/lib/me';
 import { spacesQuery } from '@/lib/queries';
+import { useSaveSiteTitle, useSite } from '@/lib/site';
 import { relativeTime } from '@/lib/time';
 
 export const Route = createFileRoute('/admin')({ component: Admin });
@@ -42,7 +43,7 @@ interface ApiToken {
   revokedAt: number | null;
 }
 
-const TABS = ['people', 'agents', 'spaces', 'search'] as const;
+const TABS = ['people', 'agents', 'spaces', 'search', 'general'] as const;
 
 function Admin() {
   const { t } = useTranslation();
@@ -74,6 +75,7 @@ function Admin() {
         {tab === 'agents' && <Agents />}
         {tab === 'spaces' && <Spaces />}
         {tab === 'search' && <SearchIndex />}
+        {tab === 'general' && <General />}
       </div>
     </div>
   );
@@ -178,6 +180,8 @@ function Agents() {
 
   const create = useMutation({
     mutationFn: () => apiSend<AdminActor>('POST', '/admin/agents', { name: name.trim(), role }),
+    // One error line for the form and the rows: the latest action's.
+    onMutate: () => update.reset(),
     onSuccess: () => {
       setName('');
       refresh();
@@ -201,6 +205,7 @@ function Agents() {
   });
 
   const agents = actors.data?.filter((a) => a.kind === 'agent') ?? [];
+  const failed = create.error ?? update.error;
   return (
     <div className="flex flex-col gap-6">
       <form
@@ -230,6 +235,15 @@ function Agents() {
           {t('admin.addAgent')}
         </Button>
       </form>
+      {failed && (
+        <p className="-mt-4 text-sm text-destructive">
+          {isApiError(failed, 409)
+            ? t('user.nameTaken')
+            : isApiError(failed)
+              ? (failed.problem.detail ?? failed.problem.title)
+              : String(failed)}
+        </p>
+      )}
 
       <ul className="divide-y rounded-md border">
         {agents.map((a) => {
@@ -244,6 +258,7 @@ function Agents() {
                     onSubmit={(e) => {
                       e.preventDefault();
                       const next = renaming.name.trim();
+                      create.reset();
                       if (next && next !== a.name) update.mutate({ id: a.id, name: next });
                       setRenaming(null);
                     }}
@@ -494,5 +509,59 @@ function SearchIndex() {
         )
       )}
     </div>
+  );
+}
+
+/** Settings of the whole installation (D-64): the site title shown as "Clavis - {title}". */
+function General() {
+  const { t } = useTranslation();
+  const site = useSite();
+  const save = useSaveSiteTitle();
+  // null until edited, so the saved title shows once it loads.
+  const [draft, setDraft] = useState<string | null>(null);
+  const value = draft ?? site.data ?? '';
+  const failed = save.error;
+  return (
+    <form
+      className="flex max-w-lg flex-col gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        save.mutate(value.trim(), { onSuccess: () => setDraft(null) });
+      }}
+    >
+      <label className="flex flex-col gap-1 text-sm">
+        {t('admin.siteTitle')}
+        <Input
+          value={value}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            save.reset();
+          }}
+          maxLength={40}
+          placeholder={t('admin.siteTitlePlaceholder')}
+        />
+      </label>
+      <p className="text-xs text-muted-foreground">{t('admin.siteTitleHelp')}</p>
+      <p className="text-sm text-muted-foreground">
+        {t('admin.siteTitlePreview')}{' '}
+        <span className="text-foreground">
+          <span className="font-semibold">Clavis</span>
+          {value.trim() && ` - ${value.trim()}`}
+        </span>
+      </p>
+      {failed && (
+        <p className="text-sm text-destructive">
+          {isApiError(failed) ? (failed.problem.detail ?? failed.problem.title) : String(failed)}
+        </p>
+      )}
+      <div className="flex items-center gap-3">
+        <Button variant="primary" type="submit" disabled={save.isPending || draft === null}>
+          {t('admin.siteTitleSave')}
+        </Button>
+        {save.isSuccess && (
+          <span className="text-sm text-muted-foreground">{t('admin.siteTitleSaved')}</span>
+        )}
+      </div>
+    </form>
   );
 }

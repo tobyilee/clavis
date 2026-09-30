@@ -110,6 +110,7 @@ describe('runBackupStep', () => {
     expect(meta.pages).toHaveLength(3);
     expect(meta.pages[0]).not.toHaveProperty('content');
     expect(meta.actors[0]).not.toHaveProperty('token_hash');
+    expect(meta.settings).toEqual([]);
   });
 
   it('fits everything in one part when the budget allows', async () => {

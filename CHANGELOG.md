@@ -11,9 +11,21 @@ Clavis의 주요 변경을 기록합니다. 형식은 [Keep a Changelog](https:/
 
 ## [Unreleased]
 
+### 추가
+
+- 사이트 제목: 관리 → **일반**에서 정하면 화면 왼쪽 위와 브라우저 탭에 `Clavis - 제목`으로 보임. `GET /site`, `PUT /admin/site` (D-64, D-65)
+- 표시 이름: 헤더의 계정 메뉴에서 내 이름을 바꾸고, 지난 기록에도 새 이름이 보임. `PATCH /me` (D-66, D-67)
+
 ### 변경
 
 - 설치 가이드: Worker의 **Access** 탭으로 Access를 켜는 새 대시보드 경로, 이미 다른 계정에 배포 중인 저장소에서 별도 설정 파일(`wrangler.personal.jsonc`, git 제외)로 설치하는 방법, R2 활성화·메타데이터 인덱스 확인·workers.dev 서브도메인 안내와 문제 해결 항목 ([`docs/guides/install.md`](docs/guides/install.md))
+- 사람·에이전트 이름은 새로 정하거나 바꿀 때 대소문자를 무시하고 겹칠 수 없음(409 `name-taken`), `[`·`]`·줄바꿈은 쓸 수 없음 (D-68)
+- 댓글의 `@멘션`이 쓸 때의 이름 대신 지금 이름으로 보임
+- 폰 헤더: 사이트 제목 자리를 위해 검색은 아이콘으로, 언어 선택은 계정 메뉴로
+
+### 업데이트할 때 할 일
+
+- D1 마이그레이션 `0012_settings`: GitHub Actions 자동 배포면 할 일 없음. 직접 배포하면 먼저 `pnpm exec wrangler d1 migrations apply DB --remote` ([설치 가이드 §9](docs/guides/install.md#9-업데이트))
 
 ## 2026-09-29
 

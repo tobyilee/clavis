@@ -3,12 +3,14 @@ import { and, desc, eq, isNull } from 'drizzle-orm';
 import { requireRole } from '../auth/middleware';
 import { db } from '../db/client';
 import { actors, apiTokens } from '../db/schema';
-import { createAgent, issueToken } from '../services/actors';
+import { createAgent, issueToken, renameActor } from '../services/actors';
 import { indexStatus, queueStalePages } from '../services/semantic';
-import { ActorSchema } from './me';
+import { putSetting, SITE_TITLE } from '../services/settings';
+import { ActorName, ActorSchema } from './me';
 import { problem, problemResponse } from './problem';
 import { router } from './router';
 import { json } from './schemas';
+import { SiteSchema, SiteTitleInput } from './site';
 
 const IdParam = z.object({ id: z.string().openapi({ param: { name: 'id', in: 'path' } }) });
 
@@ -80,8 +82,8 @@ admin.openapi(
             schema: z.object({
               role: z.enum(['admin', 'editor', 'viewer', 'pending']).optional(),
               disabled: z.boolean().optional(),
-              /** Agents only: people are named by their sign-in. Past edits show the new name. */
-              name: z.string().trim().min(1).max(64).optional(),
+              /** Agents only: people choose their own (PATCH /me). Past edits show the new name. */
+              name: ActorName.optional(),
             }),
           },
         },
@@ -94,6 +96,7 @@ admin.openapi(
       },
       400: problemResponse('Invalid change'),
       404: problemResponse('Actor not found'),
+      409: problemResponse('Another person or agent has this name'),
     },
   }),
   async (c) => {
@@ -111,9 +114,12 @@ admin.openapi(
     if (body.name !== undefined && target.kind !== 'agent') {
       return problem(c, 400, 'invalid-name', 'Only agents can be renamed');
     }
+    // The name first: when it is taken, nothing else changes either.
+    if (body.name !== undefined && (await renameActor(d, id, body.name)) === null) {
+      return problem(c, 409, 'name-taken', 'Another person or agent already has this name');
+    }
     const patch: Partial<typeof actors.$inferInsert> = {};
     if (body.role) patch.role = body.role;
-    if (body.name !== undefined) patch.name = body.name;
     if (body.disabled !== undefined) patch.disabledAt = body.disabled ? Date.now() : null;
     if (Object.keys(patch).length > 0) await d.update(actors).set(patch).where(eq(actors.id, id));
     const updated = await d.query.actors.findFirst({ where: eq(actors.id, id) });
@@ -133,7 +139,7 @@ admin.openapi(
         content: {
           'application/json': {
             schema: z.object({
-              name: z.string().trim().min(1).max(64),
+              name: ActorName,
               role: z.enum(['editor', 'viewer']).default('editor'),
             }),
           },
@@ -142,12 +148,16 @@ admin.openapi(
     },
     responses: {
       201: { description: 'Created', content: { 'application/json': { schema: ActorSchema } } },
+      409: problemResponse('Another person or agent has this name'),
     },
   }),
   async (c) => {
     const { name, role } = c.req.valid('json');
     const agent = await createAgent(db(c.env.DB), name, role, Date.now());
-    return c.json({ id: agent.id, kind: agent.kind, name, email: null, role }, 201);
+    if (!agent) {
+      return problem(c, 409, 'name-taken', 'Another person or agent already has this name');
+    }
+    return c.json({ id: agent.id, kind: agent.kind, name: agent.name, email: null, role }, 201);
   },
 );
 
@@ -268,4 +278,25 @@ admin.openapi(
     },
   }),
   async (c) => c.json({ queued: await queueStalePages(c.env) }, 202),
+);
+
+admin.openapi(
+  createRoute({
+    method: 'put',
+    path: '/admin/site',
+    tags: ['admin'],
+    summary: 'Set the site title shown as "Clavis - {title}"; an empty title clears it',
+    security: [{ bearer: [] }],
+    request: {
+      body: {
+        content: { 'application/json': { schema: z.object({ title: SiteTitleInput }) } },
+      },
+    },
+    responses: { 200: json(SiteSchema, 'Saved') },
+  }),
+  async (c) => {
+    const { title } = c.req.valid('json');
+    const saved = await putSetting(db(c.env.DB), SITE_TITLE, title, c.get('actor').id, Date.now());
+    return c.json({ title: saved }, 200);
+  },
 );

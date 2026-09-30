@@ -1,6 +1,6 @@
 # Clavis — 작업 인수인계 (Handoff)
 
-> 마지막 갱신: 2026-09-28 · 코드 기준 커밋: `aa69947` (main, push·운영 배포 완료)
+> 마지막 갱신: 2026-09-30 · 코드 기준: 사이트 제목·표시 이름 커밋 (main, 이 문서와 같은 커밋)
 > 새 장비에서 Claude Code를 시작하면 **"docs/handoff.md 읽고 이어서 진행해"**라고 말하면 된다.
 > 이 문서는 이전 장비의 대화 기록·Claude 메모리 없이도 이어서 작업할 수 있도록, 거기에만 있던 규칙과 요령까지 담는다.
 
@@ -14,6 +14,7 @@
 | Phase 1 — MVP | ✅ 완료 | [`03-phase1-plan.md`](./03-phase1-plan.md) |
 | Phase 2 — 팀 생산성 & AI 연동 | ✅ 완료 (2026-09-28) | [`04-phase2-plan.md`](./04-phase2-plan.md) §9에 Step별 결과 |
 | **Phase 3 — 안전한 편집·알림·의미 검색** | 🔶 **진행 중 (Step 0~4 ✅ 배포, Step 5 마무리 중 — Z1·Z3 ✅, 남은 것: 운영 색인 만들기·E5 품질 확인·Z2 실측·Z4 점검)** | [`05-phase3-plan.md`](./05-phase3-plan.md) |
+| 사이트 제목·표시 이름 | ✅ 완료 (2026-09-30, 운영 확인은 사용자) | [`06-site-title-display-name-plan.md`](./06-site-title-display-name-plan.md) §9 |
 
 Phase 2 진행 현황 (결정 D-44~D-53은 모두 추천안으로 확정, [`decisions.md`](./decisions.md)):
 
@@ -33,8 +34,8 @@ Phase 2 진행 현황 (결정 D-44~D-53은 모두 추천안으로 확정, [`deci
 | 7 (일부) | Z4 자동 검증 보강: MCP의 Space 규칙·커스텀 템플릿, E2E AI용 복사, 모바일 E2E 375px | `aa69947` |
 | 7 | Z4 완료: 사용자가 Adam(Hermes) 실사용·아이폰 실기기·U4 확인 → Phase 2 완료 | 이 문서와 같은 커밋 |
 
-- 운영 D1에 migration `0000`~`0011` 적용됨(`8316121` 배포, CI run 36412341293 통과).
-- 테스트: shared 66 · web 27 · worker 139 · E2E 9개(모바일은 375px), 모두 통과. E2E는 로컬 큐 소비자가 몇 초 늦게 돌아서 알림은 `expect.toPass`로 기다린다.
+- 운영 D1에 migration `0000`~`0011` 적용됨(`8316121` 배포, CI run 36412341293 통과). `0012_settings`(사이트 제목)는 그 커밋을 push하면 CI가 적용한다.
+- 테스트: shared 66 · web 28 · worker 148 · E2E 9개(모바일은 375px·320px), 모두 통과. E2E는 로컬 큐 소비자가 몇 초 늦게 돌아서 알림은 `expect.toPass`로 기다린다.
 
 ## 2. 다음 할 일
 

@@ -24,6 +24,7 @@ export async function resetDb() {
       'pages',
       'spaces',
       'api_tokens',
+      'settings',
       'actors',
     ].map((t) => env.DB.prepare(`DELETE FROM ${t}`)),
   );

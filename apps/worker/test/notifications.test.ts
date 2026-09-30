@@ -159,6 +159,14 @@ describe('notifications (D-57)', () => {
     expect(teammate.notifications.map((n: { kind: string }) => n.kind)).toEqual(['mention']);
   });
 
+  it('finds a renamed person by a plain @mention of the new name', async () => {
+    const page = await adminPage();
+    await call('/api/v1/me', { ...TEAMMATE, method: 'PATCH', body: { name: 'Kim' } });
+    await comment(adam, page.id, '@kim 확인 부탁해요');
+    const teammate = await inbox(TEAMMATE);
+    expect(teammate.notifications).toEqual([expect.objectContaining({ kind: 'mention' })]);
+  });
+
   it('lets an agent read its mentions over MCP and mark them handled (D-59)', async () => {
     const page = await adminPage();
     await comment(TEAMMATE, page.id, '@Adam 요약 부탁해요');

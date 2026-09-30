@@ -237,7 +237,29 @@
     "searchNearLimit": "무료 한도의 80%를 넘었습니다. 유료 플랜 전환을 검토하세요.",
     "searchBuild": "색인 만들기",
     "searchUpToDate": "모든 문서가 색인되어 있습니다.",
-    "searchQueued": "{{count}}개 문서를 색인하는 중입니다…"
+    "searchQueued": "{{count}}개 문서를 색인하는 중입니다…",
+    "general": "일반",
+    "siteTitle": "사이트 제목",
+    "siteTitlePlaceholder": "예: 결제팀 위키",
+    "siteTitleHelp": "모든 사용자의 화면 왼쪽 위와 브라우저 탭에 \"Clavis - 제목\"으로 보입니다. 비우면 \"Clavis\"만 보입니다. 최대 40자.",
+    "siteTitlePreview": "미리 보기:",
+    "siteTitleSave": "저장",
+    "siteTitleSaved": "저장했습니다."
+  },
+  "user": {
+    "menu": "내 계정",
+    "name": "표시 이름",
+    "rename": "표시 이름 바꾸기",
+    "renameTitle": "표시 이름 바꾸기",
+    "renameHelp": "문서·댓글·알림 등 내가 나오는 모든 곳에 이 이름이 보입니다. 지난 기록에도 새 이름이 보입니다.",
+    "renameMentionHint": "공백 없이 쓰면 댓글에서 @이름으로 부를 수 있습니다. 자동 완성은 공백이 있어도 됩니다.",
+    "renameOwnerHint": "문서 담당자(owner)에 이름 대신 이메일을 쓰면, 이름을 바꿔도 그 문서의 알림을 계속 받습니다.",
+    "nameTaken": "다른 사람이나 에이전트가 이미 쓰는 이름입니다.",
+    "save": "저장",
+    "language": {
+      "ko": "한국어",
+      "en": "English"
+    }
   },
   "role": {
     "pending": "승인 대기",

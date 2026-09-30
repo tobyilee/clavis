@@ -38,6 +38,15 @@ export const apiTokens = sqliteTable('api_tokens', {
   revokedAt: integer('revoked_at'),
 });
 
+/** Settings of the whole installation, one row per key (D-64). A missing row means the default. */
+export const settings = sqliteTable('settings', {
+  /** 'site.title' */
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedBy: text('updated_by').references(() => actors.id),
+  updatedAt: integer('updated_at').notNull(),
+});
+
 export const spaces = sqliteTable('spaces', {
   id: text('id').primaryKey(),
   key: text('key').notNull().unique(),
