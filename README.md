@@ -31,23 +31,7 @@ Cloudflare 계정만 있으면 무료 플랜으로 설치할 수 있습니다. W
 
 ## 구조
 
-```
-사람(브라우저) ─ Cloudflare Access ─┐
-에이전트(서비스 토큰 + Bearer clv_…) ─┤
-                                    ▼
-                 ┌──────── clavis Worker (단일 배포) ────────┐
-                 │ Static Assets  React SPA                  │
-                 │ /api/v1/*      REST (Hono + zod-openapi)  │
-                 │ /mcp           Stateless MCP              │
-                 │ /files/*       첨부 파일                   │
-                 │ *.md, llms.txt 원본 Markdown (AI용)        │
-                 │ queue()        알림·Webhook·색인           │
-                 │ scheduled()    백업·정리                   │
-                 └───────┬──────────────┬───────────────────┘
-                         ▼              ▼
-              D1 (SQLite + FTS5)   R2 (첨부·백업·버전 본문)
-              Queues · Workers AI · Vectorize
-```
+![Clavis 구조: 사람(브라우저)과 AI 에이전트가 Cloudflare Access를 거쳐 clavis Worker 하나에 들어오고, Worker는 D1·R2·Queues·Workers AI·Vectorize를 씁니다](docs/images/architecture.svg)
 
 REST와 MCP는 같은 서비스 계층을 호출합니다. Markdown 렌더링은 브라우저에서만 하고, 서버는 저장·검증·색인만 합니다(요청당 CPU 10ms 제약). 자세한 설계는 [`docs/01-architecture.md`](docs/01-architecture.md).
 
