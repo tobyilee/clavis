@@ -197,7 +197,18 @@ pnpm exec wrangler deployments list -c wrangler.cfuser.jsonc                    
 
 ### API 토큰으로 바꾸기 (선택)
 
-로그아웃·로그인 없이 명령마다 계정을 바꾸려면 계정마다 API 토큰을 만들어 둡니다. 권한은 CI용 토큰과 같습니다([설치 가이드 §8](docs/guides/install.md#8-github-actions로-자동-배포-선택)). 토큰은 화면·쉘 기록·채팅에 남기지 않습니다.
+로그아웃·로그인 없이, 브라우저도 열지 않고 명령마다 사용자를 바꾸려면 사용자마다 API 토큰을 만들어 둡니다. 권한은 CI용 토큰과 같습니다([설치 가이드 §8](docs/guides/install.md#8-github-actions로-자동-배포-선택)). 토큰은 화면·쉘 기록·채팅에 남기지 않습니다.
+
+토큰을 저장소 루트의 `.agent.env`(git 제외)에 `CLOUDFLARE_API_TOKEN_<별칭>`으로 넣어 두면 `scripts/cf-as.sh <별칭>`이 그 토큰으로 wrangler를 실행합니다. 별칭은 대문자로, `-`는 `_`로 바꿔 씁니다(`cfuser` → `CLOUDFLARE_API_TOKEN_CFUSER`).
+
+```sh
+cp .agent.env.example .agent.env && chmod 600 .agent.env   # .agent.env가 없을 때만. 편집기로 토큰 줄을 추가
+scripts/cf-as.sh cfuser whoami                             # 토큰의 사용자와 계정 확인
+scripts/cf-as.sh cfuser deploy -c wrangler.cfuser.jsonc    # apps/worker에서 실행되므로 경로는 그 기준
+```
+
+- 토큰은 그 한 번의 wrangler 실행에만 쓰입니다. 쉘에 남지 않고, `wrangler login`으로 저장된 로그인도 그대로입니다.
+- 파일에 두지 않고 한 번만 쓰려면 직접 넣습니다.
 
 ```sh
 read -rs CLOUDFLARE_API_TOKEN && export CLOUDFLARE_API_TOKEN   # 붙여 넣어도 화면·기록에 남지 않음

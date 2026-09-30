@@ -70,7 +70,7 @@ Phase 2 진행 현황 (결정 D-44~D-53은 모두 추천안으로 확정, [`deci
 
 ## 4. 보안 수칙 (반드시 지킬 것)
 
-- 비밀 값은 git에 없는 `.agent.env`(저장소 루트)에만 있다: `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`, `CLAVIS_TOKEN_HERMES`, `CLOUDFLARE_API_TOKEN`. 형식과 설명은 값이 빈 `.agent.env.example`(커밋됨)에 있다.
+- 비밀 값은 git에 없는 `.agent.env`(저장소 루트)에만 있다: `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`, `CLAVIS_TOKEN_HERMES`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_API_TOKEN_NEOVENTURES`(같은 토큰, `scripts/cf-as.sh neoventures …`로 브라우저 로그인 없이 dev@neoventures.kr로 wrangler 실행). 두 번째 인스턴스(tobybizmatrixxlee@gmail.com 계정, https://clavis.tobybizmatrixxlee.workers.dev, 설정 `wrangler.bizmatrixx.jsonc`)용은 끝에 `_BIZMATRIXX`: `CLOUDFLARE_API_TOKEN_BIZMATRIXX`(Vectorize 권한 없음), `CF_ACCESS_CLIENT_ID_BIZMATRIXX`, `CF_ACCESS_CLIENT_SECRET_BIZMATRIXX`, `CLAVIS_TOKEN_BIZMATRIXX`(에이전트 `claude-code`, editor). 형식과 설명은 값이 빈 `.agent.env.example`(커밋됨)에 있다.
   - **새 장비로는 사용자가 직접 안전한 방법으로 복사**한다. 채팅에 붙여 달라고 하지 않는다.
   - **출력하지 않는다. `source`하지 않는다.** 불러올 때는 `eval "$(python3 scripts/agent-env.py)"`만 쓴다 (쉘 source로 비밀이 한 번 노출되어 교체한 적이 있음).
   - 코드 작업·테스트·CI 배포에는 필요 없다. 운영 Worker를 에이전트로 호출하거나 CPU를 잴 때만 필요하다(직전 장비에는 없었고, 없이 Step 6까지 진행했다).

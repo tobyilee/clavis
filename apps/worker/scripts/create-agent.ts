@@ -2,6 +2,10 @@
 // before any admin UI exists (Phase 0, T9). The token is written to an env file, never printed.
 //
 //   pnpm --filter @clavis/worker agent:create --name hermes [--role editor|viewer] [--local]
+//     [--config wrangler.<alias>.jsonc] [--key CLAVIS_TOKEN_<NAME>]
+//
+// --config targets another account's instance (README "Cloudflare 계정 바꾸기"); run it with that
+// account's CLOUDFLARE_API_TOKEN. --key names the .agent.env entry (default CLAVIS_TOKEN_<NAME>).
 //
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -15,6 +19,8 @@ const { values } = parseArgs({
     name: { type: 'string' },
     role: { type: 'string', default: 'editor' },
     local: { type: 'boolean', default: false },
+    config: { type: 'string' },
+    key: { type: 'string' },
     out: { type: 'string', default: resolve(import.meta.dirname, '../../../.agent.env') },
   },
 });
@@ -23,6 +29,8 @@ const name = values.name?.trim() ?? '';
 if (!/^[\w.-]{1,64}$/.test(name)) throw new Error('--name must be 1-64 chars of [A-Za-z0-9_.-]');
 if (values.role !== 'editor' && values.role !== 'viewer')
   throw new Error('--role must be editor or viewer');
+const key = values.key ?? `CLAVIS_TOKEN_${name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
+if (!/^[A-Z_][A-Z0-9_]*$/.test(key)) throw new Error('--key must be an upper-case env name');
 
 const now = Date.now();
 const actorId = ulid(now);
@@ -34,18 +42,29 @@ INSERT INTO api_tokens (id, actor_id, token_hash, prefix, created_at)
 
 execFileSync(
   resolve(import.meta.dirname, '../node_modules/.bin/wrangler'),
-  ['d1', 'execute', 'DB', values.local ? '--local' : '--remote', '-y', '--command', sql],
+  [
+    'd1',
+    'execute',
+    'DB',
+    values.local ? '--local' : '--remote',
+    '-y',
+    ...(values.config ? ['-c', values.config] : []),
+    '--command',
+    sql,
+  ],
   { cwd: resolve(import.meta.dirname, '..'), stdio: ['ignore', 'ignore', 'inherit'] },
 );
 
-const key = `CLAVIS_TOKEN_${name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
 const out = values.out;
-const lines = existsSync(out)
+// Keeps the file's comments and blank lines; only an earlier entry for this key is replaced.
+const kept = existsSync(out)
   ? readFileSync(out, 'utf8')
       .split('\n')
       .filter((l) => !l.startsWith(`${key}=`))
-  : [];
-writeFileSync(out, `${[...lines.filter(Boolean), `${key}=${token}`].join('\n')}\n`);
+      .join('\n')
+      .trimEnd()
+  : '';
+writeFileSync(out, `${kept ? `${kept}\n` : ''}${key}=${token}\n`);
 chmodSync(out, 0o600);
 appendFileSync(out, '');
 console.log(`Registered agent "${name}" (${values.role}), id ${actorId}.`);
