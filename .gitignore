@@ -15,3 +15,6 @@ coverage/
 e2e/.state/
 test-results/
 playwright-report/
+
+# Wrangler config for a second instance on another Cloudflare account (install.md §3)
+apps/worker/wrangler.personal.jsonc

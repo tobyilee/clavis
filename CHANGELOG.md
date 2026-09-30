@@ -11,6 +11,10 @@ Clavis의 주요 변경을 기록합니다. 형식은 [Keep a Changelog](https:/
 
 ## [Unreleased]
 
+### 변경
+
+- 설치 가이드: Worker의 **Access** 탭으로 Access를 켜는 새 대시보드 경로, 이미 다른 계정에 배포 중인 저장소에서 별도 설정 파일(`wrangler.personal.jsonc`, git 제외)로 설치하는 방법, R2 활성화·메타데이터 인덱스 확인·workers.dev 서브도메인 안내와 문제 해결 항목 ([`docs/guides/install.md`](docs/guides/install.md))
+
 ## 2026-09-29
 
 ### 추가

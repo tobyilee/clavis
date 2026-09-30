@@ -49,6 +49,9 @@ pnpm exec wrangler whoami               # 계정 확인
 
 계정이 여러 개면 `wrangler.jsonc`에 `"account_id": "<계정 ID>"`를 넣거나 환경 변수 `CLOUDFLARE_ACCOUNT_ID`를 둡니다.
 
+- wrangler는 `apps/worker` 패키지에만 설치되어 있습니다. 저장소 루트에서 실행하면 `Command "wrangler" not found`가 나옵니다.
+- 다른 계정으로 바꾸려면 `pnpm exec wrangler logout` 후 다시 `login`합니다.
+
 ## 2. 리소스 만들기
 
 ```sh
@@ -62,7 +65,9 @@ pnpm exec wrangler vectorize create-metadata-index clavis-chunks --propertyName=
 
 - `d1 create`가 출력하는 `database_id`를 적어 둡니다(§3).
 - wrangler가 설정 파일에 바인딩을 추가할지 물으면 **No**. `wrangler.jsonc`에 바인딩이 이미 있습니다.
+- R2를 한 번도 쓰지 않은 계정은 `r2 bucket create`가 `Please enable R2 through the Cloudflare Dashboard [code: 10042]`로 실패합니다. 대시보드의 **R2 Object Storage**에서 R2를 켠 뒤 다시 실행합니다.
 - Vectorize **메타데이터 인덱스는 벡터보다 먼저** 만들어야 합니다(나중에 만들면 그 전에 들어간 벡터는 Space·유형으로 거를 수 없음). 위 순서대로 첫 배포 전에 만듭니다.
+- 메타데이터 인덱스는 명령 직후가 아니라 1~2분 뒤에 생깁니다. 배포 전에 `pnpm exec wrangler vectorize list-metadata-index clavis-chunks`로 `space`와 `docType`이 둘 다 보이는지 확인합니다.
 - 이름을 바꾸고 싶다면 `wrangler.jsonc`의 같은 이름도 바꿉니다.
 - Workers AI와 호출 한도(Rate Limiting)는 만들 것이 없습니다.
 
@@ -86,6 +91,21 @@ pnpm exec wrangler vectorize create-metadata-index clavis-chunks --propertyName=
 | `triggers.crons` | 야간 백업 시각(UTC). 기본 `*/2 17-18 * * *`은 한국 시간 새벽 2~4시. Cron은 계정당 5개까지 |
 | `ratelimits[].namespace_id` | 계정 안에서 겹치지 않는 숫자. 다른 Worker가 같은 번호를 쓰지 않으면 그대로 |
 
+### 이미 다른 계정에 배포 중인 저장소라면: 설정 파일을 따로 둡니다
+
+`wrangler.jsonc`로 이미 운영 중인 인스턴스가 있고(예: `main` push로 CI가 배포), 같은 저장소에서 다른 계정에 하나 더 설치한다면 `wrangler.jsonc`를 고치지 마세요. 고쳐서 커밋하면 CI가 **기존 계정**에 새 `database_id`로 배포해 운영 중인 인스턴스가 깨집니다. 대신 설정 파일을 복사해 새 계정 값을 넣습니다.
+
+```sh
+cp wrangler.jsonc wrangler.personal.jsonc   # .gitignore에 들어 있어 커밋되지 않음
+```
+
+- `wrangler.personal.jsonc`에 `"account_id": "<새 계정 ID>"`를 넣습니다. 나중에 다른 계정으로 로그인해 있더라도 이 파일로는 새 계정에만 배포됩니다.
+- 위 표의 값(`database_id`, `vars`)은 이 파일에서 고칩니다.
+- 이 문서의 wrangler 명령(§2 리소스 만들기 포함)에 **모두** `-c wrangler.personal.jsonc`를 붙입니다. 예: `pnpm exec wrangler deploy -c wrangler.personal.jsonc`
+- 파일은 `wrangler.jsonc`와 같은 폴더에 둡니다. `main`, `assets.directory`, `migrations_dir`가 이 파일 위치를 기준으로 풀립니다.
+- wrangler의 `env` 블록은 쓰지 않습니다. 바인딩과 `vars`는 상속되지 않아 어차피 전부 다시 써야 하고, Worker 이름이 `clavis-<env>`로 바뀌어 주소도 달라집니다.
+- 이 인스턴스는 CI가 배포하지 않습니다. 업데이트는 §9의 "직접 배포" 순서로 합니다.
+
 ## 4. 데이터베이스 준비와 첫 배포
 
 ```sh
@@ -94,22 +114,27 @@ pnpm -w run build                                   # 웹 화면 빌드 (apps/we
 pnpm exec wrangler deploy
 ```
 
-배포 출력의 주소(`https://clavis.<서브도메인>.workers.dev`)를 적어 둡니다. 아직 Access가 없으므로 화면은 열리지만 로그인이 안 되고 API는 401입니다.
+배포 출력의 주소(`https://clavis.<서브도메인>.workers.dev`)를 적어 둡니다. 아직 Access가 없으므로 화면은 열리지만 로그인이 안 되고 API는 401입니다(`/api/v1/health`만 200).
+
+- workers.dev 서브도메인이 없는 새 계정이면 배포가 서브도메인을 정하라며 멈추거나 실패합니다. 대시보드의 **Workers & Pages**를 한 번 열어 서브도메인을 정한 뒤 다시 배포합니다.
 
 ## 5. Cloudflare Access 설정 (로그인)
 
 메뉴 이름은 Cloudflare 대시보드 버전에 따라 조금 다를 수 있습니다.
 
 1. **Zero Trust 조직**: 처음이라면 대시보드의 Zero Trust에서 팀 이름을 정하고 Free 플랜을 고릅니다. 팀 도메인은 `https://<팀 이름>.cloudflareaccess.com`입니다.
-2. **Worker에 Access 켜기**: Workers & Pages → `clavis` → Settings → **Domains & Routes** → `workers.dev` 행에서 **Enable Cloudflare Access**. `clavis - Cloudflare Workers`라는 Access 앱이 생깁니다.
-   - **Preview URLs**도 켜져 있다면 같은 화면에서 Access를 켜거나 Preview URLs를 끕니다. 그대로 두면 그 주소는 Access 없이 열립니다(데이터는 401로 막히지만 화면 껍데기와 API 명세가 보임).
-3. **사람 로그인 정책**: Zero Trust → Access → Applications → `clavis - Cloudflare Workers` → Policies에서 기본 정책(Action `Allow`)의 Include를 정합니다.
+2. **Worker에 Access 켜기**: Workers & Pages → `clavis` → **Access** 탭 → **Protect this Worker behind Access**.
+   - 범위는 **All traffic**을 고릅니다(Previews only는 화면이 공개됨).
+   - **Authentication policy**에서 누가 로그인할지 고릅니다. **Cloudflare account**는 이 Cloudflare 계정의 멤버, **Email domain**은 `회사.com` 같은 도메인의 모든 주소입니다.
+   - **Apply Access**를 누르면 Zero Trust에 이 Worker용 Access 앱이 생깁니다. 이 방식은 workers.dev 주소, Preview URL, 커스텀 도메인을 한꺼번에 보호합니다.
+   - 예전 대시보드에는 Access 탭이 없고 Settings → **Domains & Routes** → `workers.dev` 행의 **Enable Cloudflare Access**로 켭니다. 이때 생기는 앱 이름은 `clavis - Cloudflare Workers`입니다. 예전 방식에서는 Preview URLs를 따로 보호하지 않으면 그 주소가 Access 없이 열리므로(데이터는 401로 막히지만 화면 껍데기와 API 명세가 보임), 같은 화면에서 Preview URLs에도 Access를 켜거나 Preview URLs를 끕니다.
+3. **사람 로그인 정책 다듬기 (필요할 때)**: 특정 사람만 허용하려면 Zero Trust → Access → Applications → 2단계에서 만든 앱 → Policies에서 Action `Allow` 정책의 Include를 고칩니다.
    - 특정 사람: **Emails**에 주소를 하나씩
    - 회사 전체: **Emails ending in**에 `@회사.com`
    - 로그인 방식: One-time PIN(이메일로 받은 코드)이 기본입니다. Google 등은 Zero Trust 설정의 **Authentication → Login methods**에서 추가합니다.
 4. **값 두 개 확인**
    - `ACCESS_TEAM_DOMAIN`: `https://<팀 이름>.cloudflareaccess.com`
-   - `ACCESS_AUD`: 같은 Access 앱의 개요(Basic information)에 있는 **Application Audience (AUD) Tag** — 64자리 16진수
+   - `ACCESS_AUD`: Zero Trust → Access → Applications → 같은 앱의 개요(Basic information)에 있는 **Application Audience (AUD) Tag** — 64자리 16진수
 
 > [!IMPORTANT]
 > Access를 껐다 켜거나 앱을 다시 만들면 AUD가 바뀝니다. 그러면 `ACCESS_AUD`를 고쳐 다시 배포해야 로그인됩니다.
@@ -195,7 +220,9 @@ git fetch upstream && git merge upstream/main
 | 로그인하면 "승인 대기" | 첫 사용자가 아님. 관리자가 **관리 → 사람**에서 역할을 줌 |
 | 로그인 화면이 안 뜨고 바로 열림 | Access가 꺼져 있거나 다른 주소(Preview URL, 커스텀 도메인)로 들어옴 → §5-2 |
 | 로그인 화면에서 "허용되지 않음" | Access 정책 Include에 그 이메일이 없음 → §5-3 |
-| 배포 오류: Queue·버킷·인덱스를 찾을 수 없음 | §2의 리소스가 없거나 이름이 `wrangler.jsonc`와 다름 |
+| `Command "wrangler" not found` | 저장소 루트에서 실행함. `apps/worker`에서 실행 → §1 |
+| `Please enable R2 through the Cloudflare Dashboard [code: 10042]` | 계정에서 R2를 켜지 않음 → §2 |
+| 배포 오류: Queue·버킷·인덱스를 찾을 수 없음 | §2의 리소스가 없거나 이름이 `wrangler.jsonc`와 다름. 별도 설정 파일을 쓰면 `-c`를 빠뜨렸는지 확인 → §3 |
 | 검색 화면에 "글자로 찾은 결과입니다" | 의미 검색을 쓸 수 없음(Workers AI 하루 한도, Vectorize 인덱스 없음) — 글자 검색은 정상 |
 | Slack·Webhook 링크가 다른 주소로 감 | `APP_ORIGIN` 확인 → §6 |
 | CI 배포에서 인증·권한 오류 | API 토큰 권한(§8-2)과 `CLOUDFLARE_ACCOUNT_ID` 확인 |
