@@ -1,18 +1,21 @@
 # 변경 내역
 
-Clavis의 주요 변경을 기록합니다. 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 따르되, 버전 태그 없이 날짜로 묶습니다.
+Clavis의 주요 변경을 기록합니다. 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 따르고, 0.9.0부터 [유의적 버전](https://semver.org/lang/ko/)으로 묶습니다(그 전은 날짜로 묶었습니다).
 
 ## 쓰는 방법
 
 - 사용자·에이전트·설치한 사람에게 보이는 변경을 **그 변경과 같은 커밋에서** `[Unreleased]`에 적습니다. 테스트·리팩터링·오타 수정은 적지 않습니다.
-- 묶음(Phase의 Step, 기능 하나)이 `main`에 배포되면 `[Unreleased]` 제목을 날짜로 바꾸고, 그 위에 빈 `[Unreleased]`를 새로 둡니다.
+- 릴리스할 때 루트 `package.json`의 `version`을 올리고, `[Unreleased]` 제목을 `[새 버전] - 날짜`로 바꾼 뒤 그 위에 빈 `[Unreleased]`를 새로 둡니다. 1.0 전에는 기능 추가·동작 변경이면 가운데 자리(0.9.0 → 0.10.0), 수정만이면 끝자리(0.9.0 → 0.9.1)를 올립니다. 절차는 [README의 버전](README.md#버전).
 - 분류: **추가** · **변경** · **수정** · **제거** · **보안** · **업데이트할 때 할 일**(직접 설치한 곳에서 새 리소스 만들기, 설정 바꾸기처럼 손으로 해야 하는 일 — [설치 가이드 §9](docs/guides/install.md#9-업데이트)). 빈 분류는 쓰지 않습니다.
 - 한 줄에 하나씩, 무엇이 달라졌는지 씁니다. 관련 결정(`D-xx`)이나 문서가 있으면 괄호로 붙입니다.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-30
+
 ### 추가
 
+- 버전: 0.9.0부터 루트 `package.json` 한 곳에서 버전을 매김. 사이드바 맨 아래 `Clavis v0.9.0`(마우스를 올리면 빌드한 커밋), `/api/v1/health`의 `version`, MCP 서버 정보에 같은 번호 (D-69)
 - 사이트 제목: 관리 → **일반**에서 정하면 화면 왼쪽 위와 브라우저 탭에 `Clavis - 제목`으로 보임. `GET /site`, `PUT /admin/site` (D-64, D-65)
 - 표시 이름: 헤더의 계정 메뉴에서 내 이름을 바꾸고, 지난 기록에도 새 이름이 보임. `PATCH /me` (D-66, D-67)
 
@@ -22,11 +25,17 @@ Clavis의 주요 변경을 기록합니다. 형식은 [Keep a Changelog](https:/
 - 사람·에이전트 이름은 새로 정하거나 바꿀 때 대소문자를 무시하고 겹칠 수 없음(409 `name-taken`), `[`·`]`·줄바꿈은 쓸 수 없음 (D-68)
 - 댓글의 `@멘션`이 쓸 때의 이름 대신 지금 이름으로 보임
 - 폰 헤더: 사이트 제목 자리를 위해 검색은 아이콘으로, 언어 선택은 계정 메뉴로
+- Worker 변수 `APP_VERSION`을 없앰 (버전은 빌드에 들어감)
 - README에 **Cloudflare 계정 바꾸기**: 계정마다 `apps/worker/wrangler.<별칭>.jsonc`를 두고 `-c`로 골라 배포, 로그인 바꾸기·API 토큰 방법. `.gitignore`는 `wrangler.*.jsonc`를 모두 뺌
+
+### 수정
+
+- Space 키가 길면 사이드바의 Space 목록, 홈의 문서 목록, 관리 → Space에서 키가 이름과 겹치던 문제 (키 칸을 가장 긴 키에 맞춤)
 
 ### 업데이트할 때 할 일
 
 - D1 마이그레이션 `0012_settings`: GitHub Actions 자동 배포면 할 일 없음. 직접 배포하면 먼저 `pnpm exec wrangler d1 migrations apply DB --remote` ([설치 가이드 §9](docs/guides/install.md#9-업데이트))
+- 계정별 설정 파일(`wrangler.<별칭>.jsonc`)의 `vars.APP_VERSION`은 더 쓰이지 않으므로 지워도 됨
 
 ## 2026-09-29
 

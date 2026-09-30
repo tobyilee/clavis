@@ -1,5 +1,6 @@
 {
   "name": "clavis",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.6.0",

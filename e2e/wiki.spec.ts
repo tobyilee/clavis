@@ -289,6 +289,7 @@ test('space settings: stricter rule and a custom template', async ({ page, reque
 test('home: favorites, recently viewed; raw Markdown and llms.txt; site title and my name', async ({
   page,
   request,
+  baseURL,
 }) => {
   await ensureSpace(request, 'HOME', '홈');
   const fm = '---\ntype: note\nstatus: draft\nowner: dev@example.com\n---\n';
@@ -299,6 +300,10 @@ test('home: favorites, recently viewed; raw Markdown and llms.txt; site title an
   const url = `/s/HOME/p/${encodeURI(`${p.slug}-${p.shortId}`)}`;
 
   await page.goto(url);
+  // The release (README "버전"): the sidebar shows the one /api/v1/health reports.
+  const { version } = await (await request.get('/api/v1/health')).json();
+  expect(version).toMatch(/^\d+\.\d+\.\d+$/);
+  await expect(page.getByText(`Clavis v${version}`)).toBeVisible();
   await page.getByRole('button', { name: '즐겨찾기에 추가' }).click();
   await expect(page.getByRole('button', { name: '즐겨찾기에서 빼기' })).toBeVisible();
   const sidebarFavorites = page.getByRole('region', { name: '즐겨찾기' });
@@ -309,9 +314,7 @@ test('home: favorites, recently viewed; raw Markdown and llms.txt; site title an
   await page.getByRole('button', { name: '더 보기' }).click();
   await page.getByRole('menuitem', { name: 'AI용 복사 (Markdown)' }).click();
   const copied = await page.evaluate(() => navigator.clipboard.readText());
-  expect(copied).toBe(
-    `# 자주 보는 문서\n\nSource: http://localhost:8788${decodeURI(url)}\n\n${fm}본문\n`,
-  );
+  expect(copied).toBe(`# 자주 보는 문서\n\nSource: ${baseURL}${decodeURI(url)}\n\n${fm}본문\n`);
 
   await page.goto('/');
   const favorites = page.locator('section', {
@@ -328,7 +331,7 @@ test('home: favorites, recently viewed; raw Markdown and llms.txt; site title an
   expect(md.headers()['content-type']).toBe('text/markdown; charset=utf-8');
   expect(await md.text()).toBe(`${fm}본문\n`);
   const llms = await (await request.get('/s/HOME/llms.txt')).text();
-  expect(llms).toContain(`- [자주 보는 문서](http://localhost:8788${url}.md): note, draft`);
+  expect(llms).toContain(`- [자주 보는 문서](${baseURL}${url}.md): note, draft`);
   expect(await (await request.get('/llms.txt')).text()).toContain('- [홈 (HOME)]');
 
   // An admin names the site: "Clavis - {title}" in the header and the browser tab (D-64).

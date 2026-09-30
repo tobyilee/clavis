@@ -49,7 +49,6 @@
   // Chunked nightly backup (D-30): every 2 min, 17:00-18:58 UTC = 02:00-03:58 KST (60 runs)
   "triggers": { "crons": ["*/2 17-18 * * *"] },
   "vars": {
-    "APP_VERSION": "0.0.0",
     // Links in Slack and webhook messages, which are built away from any request.
     "APP_ORIGIN": "https://clavis.crawl-proxy.workers.dev",
     // Cloudflare Access (D-05): public identifiers used to verify the Cf-Access-Jwt-Assertion JWT.

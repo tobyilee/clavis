@@ -1,3 +1,4 @@
+import { APP_VERSION } from '@clavis/shared/version';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import {
@@ -25,6 +26,7 @@ import { useCanEdit, useMe } from '@/lib/me';
 import { useSpaces } from '@/lib/queries';
 import { useCurrentLocation } from '@/lib/route';
 import { pageParams } from '@/lib/urls';
+import { keyColumnWidth } from '@/lib/utils';
 import { PageTree } from './page-tree';
 
 function SpaceSwitcher({ spaceKey }: { spaceKey: string | null }) {
@@ -32,6 +34,7 @@ function SpaceSwitcher({ spaceKey }: { spaceKey: string | null }) {
   const navigate = useNavigate();
   const spaces = useSpaces();
   const current = spaces.data?.find((s) => s.key === spaceKey);
+  const keyWidth = keyColumnWidth(spaces.data?.map((s) => s.key) ?? []);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -55,7 +58,12 @@ function SpaceSwitcher({ spaceKey }: { spaceKey: string | null }) {
             key={s.key}
             onSelect={() => void navigate({ to: '/s/$key', params: { key: s.key } })}
           >
-            <span className="w-12 font-mono text-xs text-muted-foreground">{s.key}</span>
+            <span
+              className="mr-1 shrink-0 font-mono text-xs text-muted-foreground"
+              style={{ width: keyWidth }}
+            >
+              {s.key}
+            </span>
             <span className="truncate">{s.name}</span>
           </DropdownMenuItem>
         ))}
@@ -151,6 +159,12 @@ export function Sidebar() {
           </Button>
         </div>
       )}
+      <p
+        className="px-2 text-[11px] text-muted-foreground"
+        title={__APP_COMMIT__ ? `commit ${__APP_COMMIT__}` : undefined}
+      >
+        Clavis v{APP_VERSION}
+      </p>
     </nav>
   );
 }

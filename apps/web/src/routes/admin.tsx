@@ -22,6 +22,7 @@ import { useMe } from '@/lib/me';
 import { spacesQuery } from '@/lib/queries';
 import { useSaveSiteTitle, useSite } from '@/lib/site';
 import { relativeTime } from '@/lib/time';
+import { keyColumnWidth } from '@/lib/utils';
 
 export const Route = createFileRoute('/admin')({ component: Admin });
 
@@ -390,6 +391,7 @@ function Spaces() {
   const queryClient = useQueryClient();
   const spaces = useQuery(spacesQuery(true));
   const [editing, setEditing] = useState<Space | 'new' | null>(null);
+  const keyWidth = keyColumnWidth(spaces.data?.map((s) => s.key) ?? []);
   const [error, setError] = useState<string | null>(null);
   const toggle = useMutation({
     mutationFn: (s: Space) =>
@@ -412,7 +414,9 @@ function Spaces() {
               s.archivedAt && 'opacity-60',
             )}
           >
-            <span className="w-16 font-mono text-xs">{s.key}</span>
+            <span className="shrink-0 font-mono text-xs" style={{ width: keyWidth }}>
+              {s.key}
+            </span>
             <span className="flex-1 font-medium">
               {s.name}{' '}
               {s.archivedAt && <span className="ml-1 text-xs">({t('space.archived')})</span>}

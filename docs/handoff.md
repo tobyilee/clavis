@@ -66,6 +66,7 @@ Phase 2 진행 현황 (결정 D-44~D-53은 모두 추천안으로 확정, [`deci
 - push 후에는 CI(run)를 지켜보고 결과를 알린다: `gh run list --limit 1`, `gh run watch <id> --exit-status`(백그라운드), `gh run view <id>`.
 - Step이 끝나면 계획서 §9 결과 행과 이 문서의 §1·§2를 갱신한다.
 - **변경 내역**: 사용자·에이전트·설치한 사람에게 보이는 변경은 **같은 커밋에서** [`CHANGELOG.md`](../CHANGELOG.md)의 `[Unreleased]`에 적는다(분류와 규칙은 그 파일 맨 위). 새 Cloudflare 리소스·설정처럼 설치한 곳에서 손으로 할 일은 **업데이트할 때 할 일**에.
+- **버전**: 0.9.0부터 루트 `package.json`의 `version` 한 곳(D-69). 릴리스할 때 그 값과 `CHANGELOG.md`의 `[Unreleased]` 제목을 함께 올린다(README "버전").
 
 ## 4. 보안 수칙 (반드시 지킬 것)
 

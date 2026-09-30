@@ -1,11 +1,14 @@
 import { SELF } from 'cloudflare:test';
+import { APP_VERSION } from '@clavis/shared/version';
 import { describe, expect, it } from 'vitest';
 
 describe('GET /api/v1/health', () => {
   it('reports ok with a working database', async () => {
     const res = await SELF.fetch('https://clavis.test/api/v1/health');
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: 'ok', version: '0.0.0', db: 'ok' });
+    expect(await res.json()).toEqual({ status: 'ok', version: APP_VERSION, db: 'ok' });
+    // The release from the root package.json (README "버전").
+    expect(APP_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
   });
 });
 

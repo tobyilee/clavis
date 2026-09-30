@@ -114,6 +114,27 @@ pnpm build && pnpm e2e    # 빌드한 SPA + wrangler dev(:8788, 빈 로컬 D1)�
 
 fork에서 쓰려면 GitHub secrets(`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`)를 넣고 `ci.yml`의 주소를 내 주소로 바꿉니다 → [설치 가이드 §8](docs/guides/install.md#8-github-actions로-자동-배포-선택).
 
+## 버전
+
+지금 버전은 **0.9.0**입니다. [유의적 버전](https://semver.org/lang/ko/)을 따르고, 버전마다 바뀐 내용은 [`CHANGELOG.md`](CHANGELOG.md)에 있습니다.
+
+- **정하는 곳은 한 곳**: 루트 `package.json`의 `"version"`. Worker와 웹 앱이 빌드할 때 `@clavis/shared/version`으로 같은 값을 읽으므로, 계정별 설정 파일에는 버전이 없습니다.
+- **보이는 곳**
+
+  | 어디 | 모양 |
+  |---|---|
+  | 화면 사이드바 맨 아래 (폰은 ☰ 메뉴 안) | `Clavis v0.9.0` — 마우스를 올리면 빌드한 커밋 |
+  | `GET /api/v1/health` (로그인한 브라우저에서) | `{"status":"ok","version":"0.9.0","db":"ok"}` |
+  | MCP 서버 정보 | 이름 `clavis`, 버전 `0.9.0` |
+
+- **번호 매기기** (1.0 전): 기능 추가·동작 변경은 가운데 자리(`0.9.0` → `0.10.0`), 버그 수정만이면 끝자리(`0.9.0` → `0.9.1`).
+- **올리는 방법**
+  1. 루트 `package.json`의 `version`을 새 번호로 바꿉니다.
+  2. `CHANGELOG.md`의 `[Unreleased]` 제목을 `[새 버전] - 날짜`로 바꾸고, 그 위에 빈 `[Unreleased]`를 둡니다.
+  3. 커밋하고 push하면 CI가 배포합니다. 다른 계정에는 [Cloudflare 계정 바꾸기](#cloudflare-계정-바꾸기)대로 배포합니다.
+  4. (선택) 태그: `git tag v0.9.1 && git push origin v0.9.1`
+- **어느 버전이 배포돼 있나**: 화면의 사이드바 맨 아래, 또는 `/api/v1/health`. 커밋까지 보려면 사이드바 버전에 마우스를 올리거나 `pnpm exec wrangler deployments list`의 메시지를 봅니다.
+
 ## Cloudflare 계정 바꾸기
 
 Cloudflare 계정 여러 개를 오가며 배포할 때는 **계정마다 설정 파일을 하나씩** 두고, 배포할 때 그 파일을 고릅니다. `apps/worker/wrangler.jsonc`는 `main` push로 CI가 배포하는 인스턴스의 설정이므로 고치지 않습니다.

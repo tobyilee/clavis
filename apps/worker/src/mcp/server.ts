@@ -10,6 +10,7 @@ import {
   type TreeNode,
   type Violation,
 } from '@clavis/shared/schema';
+import { APP_VERSION } from '@clavis/shared/version';
 import { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import type { Emit } from '../events';
@@ -317,7 +318,7 @@ const INPUT = {
 export function buildMcpServer(env: Env, actor: Actor, origin = '', emit?: Emit) {
   const DB = env.DB;
   const server = new McpServer(
-    { name: 'clavis', version: env.APP_VERSION },
+    { name: 'clavis', version: APP_VERSION },
     { instructions: INSTRUCTIONS },
   );
   const canWrite = actor.role === 'editor' || actor.role === 'admin';

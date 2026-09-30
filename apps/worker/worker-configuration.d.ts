@@ -10,7 +10,6 @@ interface __BaseEnv_Env {
 	HUMAN_RATE_LIMITER: RateLimit;
 	AI: Ai;
 	ASSETS: Fetcher;
-	APP_VERSION: "0.0.0";
 	APP_ORIGIN: "https://clavis.crawl-proxy.workers.dev";
 	ACCESS_TEAM_DOMAIN: "https://red-voice-3160.cloudflareaccess.com";
 	ACCESS_AUD: "ad5290676f1e5594abd4f7e92d3e30582c0ae7f99f65b98a5781f89226f6b987";
@@ -27,7 +26,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "APP_VERSION" | "APP_ORIGIN" | "ACCESS_TEAM_DOMAIN" | "ACCESS_AUD" | "DEV_ACCESS_EMAIL">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "APP_ORIGIN" | "ACCESS_TEAM_DOMAIN" | "ACCESS_AUD" | "DEV_ACCESS_EMAIL">> {}
 }
 
 // Begin runtime types

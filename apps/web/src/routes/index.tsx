@@ -12,6 +12,7 @@ import { useMe } from '@/lib/me';
 import { useSpaces } from '@/lib/queries';
 import { relativeTime } from '@/lib/time';
 import { pageParams } from '@/lib/urls';
+import { keyColumnWidth } from '@/lib/utils';
 
 export const Route = createFileRoute('/')({ component: HomePage });
 
@@ -108,6 +109,7 @@ function PageList({
   detail?: (p: PageListItem) => string;
 }) {
   const { t, i18n } = useTranslation();
+  const keyWidth = keyColumnWidth(items.map((p) => p.spaceKey));
   return (
     <section>
       <div className="flex items-center justify-between gap-2">
@@ -129,7 +131,10 @@ function PageList({
                   params={pageParams(p)}
                   className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent"
                 >
-                  <span className="w-12 shrink-0 font-mono text-xs text-muted-foreground">
+                  <span
+                    className="shrink-0 font-mono text-xs text-muted-foreground"
+                    style={{ width: keyWidth }}
+                  >
                     {p.spaceKey}
                   </span>
                   <span className="min-w-0 flex-1 truncate">{p.title}</span>

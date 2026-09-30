@@ -1,13 +1,13 @@
 {
   "name": "@clavis/shared",
-  "version": "0.0.0",
   "private": true,
   "type": "module",
   "exports": {
     "./schema": "./src/schema/index.ts",
     "./markdown": "./src/markdown/index.ts",
     "./lint": "./src/lint/index.ts",
-    "./templates": "./src/templates/index.ts"
+    "./templates": "./src/templates/index.ts",
+    "./version": "./src/version.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",

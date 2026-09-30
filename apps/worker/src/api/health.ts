@@ -1,3 +1,4 @@
+import { APP_VERSION } from '@clavis/shared/version';
 import { createRoute, z } from '@hono/zod-openapi';
 import { router } from './router';
 
@@ -29,5 +30,5 @@ export const health = router().openapi(route, async (c) => {
   } catch {
     db = 'error';
   }
-  return c.json({ status: 'ok' as const, version: c.env.APP_VERSION, db }, 200);
+  return c.json({ status: 'ok' as const, version: APP_VERSION, db }, 200);
 });
