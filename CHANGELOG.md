@@ -17,6 +17,10 @@ Clavis의 주요 변경을 기록합니다. 형식은 [Keep a Changelog](https:/
 - `scripts/cf-as.sh <별칭> <wrangler 인자>`: `.agent.env`의 `CLOUDFLARE_API_TOKEN_<별칭>`으로 브라우저 로그인 없이 그 사용자로 wrangler 실행 (README **Cloudflare 계정 바꾸기**)
 - `agent:create`에 `--config wrangler.<별칭>.jsonc`(다른 계정의 인스턴스에 에이전트 등록)와 `--key`(`.agent.env`에 저장할 이름). `.agent.env`의 주석·빈 줄을 지우지 않음
 
+### 변경
+
+- 설치 가이드: Access에 로그인 방법(Google·GitHub 등) 추가하기 — 새 대시보드 위치 **Integrations → Identity providers**와 앱의 **Login methods** 탭, 정책별로 누가 들어오는지(**Cloudflare account**, **Everyone** + 관리자 승인)와 무료 플랜 50명 자리, 문제 해결 항목 ([`docs/guides/install.md`](docs/guides/install.md#로그인-방법-추가-선택))
+
 ## [0.9.0] - 2026-09-30
 
 ### 추가

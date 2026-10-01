@@ -129,16 +129,29 @@ pnpm exec wrangler deploy
    - **Authentication policy**에서 누가 로그인할지 고릅니다. **Cloudflare account**는 이 Cloudflare 계정의 멤버, **Email domain**은 `회사.com` 같은 도메인의 모든 주소입니다.
    - **Apply Access**를 누르면 Zero Trust에 이 Worker용 Access 앱이 생깁니다. 이 방식은 workers.dev 주소, Preview URL, 커스텀 도메인을 한꺼번에 보호합니다.
    - 예전 대시보드에는 Access 탭이 없고 Settings → **Domains & Routes** → `workers.dev` 행의 **Enable Cloudflare Access**로 켭니다. 이때 생기는 앱 이름은 `clavis - Cloudflare Workers`입니다. 예전 방식에서는 Preview URLs를 따로 보호하지 않으면 그 주소가 Access 없이 열리므로(데이터는 401로 막히지만 화면 껍데기와 API 명세가 보임), 같은 화면에서 Preview URLs에도 Access를 켜거나 Preview URLs를 끕니다.
-3. **사람 로그인 정책 다듬기 (필요할 때)**: 특정 사람만 허용하려면 Zero Trust → Access → Applications → 2단계에서 만든 앱 → Policies에서 Action `Allow` 정책의 Include를 고칩니다.
+3. **사람 로그인 정책 다듬기 (필요할 때)**: Zero Trust → **Access controls → Applications**(예전: Access → Applications) → 2단계에서 만든 앱 → **Policies** 탭에서 Action `Allow` 정책의 Include를 고칩니다. 새 정책을 붙일 때는 **Add existing policy**에서 고르거나 **Create new policy**로 만들고, 맨 아래 **Save**를 누릅니다.
    - 특정 사람: **Emails**에 주소를 하나씩
    - 회사 전체: **Emails ending in**에 `@회사.com`
-   - 로그인 방식: One-time PIN(이메일로 받은 코드)이 기본입니다. Google 등은 Zero Trust 설정의 **Authentication → Login methods**에서 추가합니다.
+   - 2단계의 **Cloudflare account**: 이 Cloudflare 계정의 멤버만 들어옵니다. 다른 사람은 Access 화면에서 막힙니다.
+   - **누구나 로그인하고 관리자가 승인**: **Everyone**. Access는 본인 확인만 하고, Clavis의 **승인 대기**(§7)가 문지기가 됩니다. Zero Trust 무료 플랜은 50명까지이고 Access로 로그인한 사람마다 한 자리를 차지하므로, 모르는 사람이 로그인했으면 Zero Trust의 사용자(Users) 목록에서 정리합니다.
+   - 로그인 방식: 이메일로 받은 PIN(One-time PIN)이 기본입니다. Google·GitHub 등은 아래 [로그인 방법 추가](#로그인-방법-추가-선택).
 4. **값 두 개 확인**
    - `ACCESS_TEAM_DOMAIN`: `https://<팀 이름>.cloudflareaccess.com`
    - `ACCESS_AUD`: Zero Trust → Access → Applications → 같은 앱의 개요(Basic information)에 있는 **Application Audience (AUD) Tag** — 64자리 16진수
 
 > [!IMPORTANT]
 > Access를 껐다 켜거나 앱을 다시 만들면 AUD가 바뀝니다. 그러면 `ACCESS_AUD`를 고쳐 다시 배포해야 로그인됩니다.
+
+### 로그인 방법 추가 (선택)
+
+Clavis는 로그인을 직접 처리하지 않고 Access가 넘겨준 이메일만 봅니다. 그래서 Access에 로그인 방법을 더하면 코드나 설정 파일을 고치지 않고 Google·GitHub·Microsoft 계정 등으로 로그인할 수 있습니다. 메뉴 이름은 대시보드 버전에 따라 조금 다를 수 있습니다.
+
+1. **로그인 제공자 등록**: Zero Trust(Cloudflare One) → **Integrations → Identity providers** → **Add an identity provider**. 예전 대시보드에서는 Settings → **Authentication** → Login methods입니다. 목록에 One-time PIN이 이미 있으면 맞는 화면입니다.
+   - Google·GitHub 등을 고르면 Client ID·Client Secret을 넣는 화면이 나옵니다. 값은 그 제공자에서 OAuth 앱을 만들어 받습니다. Google은 Google Cloud Console → APIs & Services → Credentials → **OAuth client ID**(Web application), GitHub는 Settings → Developer settings → **OAuth Apps**.
+   - 제공자에 넣는 콜백(Redirect) 주소: `https://<팀 이름>.cloudflareaccess.com/cdn-cgi/access/callback`
+   - 저장한 뒤 목록의 **Test**로 로그인이 되는지 확인합니다.
+2. **앱에서 켜기**: 3단계의 앱 화면 → **Login methods** 탭에서 로그인 화면에 보일 방법을 체크하고 저장합니다. 제공자를 찾기 어려우면 이 탭에서 새 방법을 추가하는 링크로 가도 됩니다.
+3. **누가 들어올지**는 로그인 방법과 따로 정합니다(3단계의 Policies). 로그인 방법을 더해도 정책이 허용하지 않는 사람은 Access 화면에서 막히고, 허용된 사람도 처음에는 Clavis에서 **승인 대기**입니다(§7).
 
 ## 6. 설정 채우고 다시 배포
 
@@ -221,7 +234,8 @@ git fetch upstream && git merge upstream/main
 | 로그인했는데 "Authentication required"(401) | `ACCESS_TEAM_DOMAIN`·`ACCESS_AUD`가 비었거나 틀림, 또는 고친 뒤 다시 배포하지 않음. Access를 껐다 켰다면 AUD가 바뀜 |
 | 로그인하면 "승인 대기" | 첫 사용자가 아님. 관리자가 **관리 → 사람**에서 역할을 줌 |
 | 로그인 화면이 안 뜨고 바로 열림 | Access가 꺼져 있거나 다른 주소(Preview URL, 커스텀 도메인)로 들어옴 → §5-2 |
-| 로그인 화면에서 "허용되지 않음" | Access 정책 Include에 그 이메일이 없음 → §5-3 |
+| 로그인 화면에서 "허용되지 않음" | Access 정책 Include에 그 이메일이 없음. 정책이 **Cloudflare account**면 그 계정의 멤버만 들어옴 → §5-3 |
+| 로그인 화면에 Google·GitHub 등이 없음 | 로그인 제공자를 등록하지 않았거나 앱의 **Login methods** 탭에서 켜지 않음 → [§5 로그인 방법 추가](#로그인-방법-추가-선택) |
 | `Command "wrangler" not found` | 저장소 루트에서 실행함. `apps/worker`에서 실행 → §1 |
 | `Please enable R2 through the Cloudflare Dashboard [code: 10042]` | 계정에서 R2를 켜지 않음 → §2 |
 | 배포 오류: Queue·버킷·인덱스를 찾을 수 없음 | §2의 리소스가 없거나 이름이 `wrangler.jsonc`와 다름. 별도 설정 파일을 쓰면 `-c`를 빠뜨렸는지 확인 → §3 |
