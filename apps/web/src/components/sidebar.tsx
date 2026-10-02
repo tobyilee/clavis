@@ -26,7 +26,7 @@ import { useCanEdit, useMe } from '@/lib/me';
 import { useSpaces } from '@/lib/queries';
 import { useCurrentLocation } from '@/lib/route';
 import { pageParams } from '@/lib/urls';
-import { keyColumnWidth } from '@/lib/utils';
+import { keyColumnWidth, titleIfTruncated } from '@/lib/utils';
 import { PageTree } from './page-tree';
 
 function SpaceSwitcher({ spaceKey }: { spaceKey: string | null }) {
@@ -92,6 +92,7 @@ function Favorites({ spaceKey, shortId }: { spaceKey: string | null; shortId: st
             <Link
               to="/s/$key/p/$slugId"
               params={pageParams(f)}
+              onMouseEnter={titleIfTruncated}
               className={
                 f.shortId === shortId
                   ? 'flex items-center gap-2 rounded-md bg-accent px-2 py-1 text-sm font-medium'

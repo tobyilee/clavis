@@ -15,6 +15,8 @@ Clavis의 주요 변경을 기록합니다. 형식은 [Keep a Changelog](https:/
 
 - 사용 매뉴얼: CLAVIS Space의 「Clavis 사용 매뉴얼」과 하위 페이지 14개를 Markdown 원문 그대로 저장소에 둠. 파일 이름은 페이지 제목 ([`docs/manual`](docs/manual))
 - `scripts/cf-as.sh <별칭> <wrangler 인자>`: `.agent.env`의 `CLOUDFLARE_API_TOKEN_<별칭>`으로 브라우저 로그인 없이 그 사용자로 wrangler 실행 (README **Cloudflare 계정 바꾸기**)
+- 사이드바 폭 조절: 데스크톱에서 사이드바 오른쪽 경계를 끌어 200px~560px(창 폭의 절반까지)로 넓히거나 좁힘. 경계에 포커스를 두고 ←/→ 키로도 바뀌고, 더블클릭하면 기본 폭으로 돌아감. 폭은 브라우저마다 기억함
+- 사이드바 페이지 트리·즐겨찾기에서 잘린 제목에 마우스를 올리면 전체 제목이 툴팁으로 보임
 - `agent:create`에 `--config wrangler.<별칭>.jsonc`(다른 계정의 인스턴스에 에이전트 등록)와 `--key`(`.agent.env`에 저장할 이름). `.agent.env`의 주석·빈 줄을 지우지 않음
 
 ### 변경

@@ -10,6 +10,7 @@ import { formatSiteTitle, useSite } from '@/lib/site';
 import { cn } from '@/lib/utils';
 import { CommandPalette } from './command-palette';
 import { NotificationBell } from './notification-bell';
+import { ResizableAside } from './resizable-aside';
 import { Sidebar } from './sidebar';
 import { UserMenu } from './user-menu';
 
@@ -105,9 +106,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <div className="flex flex-1">
-        <aside className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-64 shrink-0 border-r bg-sidebar md:block">
+        <ResizableAside>
           <Sidebar />
-        </aside>
+        </ResizableAside>
         <main className="min-w-0 flex-1 px-4 py-6 md:px-8">{children}</main>
       </div>
     </div>

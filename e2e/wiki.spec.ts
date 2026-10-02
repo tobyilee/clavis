@@ -384,3 +384,52 @@ test('editor: focused on open, light like GitHub even on a dark OS', async ({ pa
   // GitHub light: #1f2328 on white, whatever the OS prefers.
   expect(colors).toMatchObject({ text: 'rgb(31, 35, 40)', background: 'rgb(255, 255, 255)' });
 });
+
+test('sidebar: drag its edge wider, kept on reload; full title on a cut-short one', async ({
+  page,
+  request,
+}) => {
+  await ensureSpace(request, 'NAV', '탐색');
+  const fm = '---\ntype: note\nstatus: draft\nowner: dev@example.com\n---\n';
+  const long = 'BrewLoop SDK 적용 가이드와 실제 연동 결과, 남은 과제 정리';
+  const res = await request.post('/api/v1/spaces/NAV/pages', {
+    data: { title: long, content: `${fm}본문\n` },
+  });
+  await request.post('/api/v1/spaces/NAV/pages', { data: { title: '짧음', content: fm } });
+  const p = (await res.json()).page;
+  await page.goto(`/s/NAV/p/${encodeURI(`${p.slug}-${p.shortId}`)}`);
+
+  // Cut short at the default width: hovering shows the whole title; a short one gets none.
+  const tree = page.getByRole('navigation');
+  // The name ends with the status ("초안"); the + link beside it starts with a quote.
+  const longLink = tree.getByRole('link', { name: new RegExp(`^${long}`) });
+  await longLink.hover();
+  await expect(longLink).toHaveAttribute('title', long);
+  const shortLink = tree.getByRole('link', { name: /^짧음/ });
+  await shortLink.hover();
+  await expect(shortLink).not.toHaveAttribute('title');
+
+  const edge = page.getByRole('separator', { name: 'Resize sidebar' });
+  const aside = page.locator('aside', { has: edge }); // not the table of contents
+  expect((await aside.boundingBox())?.width).toBe(256);
+  const box = await edge.boundingBox();
+  if (!box) throw new Error('no sidebar edge');
+  await page.mouse.move(box.x + box.width / 2, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 200, box.y + 200, { steps: 5 });
+  await page.mouse.up();
+  expect((await aside.boundingBox())?.width).toBe(456);
+
+  // Wide enough now, so no tooltip; the width survives a reload.
+  await longLink.hover();
+  await expect(longLink).not.toHaveAttribute('title');
+  await page.reload();
+  await expect(edge).toHaveAttribute('aria-valuenow', '456');
+
+  // The keyboard moves it too; a double click puts it back.
+  await edge.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(edge).toHaveAttribute('aria-valuenow', '440');
+  await edge.dblclick();
+  expect((await aside.boundingBox())?.width).toBe(256);
+});

@@ -10,6 +10,7 @@ import { useCanEdit } from '@/lib/me';
 import { indexTree, type TreeIndex, treeQuery } from '@/lib/queries';
 import { storage } from '@/lib/storage';
 import { pageParams } from '@/lib/urls';
+import { titleIfTruncated } from '@/lib/utils';
 import { StatusDot } from './status';
 
 const expandedKey = (spaceKey: string) => `clavis.tree.${spaceKey}`;
@@ -224,6 +225,7 @@ function TreeItem({
           to="/s/$key/p/$slugId"
           params={pageParams({ spaceKey, slug: node.slug, shortId: node.shortId })}
           aria-current={active ? 'page' : undefined}
+          onMouseEnter={titleIfTruncated}
           className={cn(
             'flex min-w-0 flex-1 items-center gap-2 py-1',
             node.status === 'deprecated' && 'text-muted-foreground line-through',
