@@ -389,15 +389,17 @@ test('sidebar: drag its edge wider, kept on reload; full title on a cut-short on
   page,
   request,
 }) => {
-  await ensureSpace(request, 'NAV', '탐색');
+  // A space of its own per attempt: a retry reuses the database, where the titles are taken.
+  const key = `NAV${test.info().retry || ''}`;
+  await ensureSpace(request, key, '탐색');
   const fm = '---\ntype: note\nstatus: draft\nowner: dev@example.com\n---\n';
-  const long = 'BrewLoop SDK 적용 가이드와 실제 연동 결과, 남은 과제 정리';
-  const res = await request.post('/api/v1/spaces/NAV/pages', {
+  const long = 'BrewLoop SDK 적용 가이드와 실제 연동 결과';
+  const res = await request.post(`/api/v1/spaces/${key}/pages`, {
     data: { title: long, content: `${fm}본문\n` },
   });
-  await request.post('/api/v1/spaces/NAV/pages', { data: { title: '짧음', content: fm } });
+  await request.post(`/api/v1/spaces/${key}/pages`, { data: { title: '짧음', content: fm } });
   const p = (await res.json()).page;
-  await page.goto(`/s/NAV/p/${encodeURI(`${p.slug}-${p.shortId}`)}`);
+  await page.goto(`/s/${key}/p/${encodeURI(`${p.slug}-${p.shortId}`)}`);
 
   // Cut short at the default width: hovering shows the whole title; a short one gets none.
   const tree = page.getByRole('navigation');
@@ -412,24 +414,30 @@ test('sidebar: drag its edge wider, kept on reload; full title on a cut-short on
   const edge = page.getByRole('separator', { name: 'Resize sidebar' });
   const aside = page.locator('aside', { has: edge }); // not the table of contents
   expect((await aside.boundingBox())?.width).toBe(256);
+  // Widen by what the ellipsis hides (fonts differ by OS) plus some room.
+  const hidden = await longLink
+    .locator('.truncate')
+    .evaluate((el) => el.scrollWidth - el.clientWidth);
+  const wide = 256 + hidden + 24;
+  expect(wide).toBeLessThanOrEqual(560);
   const box = await edge.boundingBox();
   if (!box) throw new Error('no sidebar edge');
   await page.mouse.move(box.x + box.width / 2, box.y + 200);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 + 200, box.y + 200, { steps: 5 });
+  await page.mouse.move(box.x + box.width / 2 + wide - 256, box.y + 200, { steps: 5 });
   await page.mouse.up();
-  expect((await aside.boundingBox())?.width).toBe(456);
+  expect((await aside.boundingBox())?.width).toBe(wide);
 
   // Wide enough now, so no tooltip; the width survives a reload.
   await longLink.hover();
   await expect(longLink).not.toHaveAttribute('title');
   await page.reload();
-  await expect(edge).toHaveAttribute('aria-valuenow', '456');
+  await expect(edge).toHaveAttribute('aria-valuenow', String(wide));
 
   // The keyboard moves it too; a double click puts it back.
   await edge.focus();
   await page.keyboard.press('ArrowLeft');
-  await expect(edge).toHaveAttribute('aria-valuenow', '440');
+  await expect(edge).toHaveAttribute('aria-valuenow', String(wide - 16));
   await edge.dblclick();
   expect((await aside.boundingBox())?.width).toBe(256);
 });
